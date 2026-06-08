@@ -31,3 +31,5 @@ _fullpage.png
 *.output
 sniff_*.log
 settings.json
+*.txt
+sniff_fullpage.png
