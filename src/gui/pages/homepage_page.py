@@ -98,6 +98,7 @@ class HomepageDownloadThread(QThread):
 
     def run(self):
         from src.api import DouyinAPI
+        from src.cookie import load_cookie as _load_cookie
 
         url = self.url.strip()
         try:
@@ -112,11 +113,12 @@ class HomepageDownloadThread(QThread):
 
         self.log_signal.emit(f"[OK] 用户: {sec_id[:24]}...")
 
-        import src.webview_api as wapi
+        cookie = _load_cookie()
+        api = DouyinAPI(cookie_string=cookie)
 
-        profile = wapi.get_user_profile(sec_id)
-        if profile.get("_error"):
-            self.log_signal.emit(f"[ERROR] {profile['_error']}")
+        profile = api.get_user_profile(sec_id)
+        if not profile or (not profile.get("nickname") and not profile.get("uid")):
+            self.log_signal.emit(f"[ERROR] 无法获取用户信息，请检查Cookie是否过期")
             self.finished_signal.emit({"video":0,"image":0,"music":0,"skip":0,"fail":0,"cancelled":True})
             return
         self.log_signal.emit(f"[OK] 昵称: {profile.get('nickname','?')} 作品: {profile.get('aweme_count',0)}")
@@ -136,7 +138,7 @@ class HomepageDownloadThread(QThread):
                 })
                 return
             self._wait()
-            data = wapi.get_user_posts(sec_id, max_cursor=cursor, count=18)
+            data = api.get_user_posts(sec_id, max_cursor=cursor, count=18)
             aweme_list = data.get("aweme_list", [])
             if not aweme_list:
                 break

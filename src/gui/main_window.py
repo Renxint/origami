@@ -297,46 +297,61 @@ class MainWindow(QMainWindow):
                 from src.environ import force_raise_window
                 force_raise_window(self)
 
-            # 判断类型
-            is_short = "v.douyin.com" in found
-            is_user = "/user/" in found or "/share/user/" in found
             is_video = "/video/" in found or "/note/" in found
-
+            is_user = "/user/" in found or "/share/user/" in found
+            is_short = "v.douyin.com" in found
             if is_video:
-                self.stack.setCurrentIndex(2)
-                self.single_page.url_input.setText(clip)
+                self._navigate_single(clip)
             elif is_user:
-                self.stack.setCurrentIndex(3)
-                page = self.batch_page
-                page._tab_other.setChecked(True); page._tab_own.setChecked(False)
-                page._style_tabs(); page._content.setCurrentIndex(0)
-                page._other_url.setText(clip)
-                threading.Thread(target=lambda: page._auto_fetch_other(clip), daemon=True).start()
+                self._navigate_batch(clip)
             elif is_short:
-                # 短链同步解析（HEAD 请求，很快），超时 3s 不阻塞
+                # 短链需先解析才能判断是视频还是主页
                 resolved = self._resolve_short_sync(found)
                 if "/user/" in resolved or "/share/user/" in resolved:
                     self._navigate_batch(clip)
-                elif "/video/" in resolved or "/note/" in resolved:
-                    self._navigate_single(clip)
                 else:
-                    self._navigate_batch(clip)
+                    self._navigate_single(clip)
             else:
                 return
         except Exception:
-            pass
+            import traceback
+            try:
+                with open(EXE_DIR / "_crash.log", "a", encoding="utf-8") as f:
+                    f.write(f"[{time.strftime('%H:%M:%S')}] clipboard error:\n{traceback.format_exc()}\n")
+            except Exception:
+                pass
 
     def _navigate_batch(self, clip: str):
         self.stack.setCurrentIndex(3)
         page = self.batch_page
         page._tab_other.setChecked(True); page._tab_own.setChecked(False)
         page._style_tabs(); page._content.setCurrentIndex(0)
-        page._other_url.setText(clip)
-        threading.Thread(target=lambda: page._auto_fetch_other(clip), daemon=True).start()
+        # 从剪贴板提取 URL 并解析短链
+        import re
+        clean_url = clip
+        for pat in [r'https?://[^\s]+']:
+            m = re.search(pat, clip)
+            if m:
+                clean_url = m.group(0).rstrip('.,;:!?）」)】')
+                break
+        # 短链先 302 解析为完整 URL，再填入输入框
+        if "v.douyin.com" in clean_url:
+            try:
+                from src.environ import USER_AGENT
+                s = __import__("requests").Session()
+                s.headers.update({"User-Agent": USER_AGENT})
+                r = s.get(clean_url, allow_redirects=True, timeout=10, stream=True)
+                r.close()
+                clean_url = r.url
+            except Exception:
+                pass  # 解析失败保留短链
+        page._other_url.setText(clean_url)
+        # 直接触发拉取（跳过防抖）
+        page._trigger_fetch(clean_url)
 
     @staticmethod
     def _resolve_short_sync(url: str) -> str:
-        """同步解析短链（HEAD 请求，3s 超时），返回 resolved URL"""
+        """同步解析短链（GET + stream，3s 超时），返回 resolved URL"""
         try:
             from src.environ import USER_AGENT
             from src.cookie import load_cookie
@@ -345,14 +360,21 @@ class MainWindow(QMainWindow):
             cookie = load_cookie()
             if cookie:
                 s.headers.update({"Cookie": cookie})
-            r = s.head(url, allow_redirects=True, timeout=3)
+            r = s.get(url, allow_redirects=True, timeout=3, stream=True)
+            r.close()
             return r.url
         except Exception:
             return url
 
     def _navigate_single(self, clip: str):
         self.stack.setCurrentIndex(2)
-        self.single_page.url_input.setText(clip)
+        # 只填入提取到的干净 URL
+        clean_url = clip
+        import re
+        m = re.search(r'https?://v\.douyin\.com/[^\s]+|https?://(?:www\.)?douyin\.com/(?:video|note)/\d+[^\s]*', clip)
+        if m:
+            clean_url = m.group(0).rstrip('.,;:!?）」)】')
+        self.single_page.url_input.setText(clean_url)
 
     # ── 导航 ──
 

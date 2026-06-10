@@ -143,6 +143,13 @@ class DouyinAPI:
             resp = self.session.get(url, timeout=TIMEOUT)
             data = resp.json()
             user = data.get("user", {})
+            # 检测被拦截或空响应
+            status_code = data.get("status_code", 0)
+            status_msg = data.get("status_msg", "")
+            if status_code != 0 or status_msg == "blocked":
+                return {"_error": f"API拦截 status_code={status_code} msg={status_msg}"}
+            if not user or (not user.get("nickname") and not user.get("uid")):
+                return {"_error": f"用户不存在或Cookie过期 (status_msg={status_msg})"}
             aweme_count = 0
             for src in (user, data):
                 for key in ("aweme_count", "aweme_total", "max_aweme_count",
@@ -153,28 +160,60 @@ class DouyinAPI:
                         break
                 if aweme_count > 0:
                     break
+            # 个人标签
+            tags = []
+            for t in (user.get("personal_tag_list") or []):
+                tags.append(t.get("text", ""))
+            # 封面图
+            cover_url = ""
+            for _ck in ("cover_url", "white_cover_url"):
+                _cv = user.get(_ck) or []
+                if isinstance(_cv, list) and _cv:
+                    _cu = (_cv[0].get("url_list") or [""])[0] if isinstance(_cv[0], dict) else ""
+                elif isinstance(_cv, dict):
+                    _cu = (_cv.get("url_list") or [""])[0]
+                else:
+                    _cu = ""
+                if _cu:
+                    cover_url = _cu
+                    break
             return {
                 "nickname": user.get("nickname", ""),
                 "unique_id": user.get("unique_id", ""),
                 "short_id": user.get("short_id", ""),
                 "uid": user.get("uid", ""),
                 "sec_uid": user.get("sec_uid", ""),
-                "desc": user.get("desc", "") or user.get("signature", ""),
+                "desc": user.get("signature", ""),
                 "aweme_count": aweme_count,
                 "follower_count": user.get("follower_count", 0) or 0,
                 "following_count": user.get("following_count", 0) or 0,
                 "favoriting_count": user.get("favoriting_count", 0) or 0,
                 "total_favorited": user.get("total_favorited", 0) or 0,
+                "max_follower_count": user.get("max_follower_count", 0) or 0,
+                "dongtai_count": user.get("dongtai_count", 0) or 0,
                 "country": user.get("country", ""),
                 "province": user.get("province", ""),
                 "city": user.get("city", ""),
                 "district": user.get("district", ""),
-                "school": user.get("school", ""),
-                "age": user.get("age", ""),
-                "gender": user.get("gender", ""),
+                "ip_location": user.get("ip_location", ""),
+                "school": user.get("school_name", ""),
+                "age": user.get("user_age", -1),
+                "gender": user.get("gender", 0),
                 "custom_verify": user.get("custom_verify", ""),
                 "enterprise_verify_reason": user.get("enterprise_verify_reason", ""),
+                "verification_type": user.get("verification_type", 0),
+                "is_star": user.get("is_star", False),
                 "avatar_url": _get_avatar(user),
+                "cover_url": cover_url,
+                "cover_colour": user.get("cover_colour", ""),
+                "personal_tags": tags,
+                "share_info": user.get("share_info", {}),
+                "live_status": user.get("live_status", 0),
+                "commerce_user_level": user.get("commerce_user_level", 0),
+                "original_musician": user.get("original_musician", {}),
+                "with_commerce_entry": user.get("with_commerce_entry", False),
+                "secret": user.get("secret", 0),
+                "birthday_hide_level": user.get("birthday_hide_level", 0),
             }
         except Exception:
             return {}
@@ -188,6 +227,47 @@ class DouyinAPI:
         try:
             resp = self.session.get(url, timeout=TIMEOUT)
             return resp.json()
+        except Exception:
+            return {}
+
+    def get_aweme_detail(self, aweme_id: str) -> Dict:
+        """获取单个作品详情（含完整视频 URL，实况必需）"""
+        params = {
+            "aweme_id": aweme_id,
+            "device_platform": "webapp",
+            "aid": "6383",
+            "channel": "channel_pc_web",
+            "pc_client_type": "1",
+            "version_code": "290100",
+            "version_name": "29.1.0",
+            "cookie_enabled": "true",
+            "screen_width": "2560",
+            "screen_height": "1440",
+            "browser_language": "zh-CN",
+            "browser_platform": "Win32",
+            "browser_name": "Smart+Lenovo+Browser",
+            "browser_version": "9.0.8.5161",
+            "browser_online": "true",
+            "engine_name": "Blink",
+            "engine_version": "141.0.0.0",
+            "os_name": "Windows",
+            "os_version": "10",
+            "cpu_core_num": "32",
+            "device_memory": "8",
+            "platform": "PC",
+            "downlink": "10",
+            "effective_type": "4g",
+            "round_trip_time": "50",
+            "webid": WEBID,
+            "uifid": UIFID,
+            "verifyFp": VERIFY_FP,
+            "fp": FP,
+        }
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"https://www.douyin.com/aweme/v1/web/aweme/detail/?{query}"
+        try:
+            resp = self.session.get(url, timeout=TIMEOUT)
+            return resp.json().get("aweme_detail", {})
         except Exception:
             return {}
 

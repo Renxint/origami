@@ -175,10 +175,11 @@ class BatchDownloadThread(QThread):
 
             # 筛选勾选的作品（支持 aweme_id 和 aweme_id:img_idx 格式）
             if self.selected_ids:
-                # 解析图集单图选择: {aweme_id: set(img_indices)}
+                # 过滤掉可能的 None 值
+                clean_sids = {s for s in self.selected_ids if s and isinstance(s, str)}
                 img_filter = {}
                 plain_ids = set()
-                for sid in self.selected_ids:
+                for sid in clean_sids:
                     if ':' in sid:
                         aw_id, idx = sid.split(':', 1)
                         img_filter.setdefault(aw_id, set()).add(int(idx))
@@ -215,6 +216,32 @@ class BatchDownloadThread(QThread):
                 except Exception:
                     pass
 
+            # ── 作品目录辅助函数（取消时也调用）──
+            def _write_catalog():
+                try:
+                    lines = [f"# {author_name}", "", f"共 {len(all_items)} 个作品", ""]
+                    for idx, it in enumerate(all_items):
+                        aw = it.extra.get("aweme", {})
+                        d = clean_name(it.title or it.item_id)
+                        v = aw.get("video")
+                        imgs = aw.get("images") or []
+                        is_lv = aw.get("is_live_photo", False) or aw.get("media_type") == 42
+                        lv_imgs = [img for img in imgs if img.get("live_photo_type") == 1]
+                        if is_lv and lv_imgs:
+                            typ = f"实况({len(lv_imgs)}组)"
+                        elif bool(v) and not imgs:
+                            typ = "视频"
+                        elif imgs:
+                            hl = sum(1 for img in imgs if img.get("live_photo_type") == 1)
+                            typ = f"图集({len(imgs)}图" + (f" 含{hl}实况)" if hl else ")")
+                        else:
+                            typ = "未知"
+                        status = "已下载" if it.item_id in downloaded_ids else "跳过"
+                        lines.append(f"{idx+1}. [{typ}] [{status}] {d}")
+                    (save_root / "作品目录.md").write_text("\n".join(lines), encoding="utf-8")
+                except Exception:
+                    pass
+
             # ── 逐个下载 ──
             for i, item in enumerate(all_items):
                 self._check_cancel(); self._wait()
@@ -224,32 +251,50 @@ class BatchDownloadThread(QThread):
                 desc = clean_name(item.title or aweme_id)
 
                 if aweme_id in downloaded_ids:
-                    stats["skip"] += 1
-                    self.progress_signal.emit(i + 1, total)
-                    continue
+                    # 验证文件是否真的存在（用户可能删了文件夹）
+                    prefix5 = (desc.strip()[:5] or "0").ljust(5, "0")
+                    any_file = (
+                        any(save_root.glob(f"{desc}.*"))
+                        or any(save_root.glob(f"{prefix5}_*"))
+                    )
+                    if not any_file:
+                        downloaded_ids.discard(aweme_id)
+                    else:
+                        stats["skip"] += 1
+                        self.progress_signal.emit(i + 1, total)
+                        self.log_signal.emit(
+                            f'[{i+1}/{total}] <span style="color:#94A3B8;">[跳过]</span> {desc} (已下载)'
+                        )
+                        continue
 
                 try:
                     downloaded = False
                     video = aweme.get("video")
                     images = aweme.get("images") or []
-                    is_live = aweme.get("is_live_photo", False)
-                    is_gallery = bool(images) and not video
+                    # 实况判断: is_live_photo 或 media_type==42 (图集media_type=2)
+                    is_live = (
+                        aweme.get("is_live_photo", False)
+                        or aweme.get("media_type") == 42
+                    )
 
-                    # 图集或实况 → 建子目录
-                    if is_gallery or is_live:
-                        item_dir = save_root / desc
-                        item_dir.mkdir(parents=True, exist_ok=True)
-                    else:
-                        item_dir = save_root
+                    # 图片命名前缀：描述前5字，不够用0补足5位
+                    def _img_prefix(d: str) -> str:
+                        # 取纯文本前5个字符，空的用0占位
+                        prefix = d.strip()[:5] if d.strip() else "0"
+                        return prefix.ljust(5, "0")
 
-                    if video:
-                        url = pick_best_video_url(video)
+                    pfx = _img_prefix(desc)
+
+                    # ── 纯视频 ──
+                    is_pure_video = bool(video) and not images and not is_live
+                    if is_pure_video:
+                        # 纯视频：直接提取 URL，失败降级 BGM
+                        url = pick_best_video_url(video) or ""
                         if url:
-                            tag = "实况" if is_live else "视频"
                             self.log_signal.emit(
-                                f'[{i+1}/{total}] <span style="color:#F59E0B;">[{tag}]</span> {desc}'
+                                f'[{i+1}/{total}] <span style="color:#F59E0B;">[视频]</span> {desc}'
                             )
-                            self._dl(url, item_dir / f"{desc}.mp4")
+                            self._dl(url, save_root / f"{desc}.mp4")
                             stats["video"] += 1
                             downloaded = True
                         else:
@@ -259,37 +304,105 @@ class BatchDownloadThread(QThread):
                                 self.log_signal.emit(
                                     f'[{i+1}/{total}] <span style="color:#F59E0B;">[音频]</span> {desc}'
                                 )
-                                self._dl(music_url, item_dir / f"{desc}.mp3")
+                                self._dl(music_url, save_root / f"{desc}.mp3")
                                 stats["music"] += 1
                                 downloaded = True
 
-                    if images:
+                    elif is_live:
+                        # 实况：只需每张图片的实况封面 + 实况视频
+                        live_imgs = [(j, img) for j, img in enumerate(images)
+                                     if img.get("live_photo_type") == 1 and (img.get("video") or {})]
+                        if not live_imgs:
+                            # 没有真正的实况图片 → 降级为图集
+                            self.log_signal.emit(
+                                f'[{i+1}/{total}] <span style="color:#F59E0B;">[图集]</span> {desc} ({len(images)}图)'
+                            )
+                            for j, img in enumerate(images):
+                                urls = img.get("url_list", [])
+                                img_url = next(
+                                    (u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()),
+                                    urls[0] if urls else ""
+                                )
+                                if img_url:
+                                    self._dl(img_url, save_root / f"{pfx}_{j+1}.jpg")
+                                    stats["image"] += 1
+                                    downloaded = True
+                        else:
+                            self.log_signal.emit(
+                                f'[{i+1}/{total}] <span style="color:#F59E0B;">[实况]</span> {desc} ({len(live_imgs)}组)'
+                            )
+                            img_filter = aweme.get("_img_filter", None)
+                            for j, img in enumerate(images):
+                                if img_filter is not None and j not in img_filter:
+                                    continue
+                                iv = img.get("video") or {}
+                                if img.get("live_photo_type") != 1 or not iv:
+                                    continue
+                                # 实况封面
+                                for _ck in ("cover", "origin_cover"):
+                                    _c = iv.get(_ck) or {}
+                                    _cu = (_c.get("url_list") or [""])[0]
+                                    if _cu:
+                                        self._dl(_cu, save_root / f"{pfx}_{j+1}_封面.jpg")
+                                        stats["image"] += 1
+                                        downloaded = True
+                                        break
+                                # 实况视频
+                                lv = pick_best_video_url(iv) or ""
+                                if not lv:
+                                    lv = ((iv.get("download_addr") or {}).get("url_list") or [""])[0]
+                                if not lv:
+                                    lv = ((iv.get("play_addr") or {}).get("url_list") or [""])[0]
+                                if lv:
+                                    self._dl(lv, save_root / f"{pfx}_{j+1}_实况.mp4")
+                                    stats["video"] += 1
+
+                    # ── 图片（图集 + 混在其中的实况照片，统一用 pfx_N 命名）──
+                    elif images:
+                        # 统计图集中混入的实况照片
+                        live_in_gallery = [(j, img) for j, img in enumerate(images)
+                                          if img.get("live_photo_type") == 1 and (img.get("video") or {})]
+                        live_tag = f" 含{len(live_in_gallery)}实况" if live_in_gallery else ""
+                        self.log_signal.emit(
+                            f'[{i+1}/{total}] <span style="color:#F59E0B;">[图集]</span> {desc} ({len(images)}图{live_tag})'
+                        )
                         img_filter = aweme.get("_img_filter", None)
                         for j, img in enumerate(images):
                             if img_filter is not None and j not in img_filter:
                                 continue
+                            # 静态图
                             urls = img.get("url_list", [])
                             img_url = next(
                                 (u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()),
                                 urls[0] if urls else ""
                             )
                             if img_url:
-                                self._dl(img_url, item_dir / f"{j+1:02d}.jpg")
+                                self._dl(img_url, save_root / f"{pfx}_{j+1}.jpg")
                                 stats["image"] += 1
                                 downloaded = True
-
-                    # 实况照片源视频
-                    if is_live and video:
-                        live_url = (video.get("play_addr_live_photo") or {}).get("url_list", [""])[0]
-                        if not live_url:
-                            live_url = pick_best_video_url(video)
-                        if live_url:
-                            self._dl(live_url, item_dir / f"{desc}_实况.mp4")
+                            # 图集中混入的实况照片 → 额外下载视频
+                            iv = img.get("video") or {}
+                            if img.get("live_photo_type") == 1 and iv:
+                                for _ck in ("cover", "origin_cover"):
+                                    _c = iv.get(_ck) or {}
+                                    _cu = (_c.get("url_list") or [""])[0]
+                                    if _cu:
+                                        self._dl(_cu, save_root / f"{pfx}_{j+1}_封面.jpg")
+                                        stats["image"] += 1
+                                        break
+                                lv = pick_best_video_url(iv) or ""
+                                if not lv:
+                                    lv = ((iv.get("download_addr") or {}).get("url_list") or [""])[0]
+                                if not lv:
+                                    lv = ((iv.get("play_addr") or {}).get("url_list") or [""])[0]
+                                if lv:
+                                    self._dl(lv, save_root / f"{pfx}_{j+1}_实况.mp4")
+                                    stats["video"] += 1
 
                     if not downloaded:
                         stats["fail"] += 1
                         self.log_signal.emit(
-                            f'[{i+1}/{total}] <span style="color:#EF4444;">[跳过]</span> {desc}'
+                            f'[{i+1}/{total}] <span style="color:#EF4444;">[无资源]</span> {desc}'
                         )
                     else:
                         downloaded_ids.add(aweme_id)
@@ -310,9 +423,25 @@ class BatchDownloadThread(QThread):
             except Exception:
                 pass
 
+            _write_catalog()
+
+            # 完成总结
+            self.log_signal.emit(
+                f'===== 下载完成 ====='
+            )
+            self.log_signal.emit(
+                f'视频:{stats["video"]} 图片:{stats["image"]} '
+                f'音乐:{stats["music"]} 跳过:{stats["skip"]} 失败:{stats["fail"]}'
+            )
+
         except InterruptedError:
             stats["cancelled"] = True
             self.log_signal.emit('<span style="color:#F59E0B;">[已取消]</span>')
+            # 取消时也更新目录
+            try:
+                _write_catalog()
+            except Exception:
+                pass
         except Exception as e:
             self.log_signal.emit(f'<span style="color:#EF4444;">[错误]</span> {e}')
         finally:
@@ -320,36 +449,60 @@ class BatchDownloadThread(QThread):
 
     def _write_profile(self, data_dir: Path, author, cookie: str,
                        source_url: str = ""):
-        """写 主页简介.md（完整信息 + 头像）"""
+        """写 主页简介.md（完整信息 + 头像 + 封面）"""
         from src.api import _get_avatar
         from src.environ import USER_AGENT
         import requests as req
         import time as _time
 
         profile = author.extra.get("profile", {})
-        nickname = author.nickname
+        nickname = author.nickname or profile.get("nickname", "")
         unique_id = profile.get("unique_id", "")
+        short_id = profile.get("short_id", "")
         uid = profile.get("uid", "")
         bio = profile.get("desc", "")
-        gender = {0: "未知", 1: "男", 2: "女"}.get(profile.get("gender", 0), "")
-        age = profile.get("age", "")
+        gender_map = {0: "未设置", 1: "男", 2: "女"}
+        gender = gender_map.get(profile.get("gender", 0), "")
+        age = profile.get("age", -1)
         region = "-".join(filter(None, [
             profile.get("country", ""),
             profile.get("province", ""),
             profile.get("city", ""),
+            profile.get("district", ""),
         ])) or "N/A"
+        ip_location = profile.get("ip_location", "")
         school = profile.get("school", "")
         verify = profile.get("custom_verify", "") or profile.get("enterprise_verify_reason", "")
-        sec_uid = profile.get("sec_uid", "")
+        is_star = profile.get("is_star", False)
+        verification_type = profile.get("verification_type", 0)
+        tags = profile.get("personal_tags", [])
+        birthday_hidden = profile.get("birthday_hide_level", 0)
+        secret = profile.get("secret", 0)
 
-        # 数据
+        # 数据统计
         post_count = author.post_count
         follower_count = author.follower_count
         following_count = profile.get("following_count", 0)
-        favoriting_count = profile.get("favoriting_count", 0)     # 用户点的赞
-        total_favorited = profile.get("total_favorited", 0)      # 收到的赞
+        favoriting_count = profile.get("favoriting_count", 0)
+        total_favorited = profile.get("total_favorited", 0)
+        max_follower = profile.get("max_follower_count", 0)
+        dongtai = profile.get("dongtai_count", 0)
+
+        # 其他
+        live_status = profile.get("live_status", 0)
+        commerce_level = profile.get("commerce_user_level", 0)
+        has_commerce = profile.get("with_commerce_entry", False)
+        musician = profile.get("original_musician", {})
+        share_info = profile.get("share_info", {})
 
         avatar_url = _get_avatar(profile)
+        cover_url = profile.get("cover_url", "")
+
+        def _fmt(n):
+            if n is None or n < 0: return "N/A"
+            if n >= 10000:
+                return f"{n/10000:.1f}万"
+            return str(n)
 
         md = data_dir / "主页简介.md"
         lines = [
@@ -357,62 +510,121 @@ class BatchDownloadThread(QThread):
             "",
             "## 基本信息",
             "",
-            f"- 抖音号: {unique_id}",
-            f"- UID: {uid}",
-            f"- 性别: {gender or 'N/A'}",
-            f"- 年龄: {age or 'N/A'}",
-            f"- 地区: {region}",
-            f"- 学校: {school or 'N/A'}",
+            f"| 项目 | 内容 |",
+            f"|------|------|",
+            f"| 抖音号 | {unique_id or short_id or 'N/A'} |",
+            f"| UID | {uid} |",
+            f"| 性别 | {gender} |",
+            f"| 年龄 | {age if age > 0 else 'N/A'} |",
+            f"| 地区 | {region} |",
         ]
+        if ip_location:
+            lines.append(f"| IP属地 | {ip_location} |")
+        if school:
+            lines.append(f"| 学校 | {school} |")
         if bio:
-            lines.append(f"- 简介: {bio}")
-        lines.append(f"- 认证: {verify or '无'}")
-        lines.append("")
-        lines.append("## 数据统计")
-        lines.append("")
-        lines.append(f"- 作品数: {post_count}")
-        lines.append(f"- 粉丝数: {follower_count}")
-        lines.append(f"- 关注数: {following_count}")
-        lines.append(f"- 获赞数: {favoriting_count}")
-        lines.append(f"- 被赞数: {total_favorited}")
-        lines.append("")
-        lines.append("## 下载信息")
-        lines.append("")
+            lines.append(f"| 简介 | {bio} |")
+        if tags:
+            lines.append(f"| 标签 | {', '.join(tags)} |")
+        verify_text = verify
+        if is_star:
+            verify_text = f"⭐ 明星 ({verify_text})" if verify_text else "⭐ 明星"
+        lines.append(f"| 认证 | {verify_text or '无'} |")
+        if birthday_hidden:
+            lines.append(f"| 生日 | 已隐藏 |")
+        if secret:
+            lines.append(f"| 私密账号 | 是 |")
+
+        lines.extend([
+            "",
+            "## 数据统计",
+            "",
+            f"| 项目 | 数值 |",
+            f"|------|------|",
+            f"| 作品 | {post_count} |",
+            f"| 粉丝 | {_fmt(follower_count)} |",
+            f"| 最高粉丝 | {_fmt(max_follower)} |",
+            f"| 关注 | {_fmt(following_count)} |",
+            f"| 获赞 | {_fmt(favoriting_count)} |",
+            f"| 被赞 | {_fmt(total_favorited)} |",
+        ])
+        if dongtai:
+            lines.append(f"| 动态 | {dongtai} |")
+
+        lines.extend(["", "## 其他信息", ""])
+        if live_status:
+            lines.append(f"- 直播状态: {'🔴 直播中' if live_status == 1 else '已结束/未开播'} (code={live_status})")
+        if commerce_level:
+            lines.append(f"- 电商等级: {commerce_level}")
+        if has_commerce:
+            lines.append(f"- 商品橱窗: 已开通")
+        if musician:
+            mc = musician.get("music_count", 0)
+            mu = musician.get("music_used_count", 0)
+            mdg = musician.get("digg_count", 0)
+            if mc or mu:
+                lines.append(f"- 原创音乐: {mc} 首, 被使用 {mu} 次, 获赞 {mdg}")
+
+        lines.extend([
+            "",
+            "## 下载信息",
+            "",
+        ])
         if source_url:
             lines.append(f"- 主页链接: {source_url}")
+        lines.append(f"- sec_uid: {profile.get('sec_uid', '')}")
+        lines.append(f"- 下载日期: {_time.strftime('%Y-%m-%d %H:%M:%S')}")
         if avatar_url:
             lines.append(f"- 头像: {avatar_url}")
-        import time as _time
-        lines.append(f"- 下载日期: {_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        if cover_url:
+            lines.append(f"- 封面: {cover_url}")
 
+        # 下载头像
         lines.append("")
         if avatar_url:
             try:
                 r = req.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=15)
                 (data_dir / "avatar.jpg").write_bytes(r.content)
-                lines.append("*(头像已保存到 data/avatar.jpg)*")
+                lines.append("*(头像已保存)*")
+            except Exception:
+                pass
+        # 下载封面
+        if cover_url:
+            try:
+                r = req.get(cover_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+                (data_dir / "cover.jpg").write_bytes(r.content)
+                lines.append("*(封面已保存)*")
             except Exception:
                 pass
 
         md.write_text("\n".join(lines), encoding="utf-8")
 
     def _dl(self, url: str, path: Path):
-        """流式下载单个文件，跳过已存在"""
+        """流式下载单个文件，跳过已存在（文件占用重试3次）"""
         if path.exists():
             return
         path.parent.mkdir(parents=True, exist_ok=True)
-        with requests.get(url, stream=True, timeout=120,
-                          headers={
-                              "User-Agent": USER_AGENT,
-                              "Referer": "https://www.douyin.com/",
-                          }) as r:
-            r.raise_for_status()
-            with open(path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    if self._cancelled:
-                        path.unlink(missing_ok=True)
-                        raise InterruptedError("下载中断")
-                    f.write(chunk)
+        r = requests.get(url, stream=True, timeout=120,
+                         headers={
+                             "User-Agent": USER_AGENT,
+                             "Referer": "https://www.douyin.com/",
+                         })
+        r.raise_for_status()
+        for attempt in range(3):
+            try:
+                with open(path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if self._cancelled:
+                            path.unlink(missing_ok=True)
+                            raise InterruptedError("下载中断")
+                        f.write(chunk)
+                return
+            except (PermissionError, OSError) as e:
+                if attempt < 2:
+                    import time as _t
+                    _t.sleep(1)
+                else:
+                    raise e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -423,6 +635,11 @@ class BatchPage(QWidget):
     """批量作品下载页：他人主页 / 自己主页"""
 
     back_clicked = pyqtSignal()
+    # 后台线程 → 主线程通信（pyqtSignal 跨线程自动 QueuedConnection）
+    _bg_log = pyqtSignal(str, str)            # (msg, color)
+    _bg_info = pyqtSignal(str)                # status text
+    _bg_reset_ui = pyqtSignal()               # 重置上次下载的 UI 状态
+    _bg_author_loaded = pyqtSignal(object, object, object, str)  # (author, profile, avatar_data, sec_uid)
 
     @staticmethod
     def _circle_pixmap(pix: "QPixmap", size: int) -> "QPixmap":
@@ -456,6 +673,20 @@ class BatchPage(QWidget):
         self._own_selected_ids = set()
         self._own_posts_loaded = False
         self._own_likes_loaded = False
+        self._url_debounce = QTimer()
+        self._url_debounce.setSingleShot(True)
+        self._url_debounce.setInterval(800)
+        self._url_debounce.timeout.connect(self._on_url_debounced)
+        # 目录自动刷新（每3秒）
+        self._refresh_timer = QTimer()
+        self._refresh_timer.setInterval(3000)
+        self._refresh_timer.timeout.connect(self._auto_refresh)
+        self._refresh_timer.start()
+        # 连接后台线程→主线程信号
+        self._bg_log.connect(self._other_log_msg)
+        self._bg_info.connect(self._set_other_info)
+        self._bg_reset_ui.connect(self._reset_other_ui)
+        self._bg_author_loaded.connect(self._on_bg_author_loaded)
         self._build()
 
     # ── 主体布局 ─────────────────────────────────────────
@@ -597,9 +828,10 @@ class BatchPage(QWidget):
         right_col = QVBoxLayout()
         right_col.setSpacing(6)
         self._other_url = QLineEdit()
-        self._other_url.setPlaceholderText("粘贴主页链接...")
+        self._other_url.setPlaceholderText("粘贴主页链接（自动加载）...")
         self._other_url.setMinimumHeight(font_scale(34))
-        self._other_url.returnPressed.connect(self._start_other)
+        self._other_url.returnPressed.connect(self._on_url_entered)
+        self._other_url.textChanged.connect(self._on_url_text_changed)
         right_col.addWidget(self._other_url)
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
@@ -609,22 +841,28 @@ class BatchPage(QWidget):
         self._other_select_btn.clicked.connect(self._show_select_dialog)
         self._other_select_btn.hide()
         btn_row.addWidget(self._other_select_btn)
+        self._other_pause_btn = QPushButton("暂停")
+        self._other_pause_btn.setObjectName("secondaryBtn")
+        self._other_pause_btn.setEnabled(False)
+        self._other_pause_btn.clicked.connect(self._toggle_other_pause)
+        btn_row.addWidget(self._other_pause_btn)
+        self._other_cancel_btn = QPushButton("取消")
+        self._other_cancel_btn.setObjectName("secondaryBtn")
+        self._other_cancel_btn.setEnabled(False)
+        self._other_cancel_btn.clicked.connect(self._cancel_other)
+        btn_row.addWidget(self._other_cancel_btn)
         other_clear = QPushButton("✕")
         other_clear.setFixedSize(font_scale(26), font_scale(34))
         other_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         other_clear.setObjectName("secondaryBtn")
         other_clear.clicked.connect(lambda: self._clear_other())
         btn_row.addWidget(other_clear)
-        self._other_dl_btn = QPushButton("开始下载")
-        self._other_dl_btn.setMinimumHeight(font_scale(34))
-        self._other_dl_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._other_dl_btn.clicked.connect(self._start_other)
-        btn_row.addWidget(self._other_dl_btn)
+        btn_row.addStretch()
         right_col.addLayout(btn_row)
         main_row.addLayout(right_col, 4)
         layout.addLayout(main_row)
 
-        # 保存路径 + 控制按钮
+        # 保存路径
         ctrl_row = QHBoxLayout()
         ctrl_row.setSpacing(6)
         ctrl_row.addWidget(QLabel("保存到"))
@@ -637,17 +875,6 @@ class BatchPage(QWidget):
         browse.setMinimumHeight(font_scale(30))
         browse.clicked.connect(lambda: self._choose_other_path())
         ctrl_row.addWidget(browse)
-        ctrl_row.addSpacing(16)
-        self._other_pause_btn = QPushButton("暂停")
-        self._other_pause_btn.setObjectName("secondaryBtn")
-        self._other_pause_btn.setEnabled(False)
-        self._other_pause_btn.clicked.connect(self._toggle_other_pause)
-        ctrl_row.addWidget(self._other_pause_btn)
-        self._other_cancel_btn = QPushButton("取消")
-        self._other_cancel_btn.setObjectName("secondaryBtn")
-        self._other_cancel_btn.setEnabled(False)
-        self._other_cancel_btn.clicked.connect(self._cancel_other)
-        ctrl_row.addWidget(self._other_cancel_btn)
         layout.addLayout(ctrl_row)
 
         # 进度条
@@ -677,19 +904,8 @@ class BatchPage(QWidget):
         self._other_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._other_list.customContextMenuRequested.connect(
             lambda pos: self._list_menu(self._other_list, pos))
-        self._other_list.itemDoubleClicked.connect(
-            lambda: self._open_folder(self._other_path.text()))
+        self._other_list.itemDoubleClicked.connect(self._open_selected_folder)
         dl_layout.addWidget(self._other_list)
-        btns = QHBoxLayout()
-        open_btn = QPushButton("打开目录")
-        open_btn.setObjectName("secondaryBtn")
-        open_btn.clicked.connect(lambda: self._open_folder(self._other_path.text()))
-        btns.addWidget(open_btn)
-        refresh_btn = QPushButton("刷新")
-        refresh_btn.setObjectName("secondaryBtn")
-        refresh_btn.clicked.connect(lambda: self._refresh_other_list())
-        btns.addWidget(refresh_btn)
-        dl_layout.addLayout(btns)
         splitter.addWidget(dl_wrap)
         splitter.setSizes([400, 200])
         layout.addWidget(splitter, 1)
@@ -808,19 +1024,8 @@ class BatchPage(QWidget):
         self._own_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._own_list.customContextMenuRequested.connect(
             lambda pos: self._list_menu(self._own_list, pos))
-        self._own_list.itemDoubleClicked.connect(
-            lambda: self._open_folder(self._own_path.text()))
+        self._own_list.itemDoubleClicked.connect(self._open_selected_folder)
         dl_layout.addWidget(self._own_list)
-        btns = QHBoxLayout()
-        open_btn = QPushButton("打开目录")
-        open_btn.setObjectName("secondaryBtn")
-        open_btn.clicked.connect(lambda: self._open_folder(self._own_path.text()))
-        btns.addWidget(open_btn)
-        refresh_btn = QPushButton("刷新")
-        refresh_btn.setObjectName("secondaryBtn")
-        refresh_btn.clicked.connect(lambda: self._refresh_own_list())
-        btns.addWidget(refresh_btn)
-        dl_layout.addLayout(btns)
         splitter.addWidget(dl_wrap)
         splitter.setSizes([400, 200])
         layout.addWidget(splitter, 1)
@@ -1159,12 +1364,10 @@ class BatchPage(QWidget):
 
         def _confirm():
             selected = set()
-            # 视频/普通列表项
             for i in range(lst.count()):
                 it = lst.item(i)
                 if it.checkState() == Qt.CheckState.Checked:
                     selected.add(it.data(Qt.ItemDataRole.UserRole))
-            # 图集图片
             for _, cb, img_id in _gallery_items:
                 if cb.isChecked():
                     selected.add(img_id)
@@ -1173,7 +1376,10 @@ class BatchPage(QWidget):
                 return
             selected_ids.clear(); selected_ids.update(selected)
             log_cb(f'[选择] 已勾选 {len(selected)} 个加入下载队列')
-            update_cb(); dlg.accept()
+            update_cb()
+            dlg.accept()
+            # 弹窗关闭后立即开始下载
+            QTimer.singleShot(100, self._start_selected_download)
         dl_btn.clicked.connect(_confirm)
 
         # 异步加载缩略图
@@ -1428,6 +1634,14 @@ class BatchPage(QWidget):
             else:
                 self._other_bio.setText("")
 
+    def _on_bg_author_loaded(self, author, profile: dict, avatar_data, sec_uid: str):
+        """后台线程加载完作者信息后的 UI 更新（在主线程执行）"""
+        self._apply_author_info(author, profile, avatar_data)
+        try:
+            self._count_other_posts(sec_uid, author)
+        except Exception:
+            pass
+
     def _apply_author_info(self, author, profile: dict, avatar_data):
         """主线程更新作者信息 UI（头像 + 四行标签）"""
         from PyQt6.QtGui import QPixmap
@@ -1471,6 +1685,9 @@ class BatchPage(QWidget):
         """弹出他人作品选择对话框"""
         if not self._other_all_items:
             return
+        # 下载中不弹窗
+        if self.thread and self.thread.isRunning():
+            return
         self._show_item_select_dialog(
             self._other_all_items, self._selected_ids,
             "选择要下载的作品 — 他人主页",
@@ -1480,13 +1697,12 @@ class BatchPage(QWidget):
             lambda msg: self._other_log_msg(msg, '#22C55E'),
         )
 
-    def _clear_other(self):
-        """清除他人主页全部内容并停止下载"""
+    def _reset_other_ui(self):
+        """重置他人主页 UI 状态（新链接检测时调用，保留 URL 不清空）"""
         if self.thread and self.thread.isRunning():
             self.thread.cancel()
             self.thread.wait(1000)
         self._set_downloading(False)
-        self._other_url.clear()
         self._set_other_info("")
         self._other_avatar.hide()
         self._other_log.clear()
@@ -1494,27 +1710,32 @@ class BatchPage(QWidget):
         self._selected_ids = set()
         self._loaded_sec_uid = ""
         self._other_select_btn.hide()
-        self._other_dl_btn.setEnabled(True)
         self._other_pause_btn.setEnabled(False)
         self._other_cancel_btn.setEnabled(False)
         self._other_progress.hide()
+        self._other_progress.setValue(0)
+
+    def _clear_other(self):
+        """清除他人主页全部内容并停止下载"""
+        self._reset_other_ui()
+        self._other_url.clear()
 
     def _auto_fetch_other(self, raw: str):
         """剪贴板检测到链接后，后台解析并加载主页信息"""
-        QTimer.singleShot(0, lambda: self._other_log_msg(
-            '[检测] 剪贴板发现抖音链接', '#F59E0B'))
-        # HTTP 工作在调用线程（已经是后台线程），UI 更新切主线程
+        # 先重置上一次下载的残留状态（进度条、按钮、列表等）
+        self._bg_reset_ui.emit()
+        self._bg_log.emit('[检测] 剪贴板发现抖音链接', '#F59E0B')
+        # HTTP 工作在调用线程（已经是后台线程），UI 更新通过 pyqtSignal 切主线程
         try:
             cookie = load_cookie()
-            if not cookie or "sessionid=" not in cookie:
-                QTimer.singleShot(0, lambda: self._set_other_info("⚠ 未登录"))
+            has_session = "sessionid=" in (cookie or "")
+            if not cookie or not has_session:
+                self._bg_info.emit("⚠ 未登录")
                 return
             url = self._parse_input(raw)
-            QTimer.singleShot(0, lambda: self._other_log_msg(
-                f'[解析] {url[:80]}', '#94A3B8'))
+            self._bg_log.emit(f'[解析] {url[:80]}', '#94A3B8')
             sec_uid = parse_sec_user_id(url)
-            QTimer.singleShot(0, lambda: self._other_log_msg(
-                f'[识别] sec_uid: {sec_uid[:30]}...', '#94A3B8'))
+            self._bg_log.emit(f'[识别] sec_uid: {sec_uid[:30]}...', '#94A3B8')
             # 拉取主页信息 + 头像（全部在后台线程）
             from src.platforms.douyin import DouyinAdapter
             from src.api import _get_avatar
@@ -1529,51 +1750,85 @@ class BatchPage(QWidget):
                 try:
                     r = _req.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=15)
                     avatar_data = r.content
-                except Exception: pass
-            # UI 更新 + 触发计数（主线程）
-            def _update_ui():
-                self._apply_author_info(author, profile, avatar_data)
-                try: self._count_other_posts(sec_uid, author)
-                except Exception: pass
-            QTimer.singleShot(0, _update_ui)
+                except Exception:
+                    pass
+            # UI 更新通过信号发射到主线程（pyqtSignal 跨线程自动 QueuedConnection）
+            self._bg_author_loaded.emit(author, profile, avatar_data, sec_uid)
         except ValueError:
-            QTimer.singleShot(0, lambda: self._set_other_info("无法解析链接"))
+            self._bg_info.emit("无法解析链接")
+            self._bg_log.emit('[FAIL] 无法从输入中提取主页链接', '#EF4444')
         except Exception as e:
-            QTimer.singleShot(0, lambda: self._set_other_info("获取信息失败"))
+            err_msg = str(e) if str(e) else "未知错误"
+            self._bg_info.emit(f"获取失败: {err_msg[:30]}")
+            self._bg_log.emit(f'[FAIL] {err_msg}', '#EF4444')
 
-    def _start_other(self):
+    # ── URL 输入自动加载 ─────────────────────────────────
+
+    def _on_url_text_changed(self, text: str):
+        """URL 输入变化 → 防抖后自动拉取主页信息"""
+        if not text.strip():
+            return
+        self._url_debounce.stop()
+        self._url_debounce.start()
+
+    def _on_url_debounced(self):
+        """防抖到期，触发自动拉取"""
         raw = self._other_url.text().strip()
         if not raw:
             return
+        # 只要有 douyin.com 就尝试拉取（短链由 _trigger_fetch → _parse_input 解析）
+        if "douyin.com" not in raw:
+            return
+        self._trigger_fetch(raw)
+
+    def _on_url_entered(self):
+        """回车立即触发"""
+        raw = self._other_url.text().strip()
+        if not raw:
+            return
+        self._url_debounce.stop()
+        self._trigger_fetch(raw)
+
+    def _trigger_fetch(self, raw: str):
+        """触发后台拉取主页信息"""
+        self._url_debounce.stop()  # 阻止防抖重复触发
         if not self._ensure_cookie():
             return
         url = self._parse_input(raw)
         try:
             sec_uid = parse_sec_user_id(url)
-        except ValueError as e:
-            QMessageBox.warning(self, "错误", str(e))
+        except ValueError:
+            self._bg_info.emit("无法解析链接")
             return
+        # 相同 sec_uid 不重复加载
+        if sec_uid == self._loaded_sec_uid and self._other_all_items:
+            return
+        self._loaded_sec_uid = sec_uid
+        threading.Thread(target=lambda: self._auto_fetch_other(url), daemon=True).start()
 
-        # 如果换了链接才重新加载（后台线程，不阻塞 UI）
-        if sec_uid != getattr(self, '_loaded_sec_uid', ''):
-            self._loaded_sec_uid = sec_uid
-            threading.Thread(target=lambda: self._auto_fetch_other(url), daemon=True).start()
+    # ── 选中下载 ──────────────────────────────────────────
 
+    def _start_selected_download(self):
+        """弹窗勾选确认后，启动批量下载（由 _show_select_dialog 的回调触发）"""
+        raw = self._other_url.text().strip()
+        if not raw or not self._loaded_sec_uid:
+            return
+        if not self._ensure_cookie():
+            return
+        url = self._parse_input(raw)
         save_dir = self._other_path.text().strip() or str(OUTPUT_OTHER)
 
-        self._other_dl_btn.setEnabled(False)
         self._other_pause_btn.setEnabled(True)
         self._other_cancel_btn.setEnabled(True)
         self._other_pause_btn.setText("暂停")
         self._other_progress.show()
-        # 追加日志不覆盖
         self._other_log_msg("-----------------------", '#334155')
-        self._other_log_msg("[下载] 开始下载", '#F59E0B')
+        self._other_log_msg(f"[下载] 已选 {len(self._selected_ids)} 个，开始下载", '#F59E0B')
 
         selected = self._selected_ids if self._selected_ids else None
         pre_items = self._other_all_items if self._other_all_items else None
         self.thread = BatchDownloadThread(
-            sec_uid, 'posts', save_dir, selected_ids=selected,
+            self._loaded_sec_uid, 'posts', save_dir, selected_ids=selected,
             pre_items=pre_items, source_url=url,
         )
         self.thread.log_signal.connect(self._other_log_append)
@@ -1604,7 +1859,6 @@ class BatchPage(QWidget):
 
     def _other_done(self, stats: dict):
         self._set_downloading(False)
-        self._other_dl_btn.setEnabled(True)
         self._other_pause_btn.setEnabled(False)
         self._other_cancel_btn.setEnabled(False)
         self._other_progress.setValue(self._other_progress.maximum())
@@ -1717,6 +1971,17 @@ class BatchPage(QWidget):
         if folder:
             self._own_path.setText(folder)
 
+    def _open_selected_folder(self):
+        """双击列表项 → 打开该目录"""
+        lst = self.sender()
+        if lst is None:
+            return
+        item = lst.currentItem()
+        if item:
+            path = item.data(Qt.ItemDataRole.UserRole) or item.toolTip()
+            if path and os.path.exists(path):
+                os.startfile(path)
+
     def _open_folder(self, path: str):
         os.startfile(path) if os.path.exists(path) else None
 
@@ -1730,6 +1995,53 @@ class BatchPage(QWidget):
         a2 = menu.addAction("复制路径")
         a2.triggered.connect(lambda: QApplication.clipboard().setText(item.toolTip()))
         menu.exec(lst.mapToGlobal(pos))
+
+    def _auto_refresh(self):
+        """定时自动刷新两个列表"""
+        try:
+            self._refresh_other_list()
+        except Exception:
+            pass
+        try:
+            self._refresh_own_list()
+        except Exception:
+            pass
+
+    def _make_list_row(self, name: str, dir_path: Path, count: int, files: int) -> QWidget:
+        """创建列表行：删除按钮 + 名称 + 文件数"""
+        row = QWidget()
+        row.setMinimumHeight(font_scale(26))
+        row.setStyleSheet("background: transparent;")
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(4, 0, 4, 0)
+        lay.setSpacing(6)
+        del_btn = QPushButton("X")
+        del_btn.setFixedSize(font_scale(20), font_scale(20))
+        del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        del_btn.setStyleSheet(
+            "QPushButton { color: #EF4444; border: none; background: transparent; "
+            "font-size: 12px; font-weight: bold; padding: 0; }"
+            "QPushButton:hover { color: #FFF; background: #EF4444; border-radius: 3px; }"
+        )
+        del_btn.clicked.connect(lambda checked, p=dir_path: self._delete_folder(p))
+        lay.addWidget(del_btn)
+        label = QLabel(f"{name}  [{count}作品, {files}文件]")
+        label.setStyleSheet(f"color: #E2E8F0; font-size: {scaled_font(10)}px; border: none;")
+        lay.addWidget(label, 1)
+        return row
+
+    def _delete_folder(self, dir_path: Path):
+        """删除目录（确认后）"""
+        import shutil
+        reply = QMessageBox.question(
+            self, "确认删除", f"确定删除目录？\n{dir_path.name}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                shutil.rmtree(dir_path, ignore_errors=True)
+            except Exception as e:
+                QMessageBox.warning(self, "删除失败", str(e))
 
     def _refresh_other_list(self):
         self._other_list.clear()
@@ -1745,10 +2057,14 @@ class BatchPage(QWidget):
                         count = len(json.loads(tracker.read_text(encoding="utf-8")))
                     except Exception:
                         pass
-                files = len(list(d.glob("*")))
-                item = QListWidgetItem(f"{d.name}  [{count}作品, {files}文件]")
+                files = sum(1 for _ in d.rglob("*") if _.is_file() and _.name != ".downloaded.json")
+                row = self._make_list_row(d.name, d, count, files)
+                item = QListWidgetItem()
+                item.setSizeHint(row.sizeHint())
+                item.setData(Qt.ItemDataRole.UserRole, str(d))
                 item.setToolTip(str(d))
                 self._other_list.addItem(item)
+                self._other_list.setItemWidget(item, row)
 
     def _refresh_own_list(self):
         self._own_list.clear()
@@ -1764,7 +2080,11 @@ class BatchPage(QWidget):
                         count = len(json.loads(tracker.read_text(encoding="utf-8")))
                     except Exception:
                         pass
-                files = len(list(d.glob("*")))
-                item = QListWidgetItem(f"{d.name}  [{count}作品, {files}文件]")
+                files = sum(1 for _ in d.rglob("*") if _.is_file() and _.name != ".downloaded.json")
+                row = self._make_list_row(d.name, d, count, files)
+                item = QListWidgetItem()
+                item.setSizeHint(row.sizeHint())
+                item.setData(Qt.ItemDataRole.UserRole, str(d))
                 item.setToolTip(str(d))
                 self._own_list.addItem(item)
+                self._own_list.setItemWidget(item, row)

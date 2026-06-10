@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QTextEdit, QProgressBar,
     QCheckBox,
     QListWidget, QListWidgetItem, QSplitter,
-    QFileDialog, QMenu, QApplication,
+    QFileDialog, QMenu, QApplication, QMessageBox,
     QFrame,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
@@ -93,18 +93,35 @@ class SingleDownloadThread(QThread):
             author = author_info.get("nickname", "")
             avatar = (author_info.get("avatar_thumb", {}) or {}).get("url_list", [""])[0] or ""
             uid = author_info.get("unique_id", "")
+            follower = author_info.get("follower_count", 0)
 
-            # 只显示头像 + 昵称 + 抖音号 + 作品简介（不额外调 API）
+            # 统计信息
+            st = aweme.get("statistics", {})
+            likes = st.get("digg_count", 0)
+            comments_count = st.get("comment_count", 0)
+            shares = st.get("share_count", 0)
+            collects = st.get("collect_count", 0)
+
+            def _fmt(n: int) -> str:
+                if n >= 10000:
+                    return f"{n/10000:.1f}w"
+                return str(n)
+
+            stats_line = f"点赞{_fmt(likes)}  评论{_fmt(comments_count)}  分享{_fmt(shares)}  收藏{_fmt(collects)}"
             detail = f"抖音号：{uid}" if uid else ""
+            if follower:
+                detail += f"  粉丝: {_fmt(follower)}"
+
             self.author_signal.emit({
                 "nickname": author,
                 "avatar": avatar,
                 "desc": desc,
-                "stats": "",
+                "stats": stats_line,
                 "detail": detail,
                 "bio": "",
             })
-            self.log.emit(f"  作者: {author}")
+            self.log.emit(f"  作者: {author}  粉丝: {_fmt(follower)}")
+            self.log.emit(f"  统计: {stats_line}")
             self.log.emit(f"  描述: {desc[:60]}")
 
             # 图集/note：只要有图片就弹选择框
@@ -334,6 +351,10 @@ class SinglePage(QWidget):
         self._auto_timer = QTimer()
         self._auto_timer.setSingleShot(True)
         self._auto_timer.timeout.connect(self._start)
+        self._refresh_timer = QTimer()
+        self._refresh_timer.setInterval(3000)
+        self._refresh_timer.timeout.connect(self._refresh_downloaded)
+        self._refresh_timer.start()
         self._build()
 
     def _build(self):
@@ -371,6 +392,12 @@ class SinglePage(QWidget):
             "border: none; background: transparent;"
         )
         top.addWidget(self._author_name)
+        self._author_stats = QLabel("")
+        self._author_stats.setStyleSheet(
+            f"color: #E2E8F0; font-size: {scaled_font(11)}px; "
+            "border: none; background: transparent;"
+        )
+        top.addWidget(self._author_stats)
         layout.addLayout(top)
 
         # 作品简介
@@ -456,16 +483,6 @@ class SinglePage(QWidget):
         self.downloaded_list.customContextMenuRequested.connect(self._on_context_menu)
         self.downloaded_list.itemDoubleClicked.connect(self._open_folder)
         rl.addWidget(self.downloaded_list)
-        open_btn = QPushButton("打开目录")
-        open_btn.setObjectName("secondaryBtn")
-        open_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        open_btn.clicked.connect(self._open_folder)
-        rl.addWidget(open_btn)
-        refresh_btn = QPushButton("刷新")
-        refresh_btn.setObjectName("secondaryBtn")
-        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        refresh_btn.clicked.connect(self._refresh_downloaded)
-        rl.addWidget(refresh_btn)
         splitter.addWidget(right)
         splitter.setSizes([480, 240])
         layout.addWidget(splitter, 1)
@@ -482,18 +499,51 @@ class SinglePage(QWidget):
         if folder:
             input_widget.setText(folder)
 
+    def _delete_folder(self, dir_path: Path):
+        import shutil
+        reply = QMessageBox.question(
+            self, "确认删除", f"确定删除目录？\n{dir_path.name}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                shutil.rmtree(dir_path, ignore_errors=True)
+            except Exception as e:
+                QMessageBox.warning(self, "删除失败", str(e))
+
     def _refresh_downloaded(self):
         self.downloaded_list.clear()
         out = Path(self.path_input.text().strip()) if self.path_input.text().strip() else OUTPUT_SINGLE
         if not out.exists():
             return
-        for d in sorted(out.iterdir(), reverse=True):
+        for d in sorted(out.iterdir(), key=lambda p: p.stat().st_mtime):
             if not d.is_dir():
                 continue
             files = sum(1 for _ in d.rglob("*") if _.is_file())
-            item = QListWidgetItem(f"{d.name}  [{files}文件]")
+            row = QWidget()
+            row.setMinimumHeight(font_scale(26))
+            row.setStyleSheet("background: transparent;")
+            lay = QHBoxLayout(row)
+            lay.setContentsMargins(4, 0, 4, 0)
+            lay.setSpacing(6)
+            del_btn = QPushButton("X")
+            del_btn.setFixedSize(font_scale(20), font_scale(20))
+            del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            del_btn.setStyleSheet(
+                "QPushButton { color: #EF4444; border: none; background: transparent; "
+                "font-size: 12px; font-weight: bold; padding: 0; }"
+                "QPushButton:hover { color: #FFF; background: #EF4444; border-radius: 3px; }"
+            )
+            del_btn.clicked.connect(lambda checked, p=d: self._delete_folder(p))
+            lay.addWidget(del_btn)
+            label = QLabel(f"{d.name}  [{files}文件]")
+            label.setStyleSheet(f"color: #E2E8F0; font-size: {scaled_font(10)}px; border: none;")
+            lay.addWidget(label, 1)
+            item = QListWidgetItem()
+            item.setSizeHint(row.sizeHint())
             item.setData(Qt.ItemDataRole.UserRole, str(d))
             self.downloaded_list.addItem(item)
+            self.downloaded_list.setItemWidget(item, row)
 
     def _open_folder(self):
         item = self.downloaded_list.currentItem()
@@ -627,15 +677,19 @@ class SinglePage(QWidget):
         self.url_input.clear()
         self._author_avatar.hide()
         self._author_name.setText("")
+        self._author_stats.setText("")
         self._aweme_desc.hide()
 
     def _show_author(self, info: dict):
-        """显示作者头像和昵称（右上角紧凑显示）"""
+        """显示作者头像、昵称、统计信息"""
         nickname = info.get("nickname", "")
         avatar_url = info.get("avatar", "")
         desc = info.get("desc", "")
+        stats = info.get("stats", "")
+        detail = info.get("detail", "")
 
         self._author_name.setText(nickname)
+        self._author_stats.setText(f"{stats}  |  {detail}" if stats else detail)
         if avatar_url:
             try:
                 import requests as _req
@@ -689,6 +743,7 @@ class SinglePage(QWidget):
         # 清除上一次的作者信息
         self._author_avatar.hide()
         self._author_name.setText("")
+        self._author_stats.setText("")
         self._aweme_desc.hide()
         self.dl_btn.setEnabled(False)
         self.dl_btn.setText("下载中...")

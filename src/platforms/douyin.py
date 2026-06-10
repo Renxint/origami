@@ -126,6 +126,9 @@ class DouyinAdapter(PlatformAdapter):
         api = DouyinAPI(cookie_string=cookie)
         profile = api.get_user_profile(author_id)
 
+        if not profile or profile.get("_error"):
+            raise RuntimeError(profile.get("_error", "无法获取用户信息，请检查Cookie"))
+
         return AuthorInfo(
             platform="douyin",
             author_id=author_id,
