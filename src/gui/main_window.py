@@ -9,6 +9,7 @@ Origami — 主窗口
 import sys
 import os
 import time
+import threading
 from pathlib import Path
 
 import requests
@@ -20,13 +21,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon, QFont, QAction, QShortcut, QKeySequence, QPalette, QColor
 
-from src.theme import font_scale, build_stylesheet, DARK_THEME
+from src.fonts import font_scale
+from src.stylesheet import build_stylesheet
 from src.config import VERSION, VERSION_URL
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.utils import compare_versions
 from src.settings.store import load as load_settings, save as save_settings
 from src.gui.pages import (
-    ModePage, SinglePage, HomepagePage,
+    ModePage, SinglePage, BatchPage,
     SettingsPage, UpdatePage,
 )
 from src.gui.pages.douyin_page import DouyinPage
@@ -166,14 +168,14 @@ class MainWindow(QMainWindow):
         self.mode_page = ModePage()
         self.douyin_page = DouyinPage()
         self.single_page = SinglePage()
-        self.homepage_page = HomepagePage()
+        self.batch_page = BatchPage()
         self.settings_page = SettingsPage()
         self.update_page = UpdatePage()
 
         self.stack.addWidget(self.mode_page)        # 0
         self.stack.addWidget(self.douyin_page)      # 1
         self.stack.addWidget(self.single_page)      # 2
-        self.stack.addWidget(self.homepage_page)    # 3
+        self.stack.addWidget(self.batch_page)       # 3
         self.stack.addWidget(self.settings_page)    # 4
         self.stack.addWidget(self.update_page)      # 5
 
@@ -184,14 +186,14 @@ class MainWindow(QMainWindow):
         )
         self.mode_page.settings_clicked.connect(lambda: self.stack.setCurrentIndex(4))
 
-        # 抖音页 → 单视频 / 主页
+        # 抖音页 → 单视频 / 批量
         self.douyin_page.back_clicked.connect(self._go_home)
         self.douyin_page.single_clicked.connect(lambda: self.stack.setCurrentIndex(2))
-        self.douyin_page.homepage_clicked.connect(lambda: self.stack.setCurrentIndex(3))
+        self.douyin_page.batch_clicked.connect(lambda: self.stack.setCurrentIndex(3))
 
         # 下载页 → 回抖音页
         self.single_page.back_clicked.connect(lambda: self.stack.setCurrentIndex(1))
-        self.homepage_page.back_clicked.connect(lambda: self.stack.setCurrentIndex(1))
+        self.batch_page.back_clicked.connect(lambda: self.stack.setCurrentIndex(1))
 
         self.settings_page.back_clicked.connect(self._go_home)
         self.update_page.cancel_clicked.connect(lambda: self.stack.setCurrentIndex(0))
@@ -206,12 +208,13 @@ class MainWindow(QMainWindow):
 
         self.stack.setCurrentIndex(0)
 
-        # 应用样式
         pt = QApplication.instance().font().pointSize()
-        self.setStyleSheet(build_stylesheet(DARK_THEME, pt))
+        self.setStyleSheet(build_stylesheet(pt))
 
-        # 剪贴板监听
+        # 剪贴板监听：用序列号检测，解决"同一内容复制两次"问题
+        self._last_clip_seq = self._get_clipboard_seq()
         self._last_clipboard = ""
+        self._download_active = False
         self._clip_timer = QTimer()
         self._clip_timer.timeout.connect(self._check_clipboard)
         self._clip_timer.start(1500)
@@ -227,17 +230,52 @@ class MainWindow(QMainWindow):
         # 版本检查
         QTimer.singleShot(2000, self._check_version)
 
+        # 后台预加载：已登录则自动获取自己主页数据
+        QTimer.singleShot(2500, self._prefetch_own)
+
+    def _prefetch_own(self):
+        """后台预加载：已登录则自动获取自己主页数据"""
+        from src.cookie import load_cookie
+        cookie = load_cookie()
+        if not cookie or "sessionid=" not in cookie:
+            return
+        try:
+            self.batch_page._detect_own()
+        except Exception:
+            pass
+
     # ── 剪贴板监听 ──
 
-    def _check_clipboard(self):
-        """检测剪贴板中的抖音链接"""
+    def set_download_active(self, active: bool):
+        """下载中暂停剪贴板检测"""
+        self._download_active = active
+
+    @staticmethod
+    def _get_clipboard_seq() -> int:
+        """获取 Windows 剪贴板序列号，每次 Ctrl+C 都会递增"""
+        import ctypes
         try:
-            clip = QApplication.clipboard().text()
-            if not clip or clip == self._last_clipboard:
+            return ctypes.windll.user32.GetClipboardSequenceNumber()
+        except Exception:
+            return 0
+
+    def _check_clipboard(self):
+        """检测剪贴板中的抖音链接（用序列号，内容不变也能检测）"""
+        if self._download_active:
+            return
+        try:
+            # 用 Windows 剪贴板序列号检测，内容不变但 Ctrl+C 过也能检测
+            seq = self._get_clipboard_seq()
+            if seq == self._last_clip_seq:
                 return
-            self._last_clipboard = clip
+            self._last_clip_seq = seq
+
+            clip = QApplication.clipboard().text()
+            if not clip:
+                return
 
             import re
+            # 检测所有抖音分享链接
             patterns = [
                 r'https?://v\.douyin\.com/[A-Za-z0-9_\-/]+',
                 r'https?://(?:www\.)?douyin\.com/(?:video|note)/\d+',
@@ -253,43 +291,68 @@ class MainWindow(QMainWindow):
             if not found:
                 return
 
-            # 短链 → 302 解析，确定类型
-            resolved = found
-            label = None
-            if "v.douyin.com" in found:
-                try:
-                    from src.environ import USER_AGENT
-                    s = __import__("requests").Session()
-                    s.headers.update({"User-Agent": USER_AGENT})
-                    r = s.get(found, allow_redirects=True, timeout=10, stream=True)
-                    r.close()
-                    resolved = r.url
-                except Exception:
-                    pass
+            # 窗口置顶
+            if load_settings().get("auto_raise", True):
+                self.showNormal()
+                from src.environ import force_raise_window
+                force_raise_window(self)
 
-            # 判断链接类型
-            if "/user/" in resolved or "/share/user/" in resolved:
-                label = "主页批量下载"
-                widget_idx = 3  # homepage_page
-            elif "/video/" in resolved or "/note/" in resolved:
-                label = "单视频下载"
-                widget_idx = 2  # single_page
+            # 判断类型
+            is_short = "v.douyin.com" in found
+            is_user = "/user/" in found or "/share/user/" in found
+            is_video = "/video/" in found or "/note/" in found
+
+            if is_video:
+                self.stack.setCurrentIndex(2)
+                self.single_page.url_input.setText(clip)
+            elif is_user:
+                self.stack.setCurrentIndex(3)
+                page = self.batch_page
+                page._tab_other.setChecked(True); page._tab_own.setChecked(False)
+                page._style_tabs(); page._content.setCurrentIndex(0)
+                page._other_url.setText(clip)
+                threading.Thread(target=lambda: page._auto_fetch_other(clip), daemon=True).start()
+            elif is_short:
+                # 短链同步解析（HEAD 请求，很快），超时 3s 不阻塞
+                resolved = self._resolve_short_sync(found)
+                if "/user/" in resolved or "/share/user/" in resolved:
+                    self._navigate_batch(clip)
+                elif "/video/" in resolved or "/note/" in resolved:
+                    self._navigate_single(clip)
+                else:
+                    self._navigate_batch(clip)
             else:
                 return
-
-            reply = QMessageBox.question(
-                self, "检测到抖音链接",
-                f"是否{label}?\n{found[:80]}",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self.stack.setCurrentIndex(widget_idx)
-                page = self.stack.widget(widget_idx)
-                if hasattr(page, "url_input"):
-                    # 传给输入框的是原始剪贴板内容（兼容分享口令格式）
-                    page.url_input.setText(clip)
         except Exception:
             pass
+
+    def _navigate_batch(self, clip: str):
+        self.stack.setCurrentIndex(3)
+        page = self.batch_page
+        page._tab_other.setChecked(True); page._tab_own.setChecked(False)
+        page._style_tabs(); page._content.setCurrentIndex(0)
+        page._other_url.setText(clip)
+        threading.Thread(target=lambda: page._auto_fetch_other(clip), daemon=True).start()
+
+    @staticmethod
+    def _resolve_short_sync(url: str) -> str:
+        """同步解析短链（HEAD 请求，3s 超时），返回 resolved URL"""
+        try:
+            from src.environ import USER_AGENT
+            from src.cookie import load_cookie
+            s = __import__("requests").Session()
+            s.headers.update({"User-Agent": USER_AGENT})
+            cookie = load_cookie()
+            if cookie:
+                s.headers.update({"Cookie": cookie})
+            r = s.head(url, allow_redirects=True, timeout=3)
+            return r.url
+        except Exception:
+            return url
+
+    def _navigate_single(self, clip: str):
+        self.stack.setCurrentIndex(2)
+        self.single_page.url_input.setText(clip)
 
     # ── 导航 ──
 
@@ -312,7 +375,7 @@ class MainWindow(QMainWindow):
     def _apply_font(self, font: QFont):
         app = QApplication.instance()
         app.setFont(font)
-        self.setStyleSheet(build_stylesheet(DARK_THEME, font.pointSize()))
+        self.setStyleSheet(build_stylesheet(font.pointSize()))
         for w in self.findChildren(QWidget):
             w.updateGeometry()
         self.updateGeometry()
@@ -412,21 +475,74 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         self.raise_()
 
+    # ── 关闭逻辑（所有状态存 settings.json，不依赖 QSettings） ──
+
+    def _close_preference(self) -> str:
+        """从 settings.json 读取关闭偏好: 'tray' | 'quit' | None"""
+        return load_settings().get("close_preference", None)
+
     def closeEvent(self, event):
+        # 系统不支持托盘 → 直接退出
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            self._real_quit()
+            return
+
+        # 托盘已开启 → 最小化
         if self._tray and self._tray.isVisible():
             self.hide()
-            self._tray.showMessage(
-                "Origami", "已最小化到托盘，双击恢复",
-                QSystemTrayIcon.MessageIcon.Information, 2000,
-            )
             event.ignore()
+            return
+
+        # 已记住偏好
+        pref = self._close_preference()
+        if pref == "tray":
+            from src.settings.store import set as store_set
+            store_set("tray_enabled", True)
+            self._setup_tray()
+            self.hide()
+            event.ignore()
+            return
+        if pref == "quit":
+            self._real_quit()
+            return
+
+        # 首次关闭 → 弹窗询问
+        event.ignore()
+        QTimer.singleShot(0, self._show_close_dialog)
+
+    def _show_close_dialog(self):
+        from PyQt6.QtWidgets import QMessageBox, QCheckBox
+
+        msg = QMessageBox(None)
+        msg.setWindowTitle("关闭 Origami")
+        msg.setText("是否最小化到系统托盘而不是退出？")
+        msg.setIcon(QMessageBox.Icon.Question)
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+        msg.button(QMessageBox.StandardButton.Yes).setText("是")
+        msg.button(QMessageBox.StandardButton.No).setText("否")
+        cb = QCheckBox("不再询问")
+        msg.setCheckBox(cb)
+        reply = msg.exec()
+
+        from src.settings.store import set as store_set
+        if reply == QMessageBox.StandardButton.Yes:
+            if cb.isChecked():
+                store_set("close_preference", "tray")
+            store_set("tray_enabled", True)
+            self._setup_tray()
+            self.hide()
+        elif cb.isChecked():
+            store_set("close_preference", "quit")
+            self.close()
         else:
             self._real_quit()
 
     def _real_quit(self):
+        from src.settings.store import set as store_set
         try:
             geo_hex = self.saveGeometry().toHex().data().decode()
-            save_settings({"geometry": {"geo": geo_hex}})
+            store_set("geometry", {"geo": geo_hex})
         except Exception:
             pass
         if self._tray:
@@ -437,6 +553,8 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         QApplication.quit()
+        # 兜底：如果 quit() 被阻止则强制退出
+        QTimer.singleShot(500, lambda: __import__("os")._exit(0))
 
     def tray_notify(self, title: str, msg: str,
                     icon=QSystemTrayIcon.MessageIcon.Information,

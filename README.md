@@ -60,9 +60,8 @@ Origami/
 │   ├── downloader.py           # 通用下载器
 │   ├── utils.py                # 工具函数
 │   ├── webview_api.py          # Puppeteer API 代理
-│   ├── theme/                  # 主题系统
-│   │   ├── colors.py           # 色板 token
-│   │   └── stylesheet.py       # QSS 动态生成
+│   ├── fonts.py                # 字体大小缩放工具
+│   ├── stylesheet.py           # 暗色 QSS 样式表
 │   ├── settings/               # 配置管理
 │   │   ├── schema.py           # Schema + 默认值 + 校验
 │   │   └── store.py            # 线程安全持久化

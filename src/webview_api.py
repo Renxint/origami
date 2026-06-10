@@ -108,4 +108,4 @@ def get_user_likes(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
     params = (f"sec_user_id={sec_uid}&max_cursor={max_cursor}&count={count}"
               f"&aid=6383&device_platform=webapp&version_code=290100"
               f"&version_name=29.1.0&cookie_enabled=true")
-    return _call_api(f"https://www.douyin.com/aweme/v1/web/favorite/post/?{params}")
+    return _call_api(f"https://www.douyin.com/aweme/v1/web/aweme/favorite/?{params}")

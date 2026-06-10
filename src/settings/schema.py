@@ -21,17 +21,6 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "type": int,
         "desc": "Schema 版本号，用于自动迁移",
     },
-    "theme": {
-        "default": "dark",
-        "type": str,
-        "enum": ["dark", "light", "system"],
-        "desc": "主题：dark / light / system（跟随系统）",
-    },
-    "accent_color": {
-        "default": "mono",
-        "type": str,
-        "desc": "强调色：mono / red / blue / green / gold",
-    },
     "font_family": {
         "default": "",
         "type": str,
@@ -43,6 +32,11 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "min": 8,
         "max": 24,
         "desc": "字体大小 (pt)",
+    },
+    "auto_raise": {
+        "default": True,
+        "type": bool,
+        "desc": "剪贴板检测到链接时自动弹窗到最前",
     },
     "tray_enabled": {
         "default": False,

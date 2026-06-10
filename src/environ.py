@@ -42,13 +42,63 @@ CONFIG_FILE     = EXE_DIR / "data" / "config.json"
 
 # 输出目录
 OUTPUT_BASE     = EXE_DIR / "output"
-OUTPUT_SINGLE   = OUTPUT_BASE / "单视频"
-OUTPUT_HOMEPAGE = OUTPUT_BASE / "主页下载"
+OUTPUT_SINGLE   = OUTPUT_BASE / "单作品"
+OUTPUT_BATCH    = OUTPUT_BASE / "批量作品"
+OUTPUT_OWN      = OUTPUT_BATCH / "用户目录"     # 自己主页
+OUTPUT_OTHER    = OUTPUT_BATCH / "他人目录"     # 别人主页
+OUTPUT_HOMEPAGE = OUTPUT_OTHER                 # 向后兼容
 
 # Sign server
 BOOTSTRAP_JS    = BASE_DIR / "sign-server" / "bootstrap.js"
 NODE_EXE        = BASE_DIR / "node.exe"
 NODE_CMD        = str(NODE_EXE) if NODE_EXE.exists() else "node"
+
+# ── 窗口强置顶 ────────────────────────────────────────────
+
+def force_raise_window(widget) -> bool:
+    """强制将窗口置顶（模拟 Alt 键抢焦点 + HWND_TOPMOST）"""
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+
+        hwnd = int(widget.winId())
+        user32 = ctypes.windll.user32
+
+        # 1. 恢复最小化
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+
+        # 2. 模拟 Alt 键：骗 Windows 以为我们有用户输入，解锁 SetForegroundWindow
+        VK_MENU = 0x12
+        KEYEVENTF_KEYUP = 0x0002
+        user32.keybd_event(VK_MENU, 0, 0, 0)
+        user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0)
+
+        # 3. 让当前进程可设前台窗口
+        kernel32 = ctypes.windll.kernel32
+        user32.AllowSetForegroundWindow(kernel32.GetCurrentProcessId())
+
+        # 4. 暂时置顶
+        HWND_TOPMOST = -1
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        SWP_SHOWWINDOW = 0x0040
+        flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW
+        user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
+
+        # 5. 抢前台
+        user32.SetForegroundWindow(hwnd)
+        user32.BringWindowToTop(hwnd)
+        user32.ShowWindow(hwnd, 5)  # SW_SHOW
+
+        # 6. 取消置顶
+        user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0, flags)
+
+        return True
+    except Exception:
+        return False
+
 
 # ── User-Agent ────────────────────────────────────────────
 USER_AGENT = (

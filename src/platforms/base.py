@@ -120,6 +120,23 @@ class PlatformAdapter(ABC):
         """获取话题/挑战赛内容（可选）"""
         raise NotImplementedError(f"{self.platform_name} 暂不支持话题下载")
 
+    def fetch_likes(
+        self, author_id: str, cookie: str = "",
+        max_cursor: int = 0, count: int = 18
+    ) -> dict:
+        """
+        获取用户喜欢列表（可选）。
+
+        返回格式同 fetch_posts:
+            {"items": [MediaItem, ...], "has_more": bool,
+             "next_cursor": int, "total": int | None}
+        """
+        raise NotImplementedError(f"{self.platform_name} 暂不支持喜欢列表下载")
+
+    def get_own_author_id(self, cookie: str = "") -> str:
+        """获取当前登录用户的 author_id（sec_uid）"""
+        return ""
+
 
 # ── 平台注册表 ────────────────────────────────────────────
 PLATFORM_REGISTRY: dict[str, type[PlatformAdapter]] = {}

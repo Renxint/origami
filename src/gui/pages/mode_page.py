@@ -11,10 +11,9 @@ from PyQt6.QtWidgets import (
     QApplication,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtSvgWidgets import QSvgWidget
 from pathlib import Path
 
-from src.theme import font_scale
+from src.fonts import font_scale
 from src.config import VERSION, DINGTALK_WEBHOOK
 from src.cookie import get_cookie_status
 from src.gui.dialogs.cookie_dialog import show_login_dialog
@@ -25,8 +24,8 @@ _ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 
 # 平台列表：(id, 名称, svg文件名, 是否可用)
 PLATFORMS = [
-    ("douyin",   "抖音",   "douyin.svg",    True),
-    ("bilibili", "B站",    "bilibili.svg",  False),
+    ("douyin",   "抖音",   "douyin.png",    True),
+    ("bilibili", "B站",    "bilibili.png",  False),
 ]
 
 
@@ -40,11 +39,16 @@ class ModePage(QWidget):
     def __init__(self):
         super().__init__()
         self._build()
-
+    def _clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
 
     def _build(self):
-
-
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(28)
@@ -124,8 +128,6 @@ class ModePage(QWidget):
 
     def _platform_card(self, name: str, svg_file: str, available: bool) -> QPushButton:
         """平台卡片：SVG 图标 + 名称"""
-
-
         btn = QPushButton()
         btn.setObjectName("modeBtn")
         btn.setCursor(Qt.CursorShape.PointingHandCursor if available else Qt.CursorShape.ForbiddenCursor)
@@ -139,29 +141,29 @@ class ModePage(QWidget):
         pt = QApplication.instance().font().pointSize()
         icon_sz = font_scale(72)
 
-        # SVG 图标
-        svg_path = _ICONS_DIR / svg_file
-        if svg_path.exists():
-            icon_widget = QSvgWidget(str(svg_path))
-            icon_widget.setFixedSize(icon_sz, icon_sz)
-            cl.addWidget(icon_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        # PNG 图标
+        from PyQt6.QtGui import QPixmap
+        icon_path = _ICONS_DIR / svg_file
+        icon_label = QLabel()
+        icon_label.setFixedSize(icon_sz, icon_sz)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if icon_path.exists():
+            pix = QPixmap(str(icon_path)).scaled(icon_sz, icon_sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            icon_label.setPixmap(pix)
         else:
-            # 兜底：显示文字
-            fallback = QLabel(name[0])
-            fallback.setFixedSize(icon_sz, icon_sz)
-            fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            fallback.setStyleSheet(
+            icon_label.setText(name[0])
+            icon_label.setStyleSheet(
                 f"font-size: {pt+16}px; font-weight: 800; color: #E11D48; "
                 f"background: #1A1030; border-radius: {font_scale(18)}px; "
             )
-            cl.addWidget(fallback, alignment=Qt.AlignmentFlag.AlignCenter)
+        cl.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # 名称
         tl = QLabel(name)
         if available:
             tl.setStyleSheet(f"font-size: {pt+4}px; font-weight: 700; color: #F1F5F9;")
         else:
-            tl.setStyleSheet(f"font-size: {pt+4}px; font-weight: 700; color: #475569;")
+            tl.setStyleSheet(f"font-size: {pt+4}px; font-weight: 700; color: #888;")
         tl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cl.addWidget(tl)
 

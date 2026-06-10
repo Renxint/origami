@@ -10,24 +10,22 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
-from src.theme import font_scale
+from src.fonts import font_scale
 from src.cookie import get_cookie_status
 from src.gui.dialogs.cookie_dialog import show_login_dialog
 
 
 class DouyinPage(QWidget):
-    """抖音平台页：单视频 + 主页批量"""
+    """抖音平台页：单个作品 + 批量下载"""
 
     back_clicked = pyqtSignal()
     single_clicked = pyqtSignal()
-    homepage_clicked = pyqtSignal()
+    batch_clicked = pyqtSignal()
     cookie_updated = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         self._build()
-
-
     def _build(self):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -47,12 +45,25 @@ class DouyinPage(QWidget):
         top.addStretch()
         layout.addLayout(top)
 
-        # 标题
+        # 图标 + 标题 同行
+        import pathlib
+        from PyQt6.QtGui import QPixmap
+        title_row = QHBoxLayout()
+        title_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_row.setSpacing(12)
+
+        icon_path = pathlib.Path(__file__).resolve().parent.parent / "assets" / "icons" / "douyin.png"
+        if icon_path.exists():
+            icon_label = QLabel()
+            pix = QPixmap(str(icon_path)).scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            icon_label.setPixmap(pix)
+            title_row.addWidget(icon_label)
+
         title = QLabel("抖音")
         title_sz = pt * 2
         title.setStyleSheet(f"font-size: {title_sz}px; font-weight: 800; color: #F1F5F9;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        title_row.addWidget(title)
+        layout.addLayout(title_row)
 
         sub = QLabel("选择下载模式")
         sub.setStyleSheet(f"font-size: {max(12, pt-2)}px; color: #64748B;")
@@ -63,26 +74,26 @@ class DouyinPage(QWidget):
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setMinimumWidth(font_scale(280))
-        sep.setStyleSheet("background: #252550; max-height: 1px; border: none;")
+        sep.setStyleSheet(f"background: #252550; max-height: 1px; border: none;")
         sep_row = QHBoxLayout()
         sep_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sep_row.addWidget(sep)
         layout.addLayout(sep_row)
 
-        # 功能卡片
-        card_row = QHBoxLayout()
-        card_row.setSpacing(36)
-        card_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # 功能按钮
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(24)
+        btn_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        single_btn = self._card("[>]", "单视频下载", "分享链接下载视频/图集/实况")
+        single_btn = self._big_btn("📥", "单个作品下载", "粘贴分享链接，下载视频/图集/实况")
         single_btn.clicked.connect(self.single_clicked.emit)
-        card_row.addWidget(single_btn)
+        btn_row.addWidget(single_btn)
 
-        hp_btn = self._card("[=]", "主页批量下载", "用户主页链接下载全部作品")
-        hp_btn.clicked.connect(self.homepage_clicked.emit)
-        card_row.addWidget(hp_btn)
+        batch_btn = self._big_btn("📦", "批量作品下载", "下载他人主页或自己主页的全部作品")
+        batch_btn.clicked.connect(self.batch_clicked.emit)
+        btn_row.addWidget(batch_btn)
 
-        layout.addLayout(card_row)
+        layout.addLayout(btn_row)
         layout.addStretch()
 
         # ── 登录状态（抖音专属） ──
@@ -94,37 +105,35 @@ class DouyinPage(QWidget):
         self.refresh_cookie_status()
         layout.addWidget(self._status_label)
 
-    def _card(self, icon: str, title: str, desc: str) -> QPushButton:
+    def _big_btn(self, icon: str, title: str, desc: str) -> QPushButton:
+        """大按钮：图标 + 标题 + 描述"""
         btn = QPushButton()
         btn.setObjectName("modeBtn")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setMinimumSize(font_scale(260), font_scale(190))
+        btn.setMinimumSize(font_scale(240), font_scale(160))
 
         cl = QVBoxLayout(btn)
-        cl.setContentsMargins(20, 20, 20, 20)
-        cl.setSpacing(8)
+        cl.setContentsMargins(16, 18, 16, 18)
+        cl.setSpacing(6)
+        cl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         pt = QApplication.instance().font().pointSize()
-        icon_sz = font_scale(44)
 
         ic = QLabel(icon)
-        ic.setStyleSheet(
-            f"font-size:{pt+8}px; font-weight:800; color:#FFFFFF; "
-            f"background:#1A1A1A; border-radius:{font_scale(12)}px; "
-            f"min-width:{icon_sz}px; max-width:{icon_sz}px; "
-            f"min-height:{icon_sz}px; max-height:{icon_sz}px;"
-        )
+        ic.setStyleSheet(f"font-size:{pt+12}px; background:transparent; border:none;")
         ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cl.addWidget(ic)
 
         tl = QLabel(title)
-        tl.setStyleSheet(f"font-size:{pt+2}px; font-weight:700; color:#F1F5F9;")
+        tl.setStyleSheet(f"font-size:{pt+2}px; font-weight:700; color:#F1F5F9; background:transparent; border:none;")
+        tl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cl.addWidget(tl)
 
         ds = QLabel(desc)
-        ds.setStyleSheet(f"font-size:{max(10, pt-2)}px; color:#64748B;")
+        ds.setStyleSheet(f"font-size:{max(10, pt-2)}px; color:#64748B; background:transparent; border:none;")
+        ds.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ds.setWordWrap(True)
         cl.addWidget(ds)
-        cl.addStretch()
         return btn
 
     # ── 登录状态 ──

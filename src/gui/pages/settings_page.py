@@ -22,10 +22,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
-from src.theme import font_scale, scaled_font, DARK_THEME as T
+from src.fonts import font_scale, scaled_font
 from src.config import VERSION
 from src.cookie import get_cookie_status, load_cookie, save_cookie
-from src.settings.store import load as load_settings, save as save_settings
+from src.settings.store import load as load_settings, save as save_settings, set as store_set
 from src.gui.dialogs.font_dialog import choose_font_dialog
 from src.gui.dialogs.cookie_dialog import show_login_dialog
 
@@ -237,6 +237,7 @@ class SettingsPage(QWidget):
         # ── 外观 ──
         self._section_title(panel, "外观")
         self._font_row(panel)
+        self._auto_raise_row(panel)
         self._tray_row(panel)
 
         panel.add_stretch()
@@ -333,92 +334,44 @@ class SettingsPage(QWidget):
         """应用字号到全局"""
         saved = load_settings()
         family = saved.get("font_family", "") or self.font().family()
-        save_settings({"font_family": family, "font_size": size})
+        store_set("font_family", family)
+        store_set("font_size", size)
         font = QFont(family, size)
         self.font_changed.emit(font)
 
-    def _theme_row(self, panel: SettingsPanel):
-        """主题预设选择 + 导入导出"""
-        from src.theme.theme_manager import ThemeManager
-        from PyQt6.QtWidgets import QFileDialog
-        tm = ThemeManager.instance()
-        current = tm._current_name
+    def _auto_raise_row(self, panel: SettingsPanel):
+        """剪贴板检测自动弹窗开关"""
+        self._switch_row(panel, "链接自动弹窗",
+            "复制抖音链接时自动将窗口置顶并填入链接",
+            load_settings().get("auto_raise", True),
+            self._on_auto_raise_toggled)
 
-        row = QHBoxLayout()
-        row.setSpacing(12)
-        lb = QLabel("主题")
-        lb.setStyleSheet(ROW_LABEL_STYLE)
-        lb.setFixedWidth(font_scale(60))
-        row.addWidget(lb)
-
-        combo = QComboBox()
-        for name in tm.preset_names():
-            combo.addItem(name)
-        if current in tm.preset_names():
-            combo.setCurrentIndex(tm.preset_names().index(current))
-        combo.setCursor(Qt.CursorShape.PointingHandCursor)
-        combo.currentIndexChanged.connect(
-            lambda: self._on_preset_changed(combo.currentText())
-        )
-        row.addWidget(combo, 1)
-        panel.content.addLayout(row)
-
-        # 导入导出按钮
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-        btn_row.setContentsMargins(font_scale(60) + 12, 4, 0, 0)
-
-        import_btn = QPushButton("导入主题")
-        import_btn.setObjectName("secondaryBtn")
-        import_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        import_btn.clicked.connect(lambda: self._import_theme())
-        btn_row.addWidget(import_btn)
-
-        export_btn = QPushButton("导出主题")
-        export_btn.setObjectName("secondaryBtn")
-        export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        export_btn.clicked.connect(lambda: self._export_theme())
-        btn_row.addWidget(export_btn)
-
-        btn_row.addStretch()
-        panel.content.addLayout(btn_row)
-
-    def _on_preset_changed(self, name: str):
-        from src.theme.theme_manager import ThemeManager
-        tm = ThemeManager.instance()
-        if tm.is_preset(name):
-            tm.load_preset(name)
-        else:
-            tm.set_colors(tm._user_themes[name], name)
-
-    def _import_theme(self):
-        from PyQt6.QtWidgets import QFileDialog
-        path, _ = QFileDialog.getOpenFileName(
-            self, "导入主题", "", "主题文件 (*.theme);;所有文件 (*)"
-        )
-        if path:
-            from src.theme.theme_manager import ThemeManager
-            ThemeManager.instance().import_theme(path)
-
-    def _export_theme(self):
-        from PyQt6.QtWidgets import QFileDialog
-        path, _ = QFileDialog.getSaveFileName(
-            self, "导出主题", "my_theme.theme", "主题文件 (*.theme)"
-        )
-        if path:
-            from src.theme.theme_manager import ThemeManager
-            ThemeManager.instance().export_theme(path)
+    def _on_auto_raise_toggled(self, enabled: bool):
+        from src.settings.store import set as store_set
+        store_set("auto_raise", enabled)
 
     def _tray_row(self, panel: SettingsPanel):
         """系统托盘开关（clawd-on-desk switch row）"""
         saved = load_settings()
+        pref = load_settings().get("close_preference", "")
+        desc = "关闭窗口时最小化到托盘，双击托盘图标恢复"
+        if pref == "tray":
+            desc += " (已记住：保留到托盘)"
+        elif pref == "quit":
+            desc += " (已记住：直接退出)"
+
         self._switch_row(panel, "系统托盘",
-            "关闭窗口时最小化到托盘，双击托盘图标恢复",
-            saved.get("tray_enabled", False),
+            desc,
+            load_settings().get("tray_enabled", False),
             self._on_tray_toggled)
 
     def _on_tray_toggled(self, enabled: bool):
-        save_settings({"tray_enabled": enabled})
+        from src.settings.store import set as store_set
+        store_set("tray_enabled", enabled)
+        # 立即生效：通知 MainWindow 创建/销毁托盘
+        w = self.window()
+        if hasattr(w, '_setup_tray'):
+            w._setup_tray()
 
     # ── 通用行组件 ──
 
@@ -533,8 +486,8 @@ class SettingsPage(QWidget):
         self._cookie_row(panel)
 
         self._section_title(panel, "已接入平台")
-        self._platform_card(panel, "douyin.svg", "抖音", True)
-        self._platform_card(panel, "bilibili.svg", "B站", False)
+        self._platform_card(panel, "douyin.png", "抖音", True)
+        self._platform_card(panel, "bilibili.png", "B站", False)
 
         panel.add_stretch()
         return panel
@@ -561,30 +514,30 @@ class SettingsPage(QWidget):
         self.refresh_cookie_status()
 
     def _platform_card(self, panel, svg_file: str, name: str, active: bool):
-        from PyQt6.QtSvgWidgets import QSvgWidget
+        from PyQt6.QtGui import QPixmap
         from pathlib import Path
 
         icons_dir = Path(__file__).resolve().parent.parent / "assets" / "icons"
-        svg_path = icons_dir / svg_file
+        icon_path = icons_dir / svg_file
 
         row = QHBoxLayout()
         row.setSpacing(12)
         row.setContentsMargins(0, 6, 0, 6)
 
         icon_sz = font_scale(36)
-        if svg_path.exists():
-            icon_widget = QSvgWidget(str(svg_path))
-            icon_widget.setFixedSize(icon_sz, icon_sz)
-            row.addWidget(icon_widget)
+        icon_label = QLabel()
+        icon_label.setFixedSize(icon_sz, icon_sz)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if icon_path.exists():
+            pix = QPixmap(str(icon_path)).scaled(icon_sz, icon_sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            icon_label.setPixmap(pix)
         else:
-            fallback = QLabel(name[0])
-            fallback.setFixedSize(icon_sz, icon_sz)
-            fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            fallback.setStyleSheet(
+            icon_label.setText(name[0])
+            icon_label.setStyleSheet(
                 f"font-size: {scaled_font(16)}px; font-weight: 800; "
                 f"color: #E11D48; background: #1A1030; border-radius: 8px;"
             )
-            row.addWidget(fallback)
+        row.addWidget(icon_label)
 
         text_col = QVBoxLayout()
         text_col.setSpacing(2)
@@ -959,10 +912,8 @@ class SettingsPage(QWidget):
             cf = self.font()
         accepted, font = choose_font_dialog(self, cf)
         if accepted:
-            save_settings({
-                "font_family": font.family(),
-                "font_size": font.pointSize(),
-            })
+            store_set("font_family", font.family())
+            store_set("font_size", font.pointSize())
             if hasattr(self, "font_value_label") and self.font_value_label:
                 self.font_value_label.setText(f"{font.family()}  {font.pointSize()}pt")
             self.font_changed.emit(font)

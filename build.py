@@ -3,7 +3,8 @@
 Origami — PyInstaller 构建脚本
 
 用法:
-    python build.py              # 打包为单文件 exe
+    python build.py              # 打包为目录
+    python build.py --installer  # 打包 + 生成 Inno Setup 安装包
     python build.py --spec-only  # 仅生成 .spec 文件
 """
 
@@ -16,8 +17,14 @@ PROJECT_DIR = Path(__file__).resolve().parent
 DIST_DIR = PROJECT_DIR / "dist"
 SPEC_FILE = PROJECT_DIR / "Origami.spec"
 
-# 版本信息
 from src.config import VERSION
+
+# Inno Setup 路径
+ISCC_PATHS = [
+    Path("C:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
+    Path("C:/Program Files/Inno Setup 6/ISCC.exe"),
+    Path("C:/Program Files (x86)/Inno Setup 5/ISCC.exe"),
+]
 
 
 def clean():
@@ -25,8 +32,6 @@ def clean():
     for d in [DIST_DIR, PROJECT_DIR / "build", PROJECT_DIR / "__pycache__"]:
         if d.exists():
             shutil.rmtree(d, ignore_errors=True)
-    for spec in PROJECT_DIR.glob("*.spec"):
-        pass  # 保留 spec
 
 
 def build():
@@ -47,7 +52,8 @@ def build():
         print("[ERROR] 打包失败！")
         sys.exit(1)
 
-    exe = DIST_DIR / "Origami" / "Origami.exe"
+    build_dir = DIST_DIR / f"Origami_v{VERSION}"
+    exe = build_dir / "Origami.exe"
     if exe.exists():
         size_mb = exe.stat().st_size / (1024 * 1024)
         print(f"[OK] 打包完成: {exe} ({size_mb:.1f}MB)")
@@ -55,8 +61,38 @@ def build():
         print("[WARN] 未找到 Origami.exe，请检查 spec 配置")
 
 
+def create_installer():
+    """PyInstaller 打包完成后，调用 Inno Setup 生成 setup.exe"""
+    iscc = None
+    for p in ISCC_PATHS:
+        if p.exists():
+            iscc = str(p)
+            break
+
+    if not iscc:
+        print("[WARN] 未找到 Inno Setup (ISCC.exe)，跳过安装包生成")
+        print("       安装 Inno Setup: https://jrsoftware.org/isdl.php")
+        return
+
+    iss_file = PROJECT_DIR / "installer.iss"
+    print(f"[Origami] 生成安装包 v{VERSION}...")
+    result = subprocess.run(
+        [iscc, str(iss_file), f"/DMyAppVersion={VERSION}"],
+        cwd=str(PROJECT_DIR),
+    )
+    if result.returncode == 0:
+        setup = DIST_DIR / f"Origami_v{VERSION}_setup.exe"
+        if setup.exists():
+            size_mb = setup.stat().st_size / (1024 * 1024)
+            print(f"[OK] 安装包: {setup} ({size_mb:.1f}MB)")
+    else:
+        print("[WARN] 安装包生成失败，请检查 Inno Setup 配置")
+
+
 if __name__ == "__main__":
     if "--spec-only" in sys.argv:
         print(f"[Origami] spec 文件: {SPEC_FILE}")
     else:
         build()
+        if "--installer" in sys.argv:
+            create_installer()

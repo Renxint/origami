@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from src.theme import font_scale, scaled_font
+from src.fonts import font_scale, scaled_font
 from src.cookie import load_cookie, save_cookie
 
 

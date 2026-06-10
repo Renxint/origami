@@ -22,7 +22,6 @@ from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo
 from PyQt6.QtGui import QPalette, QColor, QFont
 
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
-from src.theme import DARK_THEME, build_stylesheet
 from src.settings.store import load as load_settings
 from src.gui.main_window import (
     MainWindow, setup_single_instance,
@@ -80,7 +79,6 @@ def main():
             t.load(qm, sys_dir)
         app.installTranslator(t)
 
-    # Fusion 风格 + 暗色调色板
     app.setStyle("Fusion")
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(10, 10, 20))

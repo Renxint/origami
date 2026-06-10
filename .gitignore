@@ -33,3 +33,4 @@ sniff_*.log
 settings.json
 *.txt
 sniff_fullpage.png
+data/

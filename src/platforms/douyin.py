@@ -166,6 +166,42 @@ class DouyinAdapter(PlatformAdapter):
             "total": None,
         }
 
+    # ── 喜欢列表 ──────────────────────────────────────────
+
+    def fetch_likes(
+        self, author_id: str, cookie: str = "",
+        max_cursor: int = 0, count: int = 18
+    ) -> dict:
+        """翻页获取喜欢列表（需签名，走 Puppeteer）"""
+        from src.webview_api import get_user_likes
+        data = get_user_likes(author_id, max_cursor=max_cursor, count=count)
+
+        aweme_list = data.get("aweme_list", [])
+        items = []
+        for aweme in aweme_list:
+            items.append(MediaItem(
+                platform="douyin",
+                item_id=aweme.get("aweme_id", ""),
+                item_type="video" if aweme.get("video") else ("image" if aweme.get("images") else "unknown"),
+                title=aweme.get("desc", ""),
+                author=aweme.get("author", {}).get("nickname", ""),
+                extra={"aweme": aweme},
+            ))
+
+        return {
+            "items": items,
+            "has_more": bool(data.get("has_more", 0)),
+            "next_cursor": data.get("max_cursor", 0),
+            "total": None,
+        }
+
+    def get_own_author_id(self, cookie: str = "") -> str:
+        """获取当前登录用户的 sec_uid"""
+        from src.api import DouyinAPI
+        cookie = cookie or self._load_cookie()
+        api = DouyinAPI(cookie_string=cookie)
+        return api.get_own_sec_uid()
+
     # ── Cookie ────────────────────────────────────────────
 
     def check_cookie(self, cookie: str) -> bool:
