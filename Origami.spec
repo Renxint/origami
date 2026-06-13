@@ -96,11 +96,11 @@ exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name=f'Origami_v{VERSION}', debug=False,
     bootloader_ignore_signals=False, strip=False,
-    upx=True, upx_exclude=['node.exe', 'QtWebEngineProcess.exe'],
+    upx=False,
     console=False, icon=['app.ico'],
 )
 coll = COLLECT(
     exe, a.binaries, a.datas, strip=False,
-    upx=True, upx_exclude=['node.exe', 'QtWebEngineProcess.exe'],
+    upx=False,
     name=f'Origami_v{VERSION}',
 )

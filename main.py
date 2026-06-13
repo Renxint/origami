@@ -22,12 +22,17 @@ try:
 except ImportError:
     pass
 
+# PyInstaller 冻结导入兼容：预加载所有 WebEngine 相关 C 扩展
+try:
+    import PyQt6.QtWebEngineCore  # noqa: F401
+except ImportError:
+    pass
+
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo, Qt
 from PyQt6.QtGui import QPalette, QColor, QFont
 
-# PyInstaller 打包后，任何 Qt 对象创建前必须先设此属性
-# （QLocalSocket 等会在 setup_single_instance 中偷偷创建 QCoreApplication）
+# 必须在任何 QObject 创建前设置（包括 QLocalSocket）
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE

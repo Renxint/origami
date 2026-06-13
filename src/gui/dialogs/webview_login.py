@@ -10,11 +10,25 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
 )
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 from PyQt6.QtCore import QUrl, QTimer, Qt, QEventLoop
 from PyQt6.QtNetwork import QNetworkCookie
 from src.gui.fonts import scaled_font
+
+# PyInstaller 冻结环境下延迟导入 WebEngine（避免 C 扩展类型解析失败）
+_QWebEngineView = None
+_QWebEngineProfile = None
+_QWebEnginePage = None
+
+def _ensure_webengine():
+    global _QWebEngineView, _QWebEngineProfile, _QWebEnginePage
+    if _QWebEngineView is None:
+        from PyQt6.QtWebEngineWidgets import QWebEngineView as _QEV
+        from PyQt6.QtWebEngineCore import QWebEngineProfile as _QEP
+        from PyQt6.QtWebEngineCore import QWebEnginePage as _QEPg
+        _QWebEngineView = _QEV
+        _QWebEngineProfile = _QEP
+        _QWebEnginePage = _QEPg
+    return _QWebEngineView, _QWebEngineProfile, _QWebEnginePage
 
 
 class WebViewLogin:
@@ -25,7 +39,7 @@ class WebViewLogin:
 
     def __init__(self):
         try:
-            from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+            _ensure_webengine()
         except ImportError:
             raise RuntimeError("PyQt6-WebEngine 未安装")
 
@@ -47,7 +61,8 @@ class WebViewLogin:
         )
         layout.addWidget(hint)
 
-        view = QWebEngineView()
+        QEV, QEP, QEPg = _ensure_webengine()
+        view = QEV()
         layout.addWidget(view, 1)
 
         status = QLabel("正在加载页面...")
@@ -66,7 +81,7 @@ class WebViewLogin:
         layout.addLayout(btn_row)
 
         # 拦截未知协议（如 bitbrowser://）防止弹窗
-        class _SafePage(QWebEnginePage):
+        class _SafePage(QEPg):
             def acceptNavigationRequest(self, url, nav_type, is_main_frame):
                 if url.scheme() in ('http', 'https', 'data', 'about', 'blob', 'javascript'):
                     return super().acceptNavigationRequest(url, nav_type, is_main_frame)
