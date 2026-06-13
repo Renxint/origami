@@ -23,7 +23,7 @@ except ImportError:
     pass
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo
+from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo, Qt
 from PyQt6.QtGui import QPalette, QColor, QFont
 
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
@@ -52,6 +52,8 @@ def main():
     from src.webview_api import start_server as _start_srv
     _start_srv()
 
+    # PyInstaller 打包后 WebEngine 懒加载需要此属性
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
