@@ -69,6 +69,44 @@ def classify_url(url: str) -> str:
     raise ValueError(f"无法识别链接类型: {url[:60]}")
 
 
+def extract_comment_media(comment: dict) -> dict:
+    """从评论中提取媒体资源
+
+    Returns:
+        {"images": [(url, desc), ...], "stickers": [(url, desc), ...], "text": str}
+    """
+    result = {"images": [], "stickers": [], "text": comment.get("text", "")}
+
+    # 评论配图
+    for img in comment.get("image_list") or []:
+        urls = img.get("origin_url", {}).get("url_list", [])
+        if urls:
+            result["images"].append((urls[0], img.get("label", "")))
+
+    # sticker_list（多个表情包）
+    for s in comment.get("sticker_list") or []:
+        for url_field in ("animate_url", "static_url"):
+            url_obj = s.get(url_field)
+            if isinstance(url_obj, dict):
+                urls = url_obj.get("url_list", [])
+                if urls and urls[0]:
+                    result["stickers"].append((urls[0], s.get("desc", "")))
+                    break
+
+    # sticker（单个表情包）
+    s = comment.get("sticker")
+    if s and isinstance(s, dict):
+        for url_field in ("animate_url", "static_url"):
+            url_obj = s.get(url_field)
+            if isinstance(url_obj, dict):
+                urls = url_obj.get("url_list", [])
+                if urls and urls[0]:
+                    result["stickers"].append((urls[0], s.get("desc", "")))
+                    break
+
+    return result
+
+
 def compare_versions(v1: str, v2: str) -> int:
     """比较语义化版本: -1/0/1"""
     def to_tuple(v: str):

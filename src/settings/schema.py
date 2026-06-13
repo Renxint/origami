@@ -76,7 +76,7 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
             "toggle_tray": "Escape",
         },
         "type": dict,
-        "desc": "快捷键绑定",
+        "desc": "快捷键绑定（修改后需重启生效）",
     },
     "high_speed": {
         "default": False,

@@ -1,0 +1,182 @@
+/**
+ * Origami — 常驻浏览器服务
+ * 启动时初始化 SDK + Cookie，后续请求复用浏览器会话
+ *
+ * 用法: node server.js [port]
+ * 默认端口: 9876
+ *
+ * 端点:
+ *   POST /video?aweme_id=xxx  → 获取视频详情（含水印链接）
+ *   POST /call?url=xxx         → 通用 API 代理
+ *   GET  /health               → 健康检查
+ */
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+// ── 找浏览器 ──
+function findBrowser() {
+    const candidates = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    ];
+    for (const p of candidates) if (fs.existsSync(p)) return p;
+    return null;
+}
+
+const PORT = parseInt(process.argv[2]) || 9876;
+const COOKIE_FILE = path.resolve(__dirname, '..', 'data', 'Cookie.txt');
+
+// 解码 base64 cookie
+function loadCookie() {
+    if (!fs.existsSync(COOKIE_FILE)) return '';
+    const raw = fs.readFileSync(COOKIE_FILE, 'utf-8').trim();
+    try { return Buffer.from(raw, 'base64').toString('utf-8'); }
+    catch (e) { return raw; }
+}
+
+function cookieToArray(str) {
+    return str.split(';').map(c => {
+        const eq = c.trim().indexOf('=');
+        if (eq < 0) return null;
+        return { name: c.substring(0, eq).trim(), value: c.substring(eq + 1).trim(), domain: '.douyin.com', path: '/' };
+    }).filter(Boolean);
+}
+
+// ── 浏览器状态 ──
+let browser = null;
+let page = null;
+let sdkReady = false;
+
+async function ensureBrowser() {
+    if (browser && sdkReady) return page;
+
+    const puppeteer = require('puppeteer-extra');
+    const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+    puppeteer.use(StealthPlugin());
+
+    const exePath = findBrowser();
+    if (!exePath) throw new Error('No browser found');
+
+    browser = await puppeteer.launch({
+        headless: 'new',
+        executablePath: exePath,
+        args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
+    });
+    page = await browser.newPage();
+    await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    });
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36'
+    );
+
+    // SDK init (同 bootstrap.js)
+    console.error('[srv] SDK init...');
+    await page.goto('https://www.douyin.com/?recommend=1', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForFunction(() => window.bdms && window.bdms.init, { timeout: 30000 });
+    await page.evaluate(() => { window.bdms.init({ aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5 }); });
+
+    // 注入 Cookie
+    const cookie = loadCookie();
+    if (cookie) {
+        await page.goto('https://www.douyin.com/?recommend=1', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.setCookie(...cookieToArray(cookie));
+        await page.waitForFunction(() => window.bdms && window.bdms.init, { timeout: 30000 });
+        await page.evaluate(() => {
+            window.bdms.init({ aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5,
+                paths: ['^/aweme/v1/', '^/aweme/v2/', '/douplus/', '^/live/', '^/captcha/', '^/ecom/', '^/luna/pc'] });
+        });
+    }
+
+    // 注入指纹
+    await page.evaluate(() => {
+        localStorage.setItem('webid', '7385142668127356466');
+        localStorage.setItem('verifyFp', 'verify_moblf7od_dhWzqJO5_JDbN_44xu_86lf_8A6KqJjdqijD');
+        localStorage.setItem('fp', 'verify_moblf7od_dhWzqJO5_JDbN_44xu_86lf_8A6KqJjdqijD');
+        localStorage.setItem('uifid', '7db62a7064f9afdec5c11ec3d692d7372ef41f2765cba0856d9e1b7b4940be6ed1b35a0f14230c327616b958a98d663b4443e89c625dc584c6b48e03ecc9c0ad');
+    });
+
+    sdkReady = true;
+    console.error('[srv] Ready');
+    return page;
+}
+
+// ── HTTP Server ──
+http.createServer(async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+
+    // CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') { res.writeHead(200); res.end('{}'); return; }
+
+    try {
+        // Health check
+        if (url.pathname === '/health') {
+            res.writeHead(200);
+            res.end(JSON.stringify({ ok: true, sdkReady, cookie: !!loadCookie() }));
+            return;
+        }
+
+        const p = await ensureBrowser();
+
+        // Reload cookies if changed
+        const cookie = loadCookie();
+        if (cookie) await p.setCookie(...cookieToArray(cookie));
+
+        // POST /video?aweme_id=xxx
+        if (url.pathname === '/video' && url.searchParams.get('aweme_id')) {
+            const awemeId = url.searchParams.get('aweme_id');
+            console.error(`[srv] /video ${awemeId}`);
+            const params = {
+                aweme_id: awemeId, device_platform: 'webapp', aid: '6383', channel: 'channel_pc_web',
+                pc_client_type: '1', version_code: '290100', version_name: '29.1.0',
+                cookie_enabled: 'true', screen_width: '2560', screen_height: '1440',
+                browser_language: 'zh-CN', browser_platform: 'Win32',
+                browser_name: 'Smart+Lenovo+Browser', browser_version: '9.0.8.5161',
+                browser_online: 'true', engine_name: 'Blink', engine_version: '141.0.0.0',
+                os_name: 'Windows', os_version: '10', cpu_core_num: '32',
+                device_memory: '8', platform: 'PC', downlink: '10', effective_type: '4g', round_trip_time: '50',
+            };
+            const q = Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&');
+            const apiUrl = `https://www.douyin.com/aweme/v1/web/aweme/detail/?${q}`;
+            const result = await p.evaluate(async (u) => {
+                try { const r = await fetch(u, { credentials: 'include' }); return await r.json(); }
+                catch (e) { return { _error: e.message }; }
+            }, apiUrl);
+            res.writeHead(200);
+            res.end(JSON.stringify(result));
+            return;
+        }
+
+        // POST /call?url=xxx
+        if (url.pathname === '/call' && url.searchParams.get('url')) {
+            const apiUrl = url.searchParams.get('url');
+            console.error(`[srv] /call ${apiUrl.substring(0, 80)}`);
+            const result = await p.evaluate(async (u) => {
+                try { const r = await fetch(u, { credentials: 'include' }); return await r.json(); }
+                catch (e) { return { _error: e.message }; }
+            }, apiUrl);
+            res.writeHead(200);
+            res.end(JSON.stringify(result));
+            return;
+        }
+
+        res.writeHead(404);
+        res.end(JSON.stringify({ _error: 'not_found' }));
+    } catch (e) {
+        console.error('[srv] Error:', e.message);
+        sdkReady = false;
+        res.writeHead(500);
+        res.end(JSON.stringify({ _error: e.message }));
+    }
+}).listen(PORT, () => {
+    console.error(`[srv] Listening on http://localhost:${PORT}`);
+    ensureBrowser().catch(e => console.error('[srv] Init failed:', e.message));
+});

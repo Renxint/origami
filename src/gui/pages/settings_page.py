@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy, QSpacerItem, QComboBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QKeySequence
 from PyQt6.QtGui import QFont
 
 from src.gui.fonts import font_scale, scaled_font
@@ -96,9 +97,11 @@ class SettingsPage(QWidget):
     back_clicked = pyqtSignal()
     font_changed = pyqtSignal(QFont)
     cookie_updated = pyqtSignal()
+    shortcuts_changed = pyqtSignal()
 
     def __init__(self):
         super().__init__()
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._panels = {}        # panel_id → QWidget
         self._panel_builders = {}  # panel_id → build function
         self._build()
@@ -594,11 +597,11 @@ class SettingsPage(QWidget):
         reset_all = QPushButton("重置全部")
         reset_all.setObjectName("secondaryBtn")
         reset_all.setCursor(Qt.CursorShape.PointingHandCursor)
-        reset_all.setEnabled(False)  # 后续版本启用
+        reset_all.clicked.connect(self._reset_all_settings)
         header.addWidget(reset_all)
         panel.content.addLayout(header)
 
-        subtitle = QLabel("应用程序快捷键。后续版本支持录制自定义绑定。")
+        subtitle = QLabel("点击输入框直接录制新快捷键，即时生效无需重启")
         subtitle.setStyleSheet(
             f"color: #94A3B8; font-size: {scaled_font(12)}px; padding-bottom: 8px;"
         )
@@ -607,25 +610,23 @@ class SettingsPage(QWidget):
 
         # ── 自定义快捷键行 ──
         shortcuts = [
-            ("回到首页",    "Ctrl+H",     "从任意页面导航回主页"),
-            ("打开设置",    "Ctrl+,",     "打开设置面板"),
-            ("退出程序",    "Ctrl+Q",     "完全退出 Origami"),
-            ("托盘最小化",  "Esc",        "最小化到系统托盘"),
+            ("home",        "回到首页",    "Ctrl+H",  "从任意页面导航回主页"),
+            ("settings",    "打开设置",    "Ctrl+,",  "打开设置面板"),
+            ("quit",        "退出程序",    "Ctrl+Q",  "完全退出 Origami"),
+            ("toggle_tray", "托盘最小化",  "Esc",     "最小化到系统托盘"),
         ]
-        for label, key, desc in shortcuts:
-            self._shortcut_row(panel, label, key, desc)
+        cfg = load_settings().get("shortcuts", {})
+        for cfg_key, label, default_key, desc in shortcuts:
+            self._shortcut_row(panel, cfg, cfg_key, label, default_key, desc)
 
         panel.add_stretch()
-        hint = QLabel("系统快捷键由操作系统/框架处理，不支持自定义。")
-        hint.setStyleSheet(
-            f"color: #475569; font-size: {scaled_font(10)}px; padding-top: 8px;"
-        )
-        hint.setWordWrap(True)
+        hint = QLabel("点击输入框 → 按下组合键 → 即时生效，无需重启")
+        hint.setStyleSheet(f"color: #64748B; font-size: {scaled_font(10)}px; padding-top: 6px;")
         panel.content.addWidget(hint)
         return panel
 
-    def _shortcut_row(self, panel: SettingsPanel, label: str,
-                      key: str, desc: str = ""):
+    def _shortcut_row(self, panel: SettingsPanel, cfg: dict,
+                      cfg_key: str, label: str, default_key: str, desc: str = ""):
         """自定义快捷键行：row-text | row-control"""
         row = QHBoxLayout()
         row.setContentsMargins(0, 4, 0, 4)
@@ -652,29 +653,34 @@ class SettingsPage(QWidget):
         ctrl = QHBoxLayout()
         ctrl.setSpacing(8)
 
-        # 快捷键标签
-        kbd = QLabel(key)
+        # 快捷键输入（QKeySequenceEdit 天然支持录制）
+        from PyQt6.QtWidgets import QKeySequenceEdit
+        kbd = QKeySequenceEdit()
+        kbd.setKeySequence(QKeySequence(cfg.get(cfg_key, "")))
         kbd.setStyleSheet(
             f"color: #E2E8F0; font-size: {scaled_font(13)}px; "
             "background: #18183A; border: 1px solid #334155; "
-            "border-radius: 6px; padding: 5px 14px; "
-            "font-family: Consolas, monospace; "
-            "min-width: 70px;"
+            "border-radius: 6px; padding: 5px 10px; "
+            "font-family: Consolas, monospace; min-width: 80px;"
         )
-        kbd.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        kbd.setMaximumWidth(font_scale(120))
+        kbd.editingFinished.connect(
+            lambda k=cfg_key, kb=kbd: self._save_shortcut(k, kb))
         ctrl.addWidget(kbd)
 
-        # 操作按钮（预留，后续版本启用）
+        # 清除 / 重置
         for btn_text, tooltip in [
-            ("录制", "点击后按下新快捷键取代当前绑定"),
             ("清除", "删除当前快捷键绑定"),
             ("重置", "恢复为默认快捷键"),
         ]:
             btn = QPushButton(btn_text)
             btn.setObjectName("secondaryBtn")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setEnabled(False)
             btn.setToolTip(tooltip)
+            if btn_text == "清除":
+                btn.clicked.connect(lambda checked, k=cfg_key, kb=kbd: self._clear_shortcut(k, kb))
+            else:
+                btn.clicked.connect(lambda checked, k=cfg_key, kb=kbd: self._reset_shortcut(k, kb))
             ctrl.addWidget(btn)
 
         row.addLayout(ctrl)
@@ -684,6 +690,56 @@ class SettingsPage(QWidget):
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet("background: #1E1E3E; max-height: 1px; border: none;")
         panel.content.addWidget(sep)
+
+    def _reset_all_settings(self):
+        from PyQt6.QtWidgets import QMessageBox
+        r = QMessageBox.warning(self, "重置全部设置",
+            "确定要重置所有设置为默认值吗？\n此操作不可撤销。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if r == QMessageBox.StandardButton.Yes:
+            from src.settings.store import save
+            from src.settings.schema import get_defaults
+            save(get_defaults())
+            QMessageBox.information(self, "完成", "已恢复默认设置，重启后生效。")
+
+    # 常见系统快捷键（避免冲突提示）
+    _SYSTEM_KEYS = {
+        "Ctrl+C", "Ctrl+V", "Ctrl+X", "Ctrl+Z",
+        "Alt+F4", "Alt+Tab", "Ctrl+Alt+Del",
+    }
+
+    def _save_shortcut(self, key: str, kbd):
+        combo = kbd.keySequence().toString()
+        if combo and combo in self._SYSTEM_KEYS:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "快捷键冲突",
+                f"{combo} 是系统常用快捷键，可能会被拦截不生效。\n建议使用其他组合键。")
+        cfg = load_settings().get("shortcuts", {})
+        if combo:
+            cfg[key] = combo
+        else:
+            cfg.pop(key, None)
+        from src.settings.store import set as sset
+        sset("shortcuts", cfg)
+        self.shortcuts_changed.emit()
+
+    def _clear_shortcut(self, key: str, kbd):
+        cfg = load_settings().get("shortcuts", {})
+        cfg.pop(key, None)
+        from src.settings.store import set as sset
+        sset("shortcuts", cfg)
+        kbd.clear()
+        self.shortcuts_changed.emit()
+
+    def _reset_shortcut(self, key: str, kbd):
+        from src.settings.schema import get_defaults
+        default = get_defaults()["shortcuts"].get(key, "")
+        cfg = load_settings().get("shortcuts", {})
+        cfg[key] = default
+        from src.settings.store import set as sset
+        sset("shortcuts", cfg)
+        kbd.setKeySequence(QKeySequence(default))
+        self.shortcuts_changed.emit()
 
     def _fixed_key_row(self, panel: SettingsPanel, label: str, key: str):
         """系统固定快捷键行（灰色不可自定义）"""

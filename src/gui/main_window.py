@@ -208,6 +208,7 @@ class MainWindow(QMainWindow):
         self.mode_page.cookie_updated.connect(self._on_cookie_updated)
         self.douyin_page.cookie_updated.connect(self._on_cookie_updated)
         self.settings_page.cookie_updated.connect(self._on_cookie_updated)
+        self.settings_page.shortcuts_changed.connect(self.reload_shortcuts)
 
         self.stack.setCurrentIndex(0)
 
@@ -424,17 +425,34 @@ class MainWindow(QMainWindow):
     # ── 快捷键 ──
 
     def _setup_shortcuts(self):
-        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(self._go_home)
-        QShortcut(QKeySequence("Ctrl+Q"), self).activated.connect(self._real_quit)
-        QShortcut(QKeySequence("Ctrl+,"), self).activated.connect(
-            lambda: self.stack.setCurrentIndex(4)
-        )
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(
-            lambda: self.stack.setCurrentIndex(4)
-        )
-        QShortcut(QKeySequence("Escape"), self).activated.connect(
-            lambda: self.hide() if self._tray and self._tray.isVisible() else None
-        )
+        self._shortcuts = {}  # {name: QShortcut}
+        cfg = load_settings().get("shortcuts", {})
+
+        sc = QShortcut(QKeySequence(cfg.get("home", "Ctrl+H")), self)
+        sc.activated.connect(self._go_home)
+        self._shortcuts["home"] = sc
+
+        sc = QShortcut(QKeySequence(cfg.get("quit", "Ctrl+Q")), self)
+        sc.activated.connect(self._real_quit)
+        self._shortcuts["quit"] = sc
+
+        sc = QShortcut(QKeySequence(cfg.get("settings", "Ctrl+,")), self)
+        sc.activated.connect(lambda: self.stack.setCurrentIndex(4))
+        self._shortcuts["settings"] = sc
+
+        sc = QShortcut(QKeySequence(cfg.get("toggle_tray", "Escape")), self)
+        sc.activated.connect(lambda: self.hide() if self._tray and self._tray.isVisible() else None)
+        self._shortcuts["toggle_tray"] = sc
+
+    def reload_shortcuts(self):
+        """立即生效新的快捷键绑定"""
+        if not hasattr(self, '_shortcuts'):
+            return
+        cfg = load_settings().get("shortcuts", {})
+        for name, sc in self._shortcuts.items():
+            new_key = cfg.get(name, "")
+            if new_key:
+                sc.setKey(QKeySequence(new_key))
 
     # ── 版本更新 ──
 

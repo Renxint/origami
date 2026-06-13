@@ -198,6 +198,14 @@ class DouyinAdapter(PlatformAdapter):
             "total": None,
         }
 
+    def fetch_comments(self, aweme_id: str, cookie: str = "",
+                       cursor: int = 0, count: int = 20) -> dict:
+        """获取作品评论列表（HTTP，不需要签名）"""
+        from src.api import DouyinAPI
+        cookie = cookie or self._load_cookie()
+        api = DouyinAPI(cookie_string=cookie)
+        return api.get_comments(aweme_id, cursor=cursor, count=count)
+
     def fetch_favorites(self, favorite_id: str, cookie: str = "",
                         max_cursor: int = 0, count: int = 18) -> dict:
         """翻页获取收藏夹作品列表"""

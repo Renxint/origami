@@ -13,7 +13,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from src.environ import NODE_CMD, BASE_DIR, CREATE_NO_WINDOW, COOKIE_FILE
+from src.environ import (NODE_CMD, BASE_DIR, CREATE_NO_WINDOW,
+                        COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_URL)
 
 _API_SCRIPT = BASE_DIR / "sign-server" / "api-call.js"
 _SIGNED_SCRIPT = BASE_DIR / "sign-server" / "api-signed.js"
@@ -87,6 +88,53 @@ def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
         return {"_error": str(e)}
     finally:
         tmp.unlink(missing_ok=True)
+
+
+# ── 常驻浏览器服务 ──
+_server_process = None
+
+def start_server():
+    """启动常驻 Node 浏览器服务（软件启动时调用一次）"""
+    global _server_process
+    import subprocess, time
+    try:
+        r = __import__('requests').get(f"{SIGN_SERVER_URL}/health", timeout=2)
+        if r.json().get('ok'):
+            return True  # 已在运行
+    except Exception:
+        pass
+    _server_process = subprocess.Popen(
+        [NODE_CMD, str(SIGN_SERVER_JS)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        creationflags=CREATE_NO_WINDOW,
+    )
+    # 等待服务就绪
+    for _ in range(30):
+        try:
+            r = __import__('requests').get(f"{SIGN_SERVER_URL}/health", timeout=1)
+            if r.json().get('ok'):
+                return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+def stop_server():
+    """关闭常驻服务"""
+    global _server_process
+    if _server_process:
+        _server_process.terminate()
+        _server_process = None
+
+def call_server(endpoint, **params):
+    """调用常驻服务端点，返回 JSON"""
+    import requests as _r
+    url = f"{SIGN_SERVER_URL}/{endpoint}"
+    try:
+        r = _r.post(url, params=params, timeout=60)
+        return r.json()
+    except Exception as e:
+        return {"_error": str(e)}
 
 
 def get_user_posts(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:

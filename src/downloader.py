@@ -61,6 +61,52 @@ def load_tracker(tracker_path: Path) -> dict:
     return {}
 
 
+def download_batch(tasks: list, max_workers: int = 6) -> tuple:
+    """并发下载一组文件
+
+    Args:
+        tasks: [(url, path, headers), ...]  headers 可为 None
+        max_workers: 并发线程数
+
+    Returns:
+        (success_count, fail_count)
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    pending = [(url, path, headers) for url, path, headers in tasks
+               if not path.exists()]
+    if not pending:
+        return 0, 0
+
+    def _dl(url, path, headers):
+        if headers is None:
+            headers = {"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}
+        try:
+            r = req.get(url, headers=headers, stream=True, timeout=REQUEST_TIMEOUT)
+            r.raise_for_status()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "wb") as f:
+                for chunk in r.iter_content(8192):
+                    if chunk:
+                        f.write(chunk)
+            return True
+        except Exception:
+            if path.exists():
+                path.unlink()
+            return False
+
+    ok, fail = 0, 0
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_dl, url, path, headers): (url, path)
+                   for url, path, headers in pending}
+        for f in as_completed(futures):
+            if f.result():
+                ok += 1
+            else:
+                fail += 1
+    return ok, fail
+
+
 def save_tracker(tracker_path: Path, tracker: dict):
     """保存下载记录"""
     tracker_path.write_text(

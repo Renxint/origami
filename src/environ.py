@@ -50,8 +50,11 @@ OUTPUT_HOMEPAGE = OUTPUT_OTHER                 # 向后兼容
 
 # Sign server
 BOOTSTRAP_JS    = BASE_DIR / "sign-server" / "bootstrap.js"
+SIGN_SERVER_JS  = BASE_DIR / "sign-server" / "server.js"
 NODE_EXE        = BASE_DIR / "node.exe"
 NODE_CMD        = str(NODE_EXE) if NODE_EXE.exists() else "node"
+SIGN_SERVER_PORT = 9876
+SIGN_SERVER_URL  = f"http://localhost:{SIGN_SERVER_PORT}"
 
 # ── 窗口强置顶 ────────────────────────────────────────────
 

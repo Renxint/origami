@@ -5,6 +5,10 @@ Origami — 批量作品下载页面
 双模式：
   - 下载他人主页：URL 输入 + 翻页下载（复用 HomepageDownloadThread 逻辑）
   - 下载自己主页：自动获取 sec_uid + 子标签（作品/喜欢）
+
+TODO: 多主页并行下载
+  每个主页独立 BatchPage 实例/标签页，各自维护线程、日志、暂停状态。
+  剪贴板检测到新链接时创建新的下载标签而非覆盖当前。
 """
 
 import os
@@ -21,7 +25,7 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QSplitter, QFrame,
     QFileDialog, QMenu, QApplication,
     QMessageBox, QStackedWidget, QDialog,
-    QSizePolicy, QCheckBox,
+    QSizePolicy, QCheckBox, QLineEdit,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
 from PyQt6.QtGui import QAction, QFont
@@ -244,6 +248,12 @@ class BatchDownloadThread(QThread):
                     pass
 
             # ── 逐个下载 ──
+            import time as _time
+            _start_ts = _time.time()
+            # 高速模式：每作品内并发下载文件
+            from src.settings.store import load as _load_stg
+            _high_speed = _load_stg().get("high_speed", False)
+
             for i, item in enumerate(all_items):
                 self._check_cancel(); self._wait()
 
@@ -276,16 +286,21 @@ class BatchDownloadThread(QThread):
                         or aweme.get("media_type") == 42
                     )
 
+                    # ── 高速模式：收集任务批量下载 ──
+                    _batch_tasks = [] if _high_speed else None
+
                     # ── 纯视频 ──
                     is_pure_video = bool(video) and not images and not is_live
                     if is_pure_video:
-                        # 纯视频：直接提取 URL，失败降级 BGM
                         url = pick_best_video_url(video) or ""
                         if url:
                             self.log_signal.emit(
                                 f'[{i+1}/{total}] <span style="color:#F59E0B;">[视频]</span> {desc}'
                             )
-                            self._dl(url, save_root / f"{pos}{desc}.mp4")
+                            if _batch_tasks is not None:
+                                _batch_tasks.append((url, save_root / f"{pos}{desc}.mp4"))
+                            else:
+                                self._dl_or_batch(_batch_tasks, url, save_root / f"{pos}{desc}.mp4")
                             stats["video"] += 1
                             downloaded = True
                         else:
@@ -295,7 +310,7 @@ class BatchDownloadThread(QThread):
                                 self.log_signal.emit(
                                     f'[{i+1}/{total}] <span style="color:#F59E0B;">[音频]</span> {desc}'
                                 )
-                                self._dl(music_url, save_root / f"{pos}{desc}.mp3")
+                                self._dl_or_batch(_batch_tasks, music_url, save_root / f"{pos}{desc}.mp3")
                                 stats["music"] += 1
                                 downloaded = True
 
@@ -318,7 +333,7 @@ class BatchDownloadThread(QThread):
                                     urls[0] if urls else ""
                                 )
                                 if img_url:
-                                    self._dl(img_url, save_root / f"{pos}{j+1}.jpg")
+                                    self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
                                     stats["image"] += 1
                                     downloaded = True
                         else:
@@ -337,7 +352,7 @@ class BatchDownloadThread(QThread):
                                     _c = iv.get(_ck) or {}
                                     _cu = (_c.get("url_list") or [""])[0]
                                     if _cu:
-                                        self._dl(_cu, save_root / f"{pos}{j+1}_封面.jpg")
+                                        self._dl_or_batch(_batch_tasks, _cu, save_root / f"{pos}{j+1}_封面.jpg")
                                         stats["image"] += 1
                                         downloaded = True
                                         break
@@ -348,7 +363,7 @@ class BatchDownloadThread(QThread):
                                 if not lv:
                                     lv = ((iv.get("play_addr") or {}).get("url_list") or [""])[0]
                                 if lv:
-                                    self._dl(lv, save_root / f"{pos}{j+1}_实况.mp4")
+                                    self._dl_or_batch(_batch_tasks, lv, save_root / f"{pos}{j+1}_实况.mp4")
                                     stats["video"] += 1
 
                     # ── 图片（图集 + 混在其中的实况照片，统一用 pfx_N 命名）──
@@ -371,7 +386,7 @@ class BatchDownloadThread(QThread):
                                 urls[0] if urls else ""
                             )
                             if img_url:
-                                self._dl(img_url, save_root / f"{pos}{j+1}.jpg")
+                                self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
                                 stats["image"] += 1
                                 downloaded = True
                             # 图集中混入的实况照片 → 额外下载视频
@@ -381,7 +396,7 @@ class BatchDownloadThread(QThread):
                                     _c = iv.get(_ck) or {}
                                     _cu = (_c.get("url_list") or [""])[0]
                                     if _cu:
-                                        self._dl(_cu, save_root / f"{pos}{j+1}_封面.jpg")
+                                        self._dl_or_batch(_batch_tasks, _cu, save_root / f"{pos}{j+1}_封面.jpg")
                                         stats["image"] += 1
                                         break
                                 lv = pick_best_video_url(iv) or ""
@@ -390,7 +405,7 @@ class BatchDownloadThread(QThread):
                                 if not lv:
                                     lv = ((iv.get("play_addr") or {}).get("url_list") or [""])[0]
                                 if lv:
-                                    self._dl(lv, save_root / f"{pos}{j+1}_实况.mp4")
+                                    self._dl_or_batch(_batch_tasks, lv, save_root / f"{pos}{j+1}_实况.mp4")
                                     stats["video"] += 1
 
                     if not downloaded:
@@ -406,6 +421,10 @@ class BatchDownloadThread(QThread):
                     self.log_signal.emit(
                         f'[{i+1}/{total}] <span style="color:#EF4444;">[失败]</span> {desc}: {e}'
                     )
+
+                # 高速模式：批量下载收集到的任务
+                if _batch_tasks and _high_speed:
+                    self._dl_batch(_batch_tasks, i, total)
 
                 self.progress_signal.emit(i + 1, total)
 
@@ -423,9 +442,13 @@ class BatchDownloadThread(QThread):
             self.log_signal.emit(
                 f'===== 下载完成 ====='
             )
+            _elapsed = int(_time.time() - _start_ts)
+            h, r = divmod(_elapsed, 3600); m, s = divmod(r, 60)
+            _ts = f"{h}时{m}分{s}秒" if h else f"{m}分{s}秒"
             self.log_signal.emit(
                 f'视频:{stats["video"]} 图片:{stats["image"]} '
                 f'音乐:{stats["music"]} 跳过:{stats["skip"]} 失败:{stats["fail"]}'
+                f' | 耗时 {_ts}'
             )
 
         except InterruptedError:
@@ -592,6 +615,12 @@ class BatchDownloadThread(QThread):
                 pass
 
         md.write_text("\n".join(lines), encoding="utf-8")
+
+    def _dl_or_batch(self, tasks, url, path):
+        if tasks is not None:
+            tasks.append((url, path))
+        else:
+            self._dl(url, path)
 
     def _dl(self, url: str, path: Path):
         """流式下载单个文件，跳过已存在（文件占用重试3次）"""
@@ -857,12 +886,12 @@ class BatchPage(QWidget):
             "border: none; background: transparent;"
         )
         info_col.addWidget(self._other_detail)
-        self._other_bio = QLabel("")
+        self._other_bio = QLineEdit()
+        self._other_bio.setReadOnly(True)
         self._other_bio.setStyleSheet(
             f"color: #64748B; font-size: {scaled_font(9)}px; "
-            "border: none; background: transparent;"
+            "border: none; background: transparent; padding: 0;"
         )
-        self._other_bio.setWordWrap(False)
         info_col.addWidget(self._other_bio)
         left_lay.addLayout(info_col, 1)
         main_row.addWidget(left_card, 3)
@@ -999,8 +1028,8 @@ class BatchPage(QWidget):
         self._sub_favs = QPushButton("收藏")
         self._sub_favs.setCheckable(True)
         self._sub_favs.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._sub_favs.setEnabled(False)
-        self._sub_favs.setToolTip("收藏 API 需完整浏览器会话，暂不可用")
+        self._sub_favs.clicked.connect(lambda: self._switch_sub(2))
+        self._sub_favs.setToolTip("需用内置浏览器扫码登录")
         info_row.addWidget(self._sub_favs)
 
         info_row.addStretch()
@@ -1262,7 +1291,7 @@ class BatchPage(QWidget):
                 items = data.get("aweme_list", [])
                 err = data.get("_error", "")
                 if err:
-                    self._own_log_msg(f'[收藏] err={err}', '#EF4444')
+                    self._own_log_msg(f'[收藏] {err}', '#EF4444')
                 self._own_log_msg(
                     f'[收藏-v] items={len(items)}'
                     + (f' err={err}' if err else ''),
@@ -1723,10 +1752,11 @@ class BatchPage(QWidget):
             dlg.finished.connect(lambda: _done.__setitem__(0, True))
 
         if live:
-            # 非模态：轮询列表，实时追加新条目
+            # 非模态：轮询列表，实时追加新条目 + 加载缩略图
             _last_count = len(all_items)
+            _last_thumb_count = len(_thumb_queue)
             def _poll_live():
-                nonlocal _last_count
+                nonlocal _last_count, _last_thumb_count
                 if not dlg.isVisible():
                     return
                 cur_count = len(all_items)
@@ -1735,6 +1765,31 @@ class BatchPage(QWidget):
                         _append_item(aw, True)
                     cnt.setText(f"共 {cur_count} 个作品")
                     _last_count = cur_count
+                    # 新缩略图加入队列 → 启动新线程加载
+                    if len(_thumb_queue) > _last_thumb_count:
+                        import queue as qu2
+                        _new_thumbs = _thumb_queue[_last_thumb_count:]
+                        _last_thumb_count = len(_thumb_queue)
+                        _results = qu2.Queue()
+                        def _new_worker():
+                            for target, url, sz in _new_thumbs:
+                                try:
+                                    r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
+                                    pix = QPixmap(); pix.loadFromData(r.content)
+                                    _results.put((target, pix, sz))
+                                except Exception: pass
+                        def _new_poll():
+                            try:
+                                while True:
+                                    target, pix, sz = _results.get_nowait()
+                                    if dlg.isVisible():
+                                        sp = pix.scaled(sz, sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                                        target.setPixmap(sp); target.setText("")
+                            except qu2.Empty:
+                                if _new_thread.is_alive(): QTimer.singleShot(80, _new_poll)
+                            except Exception: pass
+                        _new_thread = threading.Thread(target=_new_worker, daemon=True)
+                        _new_thread.start(); QTimer.singleShot(50, _new_poll)
                 QTimer.singleShot(600, _poll_live)
             QTimer.singleShot(600, _poll_live)
             dlg.setModal(False)
@@ -1954,16 +2009,10 @@ class BatchPage(QWidget):
             self._other_stats.setText(stats)
             self._other_detail.setText(detail)
             # 用 QFontMetrics 精确裁剪到一行
+            self._other_bio.setText(bio or "")
             if bio:
-                fm = self._other_bio.fontMetrics()
-                # 防止布局未完成时 width() 为 0
-                avail = self._other_bio.width()
-                if avail < 100:
-                    avail = self.width() - font_scale(110)
-                self._other_bio.setText(
-                    fm.elidedText(bio, Qt.TextElideMode.ElideRight, max(100, avail)))
-            else:
-                self._other_bio.setText("")
+                self._other_bio.setCursorPosition(0)
+                self._other_bio.setToolTip(bio)
 
     def _on_bg_author_loaded(self, author, profile: dict, avatar_data, sec_uid: str):
         """后台线程加载完作者信息后的 UI 更新（在主线程执行）"""
@@ -2014,6 +2063,7 @@ class BatchPage(QWidget):
 
     def _show_select_dialog(self):
         """弹出他人作品选择对话框（实时刷新）"""
+        self._user_selected = True  # 手动打开或自动弹窗都标记，防止重复弹出
         if not self._other_all_items:
             return
         if self.thread and self.thread.isRunning():
@@ -2022,7 +2072,7 @@ class BatchPage(QWidget):
             self._other_all_items, self._selected_ids,
             "选择要下载的作品 — 他人主页",
             lambda: self._other_select_btn.setText(
-                f"已选 {len(self._selected_ids)}/{len(self._other_all_items)}"
+                f"已选 {len({s.split(':')[0] for s in self._selected_ids})}/{len(self._other_all_items)}"
             ),
             lambda msg: self._other_log_msg(msg, '#22C55E'),
             live=True,
@@ -2152,7 +2202,7 @@ class BatchPage(QWidget):
         self._other_pause_btn.setText("暂停")
         self._other_progress.show()
         self._other_log_msg("-----------------------", '#334155')
-        self._other_log_msg(f"[下载] 已选 {len(self._selected_ids)} 个，开始下载", '#F59E0B')
+        self._other_log_msg(f"[下载] 已选 {len({s.split(':')[0] for s in self._selected_ids})} 个作品，开始下载", '#F59E0B')
 
         selected = self._selected_ids if self._selected_ids else None
         pre_items = self._other_all_items if self._other_all_items else None

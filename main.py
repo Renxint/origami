@@ -43,6 +43,10 @@ def main():
     if _instance_socket is None:
         return
 
+    # 启动常驻浏览器服务
+    from src.webview_api import start_server as _start_srv
+    _start_srv()
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 

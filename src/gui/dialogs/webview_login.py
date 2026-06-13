@@ -103,44 +103,8 @@ class WebViewLogin:
 
     @staticmethod
     def _ensure_view():
-        """确保有一个活跃的 WebView（已登录时懒创建）。
-
-        必须在主线程调用。
-        """
-        if WebViewLogin._active_view is not None:
-            return WebViewLogin._active_view
-
-        from src.cookie import load_cookie
-        cookie = load_cookie()
-        if not cookie or "sessionid=" not in cookie:
-            return None
-
-        view = QWebEngineView()
-        view.resize(1, 1)
-        view.load(QUrl(WebViewLogin.DOUYIN_URL))
-
-        loop = QEventLoop()
-        loaded = [False]
-
-        def _on_load(ok):
-            if ok:
-                store = view.page().profile().cookieStore()
-                for c in cookie.split("; "):
-                    if "=" in c:
-                        name, val = c.split("=", 1)
-                        ck = QNetworkCookie(name.encode(), val.encode())
-                        ck.setDomain(".douyin.com")
-                        ck.setPath("/")
-                        store.setCookie(ck)
-            loaded[0] = ok
-            QTimer.singleShot(3000, loop.quit)
-
-        view.loadFinished.connect(_on_load)
-        loop.exec()
-        if loaded[0]:
-            WebViewLogin._active_view = view
-            return view
-        return None
+        """返回持久 WebView（仅限内置扫码登录创建的）。"""
+        return WebViewLogin._active_view
 
     @staticmethod
     def api_call(cursor: int = 0, timeout: float = 30) -> dict:
@@ -153,7 +117,8 @@ class WebViewLogin:
 
         view = WebViewLogin._ensure_view()
         if not view:
-            return {"_error": "webview_not_available"}
+            return {"_error": "请用内置浏览器扫码登录（首页→点登录→扫码），\n"
+                             "浏览器自动提取的 Cookie 缺少收藏功能所需的安全参数"}
 
         from PyQt6.QtNetwork import QNetworkAccessManager
         profile = view.page().profile()
