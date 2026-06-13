@@ -26,6 +26,10 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo, Qt
 from PyQt6.QtGui import QPalette, QColor, QFont
 
+# PyInstaller 打包后，任何 Qt 对象创建前必须先设此属性
+# （QLocalSocket 等会在 setup_single_instance 中偷偷创建 QCoreApplication）
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.settings.store import load as load_settings
 from src.gui.main_window import (
@@ -52,8 +56,6 @@ def main():
     from src.webview_api import start_server as _start_srv
     _start_srv()
 
-    # PyInstaller 打包后 WebEngine 懒加载需要此属性
-    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
