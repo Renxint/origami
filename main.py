@@ -18,7 +18,7 @@ if getattr(sys, "frozen", False):
     # 确保 Windows 能找到 Qt6/bin 下的 DLL（QtWebEngine 依赖）
     _qt_bin = Path(sys._MEIPASS) / "PyQt6" / "Qt6" / "bin"
     if _qt_bin.exists():
-        os.add_dll_directory(str(_qt_bin))
+        _dll_cookie = os.add_dll_directory(str(_qt_bin))  # 保持引用防止被 GC
 
 # QtWebEngine 必须在 QApplication 前导入
 try:

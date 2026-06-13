@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-Origami — PyInstaller 打包配置 v2
+Origami — PyInstaller 打包配置 v3 (collect-all PyQt6)
 """
 import sys, os, glob
 sys.path.insert(0, os.path.dirname(os.path.abspath(SPECPATH)))
@@ -12,7 +12,6 @@ datas = [
     ('app.ico', '.'),
     ('translations', 'translations'),
     ('src/gui/assets', 'src/gui/assets'),
-    # 'data' 是运行时文件不打包
 ]
 
 # ── Node.js 运行时 ──
@@ -22,34 +21,12 @@ for np in ['C:/Program Files/nodejs/node.exe', 'C:/Program Files (x86)/nodejs/no
         binaries.append((np, '.'))
         break
 
-# ── QtWebEngine 资源（PyInstaller hook 漏掉的） ──
-webengine_bin = os.path.join(os.path.dirname(sys.executable),
-    'Lib/site-packages/PyQt6/Qt6/bin')
-if not os.path.isdir(webengine_bin):
-    webengine_bin = None
-    for p in sys.path:
-        d = os.path.join(p, 'PyQt6/Qt6/bin')
-        if os.path.isdir(d):
-            webengine_bin = d
-            break
-
-if webengine_bin:
-    # QtWebEngineProcess.exe
-    proc = os.path.join(webengine_bin, 'QtWebEngineProcess.exe')
-    if os.path.exists(proc):
-        binaries.append((proc, 'PyQt6/Qt6/bin'))
-    # resources / translations 在 Qt6/ 下，不在 bin/ 下
-    qt6_dir = os.path.dirname(webengine_bin)
-    for sub in ('resources', 'translations'):
-        d = os.path.join(qt6_dir, sub)
-        if os.path.isdir(d):
-            datas.append((d, f'PyQt6/Qt6/{sub}'))
-
 # ── 隐藏导入 ──
 hiddenimports = [
-    'PyQt6', 'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets',
+    'PyQt6', 'PyQt6.sip',
+    'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets',
     'PyQt6.QtNetwork', 'PyQt6.QtWebEngineWidgets',
-    'PyQt6.QtWebEngineCore', 'PyQt6.QtWebEngine',
+    'PyQt6.QtWebEngineCore', 'PyQt6.QtOpenGL',
     'requests', 'certifi', 'urllib3', 'browser_cookie3',
     'src', 'src.environ', 'src.config', 'src.api', 'src.utils',
     'src.cookie', 'src.downloader', 'src.webview_api', 'src.exceptions',
@@ -69,6 +46,10 @@ hiddenimports = [
 # certifi
 from PyInstaller.utils.hooks import collect_all
 tmp = collect_all('certifi')
+datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
+
+# collect-all PyQt6: 原样收集所有 PyQt6 文件（解决 CArchive 中.pyd加载失败）
+tmp = collect_all('PyQt6')
 datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
 
 # ── 排除 ──
