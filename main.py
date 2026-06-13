@@ -15,17 +15,18 @@ from pathlib import Path
 if getattr(sys, "frozen", False):
     Path(sys.executable).parent.joinpath("qt.conf").write_text(
         "[Paths]\nPrefix = _internal/PyQt6/Qt6\n", encoding="utf-8")
+    # 确保 Windows 能找到 Qt6/bin 下的 DLL（QtWebEngine 依赖）
+    _qt_bin = Path(sys._MEIPASS) / "PyQt6" / "Qt6" / "bin"
+    if _qt_bin.exists():
+        os.add_dll_directory(str(_qt_bin))
 
 # QtWebEngine 必须在 QApplication 前导入
 try:
     from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
-except ImportError:
-    pass
-
-# PyInstaller 冻结导入兼容：预加载所有 WebEngine 相关 C 扩展
-try:
     import PyQt6.QtWebEngineCore  # noqa: F401
-except ImportError:
+except (ImportError, RuntimeError):
+    # PyInstaller 冻结环境下可能无法加载 WebEngine C 扩展，
+    # 后续通过 webview_login._ensure_webengine() 懒加载
     pass
 
 from PyQt6.QtWidgets import QApplication
