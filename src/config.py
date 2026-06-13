@@ -12,8 +12,8 @@ from pathlib import Path
 from src.environ import EXE_DIR
 
 # ── 版本 ─────────────────────────────────────────────────
-VERSION = "0.1.0"
-VERSION_URL = "https://gitee.com/Renxint/origami/raw/master/version.json"
+VERSION = "0.2.0"
+VERSION_URL = "https://github.com/Renxint/origami/raw/main/version.json"
 
 # ── 钉钉反馈 webhook ─────────────────────────────────────
 _CONFIG_PATH = EXE_DIR / "data" / "config.json"

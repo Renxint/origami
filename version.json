@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
-  "note": "Origami 首个可用版本 — 移除主题系统，硬编码暗色主题",
-  "url": "https://gitee.com/Renxint/origami/releases/download/v0.1.0/Origami_v0.1.0.zip"
+  "version": "0.2.0",
+  "note": "下载目录按时间排序 + 多项修复优化",
+  "url": "https://github.com/Renxint/origami/releases/download/v0.2.0/Origami_v0.2.0_setup.exe"
 }

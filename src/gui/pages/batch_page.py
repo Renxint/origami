@@ -2424,7 +2424,7 @@ class BatchPage(QWidget):
         path = Path(self._other_path.text() or str(OUTPUT_OTHER))
         if not path.exists():
             return
-        for d in sorted(path.iterdir(), reverse=True):
+        for d in sorted(path.iterdir(), key=lambda p: p.stat().st_mtime):
             if d.is_dir():
                 tracker = d / ".downloaded.json"
                 count = 0
@@ -2447,7 +2447,7 @@ class BatchPage(QWidget):
         path = Path(self._own_path.text() or str(OUTPUT_OWN))
         if not path.exists():
             return
-        for d in sorted(path.iterdir(), reverse=True):
+        for d in sorted(path.iterdir(), key=lambda p: p.stat().st_mtime):
             if d.is_dir():
                 tracker = d / ".downloaded.json"
                 count = 0

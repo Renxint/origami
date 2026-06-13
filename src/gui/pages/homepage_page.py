@@ -612,7 +612,7 @@ class HomepagePage(QWidget):
         out = OUTPUT_HOMEPAGE
         if not out.exists():
             return
-        for d in sorted(out.iterdir(), reverse=True):
+        for d in sorted(out.iterdir(), key=lambda p: p.stat().st_mtime):
             if not d.is_dir():
                 continue
             tracker = d / ".downloaded.json"
