@@ -37,8 +37,8 @@ PROJECT_DIR = BASE_DIR
 # ── 文件路径常量 ──────────────────────────────────────────
 SETTINGS_FILE   = EXE_DIR / "settings.json"
 CRASH_LOG       = EXE_DIR / "_crash.log"
-COOKIE_FILE     = EXE_DIR / "data" / "Cookie.txt"
-CONFIG_FILE     = EXE_DIR / "data" / "config.json"
+COOKIE_FILE     = BASE_DIR / "data" / "Cookie.txt"
+CONFIG_FILE     = BASE_DIR / "data" / "config.json"
 
 # 输出目录
 OUTPUT_BASE     = EXE_DIR / "output"

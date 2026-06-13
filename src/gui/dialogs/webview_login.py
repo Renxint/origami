@@ -14,6 +14,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 from PyQt6.QtCore import QUrl, QTimer, Qt, QEventLoop
 from PyQt6.QtNetwork import QNetworkCookie
+from src.gui.fonts import scaled_font
 
 
 class WebViewLogin:
@@ -41,8 +42,8 @@ class WebViewLogin:
 
         hint = QLabel("  登录信息仅保存在本地，不会上传至任何服务器")
         hint.setStyleSheet(
-            "color: #F1F5F9; font-size: 13px; font-weight: bold; "
-            "padding: 8px 16px; background: #12122A;"
+            f"color: #F1F5F9; font-size: {scaled_font(13)}px; font-weight: bold; "
+            f"padding: 8px 16px; background: #12122A;"
         )
         layout.addWidget(hint)
 
@@ -50,7 +51,7 @@ class WebViewLogin:
         layout.addWidget(view, 1)
 
         status = QLabel("正在加载页面...")
-        status.setStyleSheet("color: #94A3B8; font-size: 11px; padding: 6px 16px;")
+        status.setStyleSheet(f"color: #94A3B8; font-size: {scaled_font(11)}px; padding: 6px 16px;")
         layout.addWidget(status)
 
         cancel_btn = QPushButton("取消")

@@ -936,7 +936,10 @@ class BatchPage(QWidget):
         # 保存路径
         ctrl_row = QHBoxLayout()
         ctrl_row.setSpacing(6)
-        ctrl_row.addWidget(QLabel("保存到"))
+        ctrl_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        lb = QLabel("保存到")
+        lb.setStyleSheet("background: transparent; border: none;")
+        ctrl_row.addWidget(lb)
         self._other_path = QLineEdit()
         self._other_path.setText(str(OUTPUT_OTHER))
         self._other_path.setMinimumHeight(font_scale(30))
@@ -1025,13 +1028,6 @@ class BatchPage(QWidget):
         self._sub_likes.clicked.connect(lambda: self._switch_sub(1))
         info_row.addWidget(self._sub_likes)
 
-        self._sub_favs = QPushButton("收藏")
-        self._sub_favs.setCheckable(True)
-        self._sub_favs.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._sub_favs.clicked.connect(lambda: self._switch_sub(2))
-        self._sub_favs.setToolTip("需用内置浏览器扫码登录")
-        info_row.addWidget(self._sub_favs)
-
         info_row.addStretch()
         layout.addLayout(info_row)
         self._style_sub_tabs()
@@ -1059,7 +1055,10 @@ class BatchPage(QWidget):
         # 保存路径
         path_row = QHBoxLayout()
         path_row.setSpacing(6)
-        path_row.addWidget(QLabel("保存到"))
+        path_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        lb = QLabel("保存到")
+        lb.setStyleSheet("background: transparent; border: none;")
+        path_row.addWidget(lb)
         self._own_path = QLineEdit()
         self._own_path.setText(str(OUTPUT_OWN))
         self._own_path.setMinimumHeight(font_scale(30))
@@ -1107,7 +1106,7 @@ class BatchPage(QWidget):
     def _style_sub_tabs(self):
         """子标签样式"""
         pt = QApplication.instance().font().pointSize()
-        for btn in (self._sub_posts, self._sub_likes, self._sub_favs):
+        for btn in (self._sub_posts, self._sub_likes):
             if btn.isChecked():
                 btn.setStyleSheet(
                     f"font-size: {pt}pt; font-weight: bold; color: #FFFFFF; "
@@ -1201,7 +1200,6 @@ class BatchPage(QWidget):
                         )
                         self._sub_posts.setText(f"作品 ({post_count})")
                         self._sub_likes.setText(f"喜欢 ({likes_total})")
-                        self._sub_favs.setText("收藏")
                         if avatar_data:
                             try:
                                 av_sz = self._own_avatar.width() or 56
@@ -1234,19 +1232,15 @@ class BatchPage(QWidget):
     def _switch_sub(self, idx: int):
         self._sub_posts.setChecked(idx == 0)
         self._sub_likes.setChecked(idx == 1)
-        self._sub_favs.setChecked(idx == 2)
         self._style_sub_tabs()
         if not self._own_sec_uid:
             return
         if idx == 0:
             mode, loading, loaded, cached = (
                 'posts', self._own_posts_loading, self._own_posts_loaded, self._own_posts_items)
-        elif idx == 1:
-            mode, loading, loaded, cached = (
-                'likes', self._own_likes_loading, self._own_likes_loaded, self._own_likes_items)
         else:
             mode, loading, loaded, cached = (
-                'favs', self._own_fav_loading, self._own_fav_loaded, self._own_fav_items)
+                'likes', self._own_likes_loading, self._own_likes_loaded, self._own_likes_items)
         if cached:
             self._own_select_btn.setText(f"查看列表 ({len(cached)})")
         elif loading:
@@ -1315,8 +1309,6 @@ class BatchPage(QWidget):
                     QTimer.singleShot(500, _fav_step)
                 else:
                     self._own_log_msg(f'[统计] 共 {_total[0]} 个自己的{tag}', '#22C55E')
-                    if self._sub_favs.isChecked():
-                        self._own_select_btn.setText(f"查看列表 ({_total[0]})")
                     self._own_fav_loading = False
                     self._own_fav_loaded = True
 
@@ -1388,10 +1380,8 @@ class BatchPage(QWidget):
             cur = self._own_posts_items
         elif self._sub_likes.isChecked():
             cur = self._own_likes_items
-        elif self._sub_favs.isChecked():
-            cur = self._own_fav_items
         else:
-            return  # 无选中标签（不应发生）
+            return
         if not cur:
             return
         self._show_item_select_dialog(
@@ -2396,21 +2386,23 @@ class BatchPage(QWidget):
         row = QWidget()
         row.setMinimumHeight(font_scale(26))
         row.setStyleSheet("background: transparent;")
+        row.setMinimumHeight(font_scale(24))
         lay = QHBoxLayout(row)
-        lay.setContentsMargins(4, 0, 4, 0)
+        lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(6)
         del_btn = QPushButton("X")
         del_btn.setFixedSize(font_scale(20), font_scale(20))
         del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         del_btn.setStyleSheet(
             "QPushButton { color: #EF4444; border: none; background: transparent; "
-            "font-size: 12px; font-weight: bold; padding: 0; }"
+            f"font-size: {scaled_font(12)}px; font-weight: bold; padding: 0; }}"
             "QPushButton:hover { color: #FFF; background: #EF4444; border-radius: 3px; }"
         )
         del_btn.clicked.connect(lambda checked, p=dir_path: self._delete_folder(p))
         lay.addWidget(del_btn)
         label = QLabel(f"{name}  [{count}作品, {files}文件]")
-        label.setStyleSheet(f"color: #E2E8F0; font-size: {scaled_font(10)}px; border: none;")
+        label.setStyleSheet(f"color: #E2E8F0; font-size: {scaled_font(10)}px; "
+                            "border: none; background: transparent;")
         lay.addWidget(label, 1)
         return row
 

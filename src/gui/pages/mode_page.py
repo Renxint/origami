@@ -55,7 +55,7 @@ class ModePage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 12, 20, 20)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(28)
+        layout.setSpacing(20)
 
         pt = QApplication.instance().font().pointSize()
 
@@ -96,8 +96,8 @@ class ModePage(QWidget):
         self._logout_btn.setObjectName("ghostBtn")
         self._logout_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._logout_btn.setStyleSheet(
-            "QPushButton#ghostBtn { color: #EF4444; font-size: 10px; padding: 2px 6px; }"
-            "QPushButton#ghostBtn:hover { color: #FFF; background: #EF4444; }"
+            f"QPushButton#ghostBtn {{ color: #EF4444; font-size: {max(10, pt-3)}px; padding: 2px 6px; }}"
+            f"QPushButton#ghostBtn:hover {{ color: #FFF; background: #EF4444; }}"
         )
         self._logout_btn.clicked.connect(self._logout)
         self._logout_btn.hide()
@@ -105,15 +105,28 @@ class ModePage(QWidget):
 
         layout.addLayout(top_bar)
 
-        # ── 标题 ──
+        # ── 标题（图标 + 名称居中） ──
+        title_row = QHBoxLayout()
+        title_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_row.setSpacing(10)
+
+        icon_path = Path(__file__).resolve().parent.parent.parent.parent / "app.ico"
+        from PyQt6.QtGui import QIcon
+        icon_lbl = QLabel()
+        if icon_path.exists():
+            icon_lbl.setPixmap(QIcon(str(icon_path)).pixmap(32, 32))
+        icon_lbl.setFixedSize(32, 32)
+        title_row.addWidget(icon_lbl)
+
         title = QLabel("Origami")
         title_sz = pt * 2 + 4
         title.setStyleSheet(
             f"font-size: {title_sz}px; font-weight: 800; color: #F1F5F9; "
-            "letter-spacing: 2px;"
+            "letter-spacing: 2px; font-family: 'Poppins', sans-serif;"
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        title_row.addWidget(title)
+        layout.addLayout(title_row)
 
         ver = QLabel(f"v{VERSION}")
         ver.setStyleSheet(
@@ -164,16 +177,25 @@ class ModePage(QWidget):
         settings_btn.setObjectName("secondaryBtn")
         settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         settings_btn.clicked.connect(self.settings_clicked.emit)
-        settings_btn.setMinimumWidth(font_scale(100))
+        settings_btn.setFixedWidth(font_scale(100))
         bottom.addWidget(settings_btn)
 
         feedback_btn = QPushButton("反馈")
         feedback_btn.setObjectName("secondaryBtn")
         feedback_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         feedback_btn.clicked.connect(self._send_feedback)
-        feedback_btn.setMinimumWidth(font_scale(80))
+        feedback_btn.setFixedWidth(font_scale(100))
         bottom.addWidget(feedback_btn)
         layout.addLayout(bottom)
+
+        # 免责声明
+        disclaimer = QLabel("仅供个人学习研究，请勿用于违法用途")
+        disclaimer.setStyleSheet(
+            f"color: #EF4444; font-size: {max(8, QApplication.instance().font().pointSize() - 6)}px; "
+            "padding-top: 4px;"
+        )
+        disclaimer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(disclaimer)
 
 
     def _platform_card(self, name: str, svg_file: str, available: bool) -> QPushButton:
@@ -181,7 +203,7 @@ class ModePage(QWidget):
         btn = QPushButton()
         btn.setObjectName("modeBtn")
         btn.setCursor(Qt.CursorShape.PointingHandCursor if available else Qt.CursorShape.ForbiddenCursor)
-        btn.setMinimumSize(font_scale(180), font_scale(180))
+        btn.setMinimumSize(font_scale(160), font_scale(160))
 
         cl = QVBoxLayout(btn)
         cl.setAlignment(Qt.AlignmentFlag.AlignCenter)

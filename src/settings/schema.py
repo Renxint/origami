@@ -27,7 +27,7 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "字体名称，空字符串表示使用系统默认",
     },
     "font_size": {
-        "default": 15,
+        "default": 17,
         "type": int,
         "min": 8,
         "max": 24,

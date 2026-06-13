@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QFont, QAction, QShortcut, QKeySequence, QPalette, QColor
 
-from src.gui.fonts import font_scale
+from src.gui.fonts import font_scale, scaled_font
 from src.stylesheet import build_stylesheet
 from src.config import VERSION, VERSION_URL
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
@@ -456,6 +456,83 @@ class MainWindow(QMainWindow):
 
     # ── 版本更新 ──
 
+    def _show_about(self):
+        """关于 Origami"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+        dlg = QDialog(self)
+        dlg.setWindowTitle("关于 Origami")
+        dlg.setFixedSize(font_scale(380), font_scale(420))
+        dlg.setStyleSheet("QDialog { background: #0A0A14; }")
+        layout = QVBoxLayout(dlg)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(10)
+
+        # 图标
+        icon_lbl = QLabel()
+        for sz in (256, 128, 72, 48, 32):
+            pix = self._app_icon.pixmap(sz, sz)
+            if not pix.isNull():
+                icon_lbl.setPixmap(pix.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                break
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_lbl)
+
+        # 名称 + 版本
+        name = QLabel(f"Origami  v{VERSION}")
+        name.setStyleSheet(f"font-size: {scaled_font(18)}px; font-weight: 800; color: #F1F5F9;")
+        name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(name)
+
+        tagline = QLabel("多功能内容下载工具")
+        tagline.setStyleSheet(f"font-size: {scaled_font(12)}px; color: #64748B;")
+        tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(tagline)
+
+        # 分隔线
+        from PyQt6.QtWidgets import QFrame
+        sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("background: #252550; max-height: 1px; border: none;")
+        layout.addWidget(sep)
+
+        # 技术栈
+        tech = QLabel("Python 3.12 · PyQt6 · Node.js · Puppeteer · Requests")
+        tech.setStyleSheet(f"font-size: {scaled_font(10)}px; color: #94A3B8;")
+        tech.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(tech)
+
+        # 平台
+        plat = QLabel("支持平台：抖音 | B站(即将) | 微博(即将)")
+        plat.setStyleSheet(f"font-size: {scaled_font(10)}px; color: #475569;")
+        plat.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(plat)
+
+        layout.addSpacing(8)
+
+        # 作者
+        author = QLabel("© 2026 Renxint")
+        author.setStyleSheet(f"font-size: {scaled_font(11)}px; color: #64748B;")
+        author.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(author)
+
+        link = QLabel('<a href="https://gitee.com/Renxint/origami" style="color:#E11D48;">Gitee 仓库</a>')
+        link.setStyleSheet(f"font-size: {scaled_font(11)}px;")
+        link.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        link.setOpenExternalLinks(True)
+        layout.addWidget(link)
+
+        license_lbl = QLabel("MIT License")
+        license_lbl.setStyleSheet(f"font-size: {scaled_font(9)}px; color: #475569;")
+        license_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(license_lbl)
+
+        layout.addSpacing(8)
+        ok = QPushButton("确定")
+        ok.setCursor(Qt.CursorShape.PointingHandCursor)
+        ok.clicked.connect(dlg.accept)
+        layout.addWidget(ok, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        dlg.exec()
+
     def _check_version(self):
         """后台线程检查版本，不阻塞 UI"""
         import threading
@@ -522,12 +599,7 @@ class MainWindow(QMainWindow):
         a_show.triggered.connect(self._show_from_tray)
         menu.addSeparator()
         a_about = menu.addAction("关于 Origami")
-        a_about.triggered.connect(
-            lambda: QMessageBox.about(
-                self, "关于 Origami",
-                f"Origami v{VERSION}\n多功能内容下载工具\n\n(c) 2026 Renxint"
-            )
-        )
+        a_about.triggered.connect(self._show_about)
         a_update = menu.addAction("检查更新")
         a_update.triggered.connect(self._check_version)
         menu.addSeparator()
@@ -604,9 +676,11 @@ class MainWindow(QMainWindow):
             self.hide()
         elif cb.isChecked():
             store_set("close_preference", "quit")
-            self.close()
+            self.hide()
+            QTimer.singleShot(0, self._real_quit)
         else:
-            self._real_quit()
+            self.hide()
+            QTimer.singleShot(0, self._real_quit)
 
     def _real_quit(self):
         from src.settings.store import set as store_set

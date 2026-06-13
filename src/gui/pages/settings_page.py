@@ -125,12 +125,25 @@ class SettingsPage(QWidget):
         back.setMinimumSize(font_scale(80), font_scale(32))
         top.addWidget(back)
 
-        icon_lbl = QLabel("O")
-        icon_lbl.setStyleSheet(
-            f"font-size: {scaled_font(22)}px; font-weight:800; color:#FFFFFF; "
-            "background:#1A1A1A; border-radius:8px; "
-            "min-width:36px; max-width:36px; min-height:36px; max-height:36px;"
-        )
+        icon_lbl = QLabel()
+        from src.environ import BASE_DIR
+        ico_path = BASE_DIR / "app.ico"
+        if ico_path.exists():
+            from PyQt6.QtGui import QIcon
+            icon = QIcon(str(ico_path))
+            for sz in (256, 128, 72, 48, 32):
+                pix = icon.pixmap(sz, sz)
+                if not pix.isNull():
+                    icon_lbl.setPixmap(pix.scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                    break
+            icon_lbl.setFixedSize(36, 36)
+        else:
+            icon_lbl = QLabel("O")
+            icon_lbl.setStyleSheet(
+                f"font-size: {scaled_font(22)}px; font-weight:800; color:#FFFFFF; "
+                "background:#1A1A1A; border-radius:8px; "
+                "min-width:36px; max-width:36px; min-height:36px; max-height:36px;"
+            )
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         top.addWidget(icon_lbl)
 
@@ -777,23 +790,42 @@ class SettingsPage(QWidget):
         hero.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hero.setSpacing(8)
 
-        # 可点击 Logo（彩蛋：点7次弹 toast）
+        # 图标 + 名称同行居中
+        name_row = QHBoxLayout()
+        name_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_row.setSpacing(12)
+
         self._about_clicks = 0
-        logo = QLabel("O")
-        logo.setStyleSheet(
-            f"font-size: {scaled_font(48)}px; font-weight: 800; color: #E11D48; "
-            "background: #1A1030; border-radius: 24px; "
-            "min-width: 100px; max-width: 100px; min-height: 100px; max-height: 100px;"
-        )
+        from src.environ import BASE_DIR
+        ico_path = BASE_DIR / "app.ico"
+        if ico_path.exists():
+            from PyQt6.QtGui import QIcon
+            logo = QLabel()
+            icon = QIcon(str(ico_path))
+            for sz in (256, 128, 72, 48, 32):
+                pix = icon.pixmap(sz, sz)
+                if not pix.isNull():
+                    logo.setPixmap(pix.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                    break
+            logo.setFixedSize(48, 48)
+        else:
+            logo = QLabel("O")
+            logo.setStyleSheet(
+                f"font-size: {scaled_font(36)}px; font-weight: 800; color: #E11D48; "
+                "background: #1A1030; border-radius: 24px; "
+                "min-width: 48px; max-width: 48px; min-height: 48px; max-height: 48px;"
+            )
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo.setCursor(Qt.CursorShape.PointingHandCursor)
         logo.mousePressEvent = lambda e: self._on_logo_click()
-        hero.addWidget(logo)
+        name_row.addWidget(logo)
 
         title = QLabel("Origami")
         title.setStyleSheet(f"font-size: {scaled_font(26)}px; font-weight: 700; color: #F1F5F9;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hero.addWidget(title)
+        name_row.addWidget(title)
+
+        hero.addLayout(name_row)
 
         tagline = QLabel("多功能内容下载工具")
         tagline.setStyleSheet(f"font-size: {scaled_font(13)}px; color: #94A3B8;")
@@ -836,7 +868,23 @@ class SettingsPage(QWidget):
         # 许可
         self._about_info_row(panel, "许可", "MIT License")
 
+        # 免责声明
         panel.content.addSpacing(8)
+        disclaimer = QLabel(
+            "本工具仅供个人学习、研究、欣赏用途。\n"
+            "用户应遵守相关法律法规及平台服务协议，\n"
+            "不得将本工具用于任何违法或侵权活动。\n"
+            "使用者自行承担所有责任。"
+        )
+        disclaimer.setStyleSheet(
+            f"color: #EF4444; font-size: {scaled_font(10)}px; "
+            "background: #1A1010; border: 1px solid #3B1111; "
+            "border-radius: 8px; padding: 12px;"
+        )
+        disclaimer.setWordWrap(True)
+        panel.content.addWidget(disclaimer)
+
+        panel.content.addSpacing(4)
 
         # ── 技术栈 ──
         self._section_title(panel, "技术栈")

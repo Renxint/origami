@@ -500,7 +500,10 @@ class SinglePage(QWidget):
         # 保存路径
         path_row = QHBoxLayout()
         path_row.setSpacing(10)
-        path_row.addWidget(QLabel("保存到"))
+        path_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        save_label = QLabel("保存到")
+        save_label.setStyleSheet("background: transparent; border: none;")
+        path_row.addWidget(save_label)
         self.path_input = QLineEdit()
         settings = load_settings()
         self.path_input.setText(
@@ -583,21 +586,23 @@ class SinglePage(QWidget):
             row = QWidget()
             row.setMinimumHeight(font_scale(26))
             row.setStyleSheet("background: transparent;")
+            row.setMinimumHeight(font_scale(24))
             lay = QHBoxLayout(row)
-            lay.setContentsMargins(4, 0, 4, 0)
+            lay.setContentsMargins(6, 4, 6, 4)
             lay.setSpacing(6)
             del_btn = QPushButton("X")
             del_btn.setFixedSize(font_scale(20), font_scale(20))
             del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             del_btn.setStyleSheet(
                 "QPushButton { color: #EF4444; border: none; background: transparent; "
-                "font-size: 12px; font-weight: bold; padding: 0; }"
+                f"font-size: {scaled_font(12)}px; font-weight: bold; padding: 0; }}"
                 "QPushButton:hover { color: #FFF; background: #EF4444; border-radius: 3px; }"
             )
             del_btn.clicked.connect(lambda checked, p=d: self._delete_folder(p))
             lay.addWidget(del_btn)
             label = QLabel(f"{d.name}  [{files}文件]")
-            label.setStyleSheet(f"color: #E2E8F0; font-size: {scaled_font(10)}px; border: none;")
+            label.setStyleSheet(f"color: #E2E8F0; font-size: {scaled_font(10)}px; "
+                                "border: none; background: transparent;")
             lay.addWidget(label, 1)
             item = QListWidgetItem()
             item.setSizeHint(row.sizeHint())
@@ -941,7 +946,7 @@ class SinglePage(QWidget):
         layout = QVBoxLayout(dlg)
 
         self._cmt_loading = QLabel("正在加载热评...")
-        self._cmt_loading.setStyleSheet("color: #94A3B8; font-size: 14px; padding: 8px;")
+        self._cmt_loading.setStyleSheet(f"color: #94A3B8; font-size: {scaled_font(14)}px; padding: 8px;")
 
         self._cmt_dl_btn = QPushButton("下载图片/表情")
         self._cmt_dl_btn.setObjectName("secondaryBtn")
@@ -1125,7 +1130,7 @@ class SinglePage(QWidget):
         da = QPushButton("全不选"); da.setObjectName("secondaryBtn")
         top.addWidget(sa); top.addWidget(da); top.addStretch()
         cnt_label = QLabel(f"共 {len(all_media)} 个")
-        cnt_label.setStyleSheet("color: #64748B; font-size: 12px;")
+        cnt_label.setStyleSheet(f"color: #64748B; font-size: {scaled_font(12)}px;")
         top.addWidget(cnt_label)
         layout.addLayout(top)
 
@@ -1390,7 +1395,7 @@ class SinglePage(QWidget):
         da = QPushButton("全不选"); da.setObjectName("secondaryBtn")
         top.addWidget(sa); top.addWidget(da); top.addStretch()
         cnt = QLabel(f"共 {len(all_media)} 个")
-        cnt.setStyleSheet("color: #64748B; font-size: 12px;")
+        cnt.setStyleSheet(f"color: #64748B; font-size: {scaled_font(12)}px;")
         top.addWidget(cnt)
         layout.addLayout(top)
 

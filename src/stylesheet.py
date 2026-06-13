@@ -179,7 +179,7 @@ QListWidget {{
     outline: none;
 }}
 QListWidget::item {{
-    padding: {py+2}px {px+2}px;
+    padding: 0px {px+2}px;
     border-radius: 6px;
     margin: 1px 0;
 }}

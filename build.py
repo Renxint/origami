@@ -14,16 +14,14 @@ import subprocess
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
-DIST_DIR = PROJECT_DIR / "dist"
+DIST_DIR = PROJECT_DIR / "dist_out"
 SPEC_FILE = PROJECT_DIR / "Origami.spec"
 
 from src.config import VERSION
 
 # Inno Setup 路径
 ISCC_PATHS = [
-    Path("C:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
-    Path("C:/Program Files/Inno Setup 6/ISCC.exe"),
-    Path("C:/Program Files (x86)/Inno Setup 5/ISCC.exe"),
+    Path("D:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
 ]
 
 
@@ -53,12 +51,12 @@ def build():
         sys.exit(1)
 
     build_dir = DIST_DIR / f"Origami_v{VERSION}"
-    exe = build_dir / "Origami.exe"
+    exe = build_dir / f"Origami_v{VERSION}.exe"
     if exe.exists():
         size_mb = exe.stat().st_size / (1024 * 1024)
-        print(f"[OK] 打包完成: {exe} ({size_mb:.1f}MB)")
+        print(f"[OK] 打包完成 ({size_mb:.1f}MB)")
     else:
-        print("[WARN] 未找到 Origami.exe，请检查 spec 配置")
+        print(f"[WARN] 未找到 {exe.name}，请检查 spec 配置")
 
 
 def create_installer():
@@ -75,9 +73,13 @@ def create_installer():
         return
 
     iss_file = PROJECT_DIR / "installer.iss"
+    # 动态替换版本号
+    content = iss_file.read_text(encoding="utf-8")
+    content = content.replace("Origami_v0.1.0.exe", f"Origami_v{VERSION}.exe")
+    iss_file.write_text(content, encoding="utf-8")
     print(f"[Origami] 生成安装包 v{VERSION}...")
     result = subprocess.run(
-        [iscc, str(iss_file), f"/DMyAppVersion={VERSION}"],
+        [iscc, f"/DMyAppVersion={VERSION}", str(iss_file)],
         cwd=str(PROJECT_DIR),
     )
     if result.returncode == 0:

@@ -11,6 +11,11 @@ import os
 import time
 from pathlib import Path
 
+# PyInstaller 打包后 Qt 路径修正（必须在任何 PyQt 导入之前）
+if getattr(sys, "frozen", False):
+    Path(sys.executable).parent.joinpath("qt.conf").write_text(
+        "[Paths]\nPrefix = _internal/PyQt6/Qt6\n", encoding="utf-8")
+
 # QtWebEngine 必须在 QApplication 前导入
 try:
     from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
@@ -50,14 +55,12 @@ def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
-    # PyInstaller 打包后首次启动浏览器 Code:0 问题绕过
-    _first_lock = EXE_DIR / "_first.lock"
-    if not _first_lock.exists() and getattr(sys, "frozen", False):
-        _first_lock.write_text("1", encoding="ascii")
-        os.startfile(sys.executable)
-        time.sleep(0.5)
-        os._exit(0)
-    _first_lock.unlink(missing_ok=True)
+    # 加载自定义字体
+    from PyQt6.QtGui import QFontDatabase
+    _font_dir = BASE_DIR / "src" / "gui" / "assets" / "fonts"
+    if _font_dir.exists():
+        for _f in _font_dir.glob("*.ttf"):
+            QFontDatabase.addApplicationFont(str(_f.resolve()))
 
     # 加载字体设置
     settings = load_settings()
@@ -68,7 +71,7 @@ def main():
         app.setFont(font)
     else:
         default_font = app.font()
-        default_font.setPointSize(15)
+        default_font.setPointSize(17)
         app.setFont(default_font)
 
     # 中文翻译
