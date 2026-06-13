@@ -198,6 +198,31 @@ class DouyinAdapter(PlatformAdapter):
             "total": None,
         }
 
+    def fetch_favorites(self, favorite_id: str, cookie: str = "",
+                        max_cursor: int = 0, count: int = 18) -> dict:
+        """翻页获取收藏夹作品列表"""
+        from src.api import DouyinAPI
+        cookie = cookie or self._load_cookie()
+        api = DouyinAPI(cookie_string=cookie)
+        data = api.get_favorite_items(favorite_id, max_cursor=max_cursor, count=count)
+        aweme_list = data.get("aweme_list", [])
+        items = []
+        for aw in aweme_list:
+            items.append(MediaItem(
+                platform="douyin",
+                item_id=aw.get("aweme_id", ""),
+                item_type="video" if aw.get("video") else ("image" if aw.get("images") else "unknown"),
+                title=aw.get("desc", ""),
+                author=aw.get("author", {}).get("nickname", ""),
+                extra={"aweme": aw},
+            ))
+        return {
+            "items": items,
+            "has_more": bool(data.get("has_more", 0)),
+            "next_cursor": data.get("max_cursor", 0),
+            "total": None,
+        }
+
     def get_own_author_id(self, cookie: str = "") -> str:
         """获取当前登录用户的 sec_uid"""
         from src.api import DouyinAPI

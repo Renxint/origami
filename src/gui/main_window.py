@@ -18,10 +18,10 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QStackedWidget, QWidget,
     QSystemTrayIcon, QMenu, QMessageBox,
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QFont, QAction, QShortcut, QKeySequence, QPalette, QColor
 
-from src.fonts import font_scale
+from src.gui.fonts import font_scale
 from src.stylesheet import build_stylesheet
 from src.config import VERSION, VERSION_URL
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
@@ -136,6 +136,9 @@ def global_exception_handler(exc_type, exc_value, exc_tb):
 # 主窗口
 # ═══════════════════════════════════════════════════════════
 class MainWindow(QMainWindow):
+    _version_signal = pyqtSignal(dict)  # 后台线程→主线程版本信息
+    _nav_signal = pyqtSignal(str, str)  # 后台线程→主线程导航 ('batch'|'single', raw_url)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"Origami v{VERSION}")
@@ -227,7 +230,9 @@ class MainWindow(QMainWindow):
             self._instance_srv = _instance_socket
             self._instance_srv.newConnection.connect(self._on_second_instance)
 
-        # 版本检查
+        # 后台信号 → 主线程回调
+        self._version_signal.connect(self._on_version_result)
+        self._nav_signal.connect(self._on_nav_signal)
         QTimer.singleShot(2000, self._check_version)
 
         # 后台预加载：已登录则自动获取自己主页数据
@@ -263,6 +268,8 @@ class MainWindow(QMainWindow):
         """检测剪贴板中的抖音链接（用序列号，内容不变也能检测）"""
         if self._download_active:
             return
+        if not load_settings().get("auto_raise", True):
+            return
         try:
             # 用 Windows 剪贴板序列号检测，内容不变但 Ctrl+C 过也能检测
             seq = self._get_clipboard_seq()
@@ -272,6 +279,10 @@ class MainWindow(QMainWindow):
 
             clip = QApplication.clipboard().text()
             if not clip:
+                return
+
+            # 过滤：含多行日志标记（[检测] [解析] 等）说明是从日志区复制的，跳过
+            if clip.count('\n') >= 1 and clip.lstrip().startswith('['):
                 return
 
             import re
@@ -305,12 +316,12 @@ class MainWindow(QMainWindow):
             elif is_user:
                 self._navigate_batch(clip)
             elif is_short:
-                # 短链需先解析才能判断是视频还是主页
-                resolved = self._resolve_short_sync(found)
-                if "/user/" in resolved or "/share/user/" in resolved:
-                    self._navigate_batch(clip)
-                else:
-                    self._navigate_single(clip)
+                # 短链后台解析，不阻塞 UI
+                import threading as _th
+                _th.Thread(
+                    target=lambda u=found, c=clip: self._resolve_short_async(u, c),
+                    daemon=True,
+                ).start()
             else:
                 return
         except Exception:
@@ -326,7 +337,6 @@ class MainWindow(QMainWindow):
         page = self.batch_page
         page._tab_other.setChecked(True); page._tab_own.setChecked(False)
         page._style_tabs(); page._content.setCurrentIndex(0)
-        # 从剪贴板提取 URL 并解析短链
         import re
         clean_url = clip
         for pat in [r'https?://[^\s]+']:
@@ -334,24 +344,13 @@ class MainWindow(QMainWindow):
             if m:
                 clean_url = m.group(0).rstrip('.,;:!?）」)】')
                 break
-        # 短链先 302 解析为完整 URL，再填入输入框
-        if "v.douyin.com" in clean_url:
-            try:
-                from src.environ import USER_AGENT
-                s = __import__("requests").Session()
-                s.headers.update({"User-Agent": USER_AGENT})
-                r = s.get(clean_url, allow_redirects=True, timeout=10, stream=True)
-                r.close()
-                clean_url = r.url
-            except Exception:
-                pass  # 解析失败保留短链
+        # URL 原样填入，短链解析交给 _trigger_fetch 后台线程
         page._other_url.setText(clean_url)
-        # 直接触发拉取（跳过防抖）
         page._trigger_fetch(clean_url)
 
     @staticmethod
     def _resolve_short_sync(url: str) -> str:
-        """同步解析短链（GET + stream，3s 超时），返回 resolved URL"""
+        """同步解析短链，仅供后台线程调用"""
         try:
             from src.environ import USER_AGENT
             from src.cookie import load_cookie
@@ -365,6 +364,24 @@ class MainWindow(QMainWindow):
             return r.url
         except Exception:
             return url
+
+    def _resolve_short_async(self, short_url: str, raw_clip: str):
+        """后台线程解析短链 → pyqtSignal 回主线程导航"""
+        try:
+            resolved = self._resolve_short_sync(short_url)
+            if "/user/" in resolved or "/share/user/" in resolved:
+                self._nav_signal.emit('batch', raw_clip)
+            else:
+                self._nav_signal.emit('single', raw_clip)
+        except Exception:
+            pass
+
+    def _on_nav_signal(self, page_type: str, raw_clip: str):
+        """主线程接收导航信号，跳转到对应页面"""
+        if page_type == 'batch':
+            self._navigate_batch(raw_clip)
+        else:
+            self._navigate_single(raw_clip)
 
     def _navigate_single(self, clip: str):
         self.stack.setCurrentIndex(2)
@@ -390,7 +407,9 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(0)
 
     def _on_cookie_updated(self):
+        self.douyin_page.refresh_cookie_status()
         self.settings_page.refresh_cookie_status()
+        self.batch_page.reset_own_cache()
 
     # ── 字体/主题 ──
 
@@ -420,9 +439,20 @@ class MainWindow(QMainWindow):
     # ── 版本更新 ──
 
     def _check_version(self):
+        """后台线程检查版本，不阻塞 UI"""
+        import threading
+
+        def _fetch():
+            try:
+                r = requests.get(VERSION_URL, timeout=5)
+                self._version_signal.emit(r.json())
+            except Exception:
+                pass
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _on_version_result(self, data: dict):
+        """主线程接收版本信息，弹窗提示更新"""
         try:
-            r = requests.get(VERSION_URL, timeout=5)
-            data = r.json()
             remote = data.get("version", "")
             if compare_versions(remote, VERSION) > 0:
                 note = data.get("note", "")

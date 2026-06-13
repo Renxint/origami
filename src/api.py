@@ -288,6 +288,85 @@ class DouyinAPI:
         except Exception:
             return {}
 
+    def get_favorite_collections(self) -> list:
+        """获取自己的收藏夹列表"""
+        params = {
+            "device_platform": "webapp",
+            "aid": "6383",
+            "cookie_enabled": "true",
+            "screen_width": "2560",
+            "screen_height": "1440",
+            "browser_language": "zh-CN",
+            "browser_platform": "Win32",
+            "browser_name": "Smart+Lenovo+Browser",
+            "browser_version": "9.0.8.5161",
+            "browser_online": "true",
+            "engine_name": "Blink",
+            "engine_version": "141.0.0.0",
+            "os_name": "Windows",
+            "os_version": "10",
+            "cpu_core_num": "32",
+            "device_memory": "8",
+            "platform": "PC",
+            "webid": WEBID,
+            "uifid": UIFID,
+            "verifyFp": VERIFY_FP,
+            "fp": FP,
+        }
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"https://www.douyin.com/aweme/v1/web/favorite/list/?{query}"
+        try:
+            resp = self.session.get(url, timeout=TIMEOUT)
+            data = resp.json()
+            return data.get("favorite_list", [])
+        except Exception:
+            return []
+
+    def get_favorite_items(self, favorite_id: str, max_cursor: int = 0,
+                           count: int = 18) -> Dict:
+        """获取指定收藏夹的作品列表（翻页）
+
+        抖音收藏夹 item API 与作品翻页不完全相同，需要单独构建参数。
+        """
+        params = {
+            "device_platform": "webapp",
+            "aid": "6383",
+            "favorite_id": favorite_id,
+            "max_cursor": str(max_cursor),
+            "count": str(count),
+            "version_code": "290100",
+            "version_name": "29.1.0",
+            "cookie_enabled": "true",
+            "screen_width": "2560",
+            "screen_height": "1440",
+            "browser_language": "zh-CN",
+            "browser_platform": "Win32",
+            "browser_name": "Smart+Lenovo+Browser",
+            "browser_version": "9.0.8.5161",
+            "browser_online": "true",
+            "engine_name": "Blink",
+            "engine_version": "141.0.0.0",
+            "os_name": "Windows",
+            "os_version": "10",
+            "cpu_core_num": "32",
+            "device_memory": "8",
+            "platform": "PC",
+            "downlink": "10",
+            "effective_type": "4g",
+            "round_trip_time": "50",
+            "webid": WEBID,
+            "uifid": UIFID,
+            "verifyFp": VERIFY_FP,
+            "fp": FP,
+        }
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"https://www.douyin.com/aweme/v1/web/favorite/list/item/?{query}"
+        try:
+            resp = self.session.get(url, timeout=TIMEOUT)
+            return resp.json()
+        except Exception:
+            return {}
+
     def get_own_sec_uid(self) -> str:
         """获取当前登录用户的 sec_uid
 

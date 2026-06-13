@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from src.fonts import font_scale, scaled_font
+from src.gui.fonts import font_scale, scaled_font
 from src.cookie import load_cookie, save_cookie
 
 
@@ -23,7 +23,7 @@ def show_login_dialog(parent) -> str | None:
     返回:
         登录成功返回 Cookie 字符串，取消返回 None
     """
-    from src.cookie import WebViewLogin
+    from src.gui.dialogs.webview_login import WebViewLogin
     try:
         login = WebViewLogin()
         cookie = login.run(parent)

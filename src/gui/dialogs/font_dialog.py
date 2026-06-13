@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 
-from src.fonts import font_scale
+from src.gui.fonts import font_scale
 
 
 def choose_font_dialog(parent, current_font: QFont = None) -> tuple[bool, QFont | None]:

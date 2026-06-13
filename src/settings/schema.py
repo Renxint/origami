@@ -78,6 +78,11 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "type": dict,
         "desc": "快捷键绑定",
     },
+    "high_speed": {
+        "default": False,
+        "type": bool,
+        "desc": "高速模式：提高并发，加载更快但有一定风控风险",
+    },
     "proxy": {
         "default": {"enabled": False, "http": "", "https": ""},
         "type": dict,

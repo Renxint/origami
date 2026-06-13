@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 
-from src.fonts import font_scale, scaled_font
+from src.gui.fonts import font_scale, scaled_font
 from src.environ import EXE_DIR, CREATE_NO_WINDOW
 
 

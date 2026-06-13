@@ -28,7 +28,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtGui import QAction
 
-from src.fonts import font_scale, scaled_font
+from src.gui.fonts import font_scale, scaled_font
 from src.environ import (
     OUTPUT_SINGLE, BOOTSTRAP_JS, NODE_CMD,
     USER_AGENT, CREATE_NO_WINDOW,
@@ -593,21 +593,71 @@ class SinglePage(QWidget):
         cboxes = []
         thumb_sz = font_scale(64)
         _thumb_labels = []
+        _all_thumbs = []  # 所有缩略图，用于拖选 hit-test
+
+        # 拖选 + 高亮
+        _drag_mode = [None]
+        _thumb_checked = "border: 2px solid #E11D48; border-radius: 6px; background: #1A1030;"
+        _thumb_unchecked = "border: 1px solid #252550; border-radius: 6px; background: #12122A;"
+
+        class _ThumbLabel(QLabel):
+            """可点击+拖选缩略图"""
+            def __init__(self, text, cb, parent=None):
+                super().__init__(text, parent)
+                self._cb = cb  # 关联 QCheckBox
+
+            def mousePressEvent(self, event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    _drag_mode[0] = 'select' if not self._cb.isChecked() else 'deselect'
+                    self._cb.toggle()
+                    self._drag_done = {self._cb}
+                super().mousePressEvent(event)
+
+            def mouseMoveEvent(self, event):
+                if _drag_mode[0] is not None:
+                    gp = event.globalPosition().toPoint()
+                    # 遍历所有缩略图，检测光标落在哪个上面
+                    for lbl in _all_thumbs:
+                        if lbl.geometry().contains(
+                            lbl.parent().mapFromGlobal(gp)):
+                            cb = lbl._cb
+                            if cb not in self._drag_done:
+                                if _drag_mode[0] == 'select' and not cb.isChecked():
+                                    cb.setChecked(True)
+                                elif _drag_mode[0] == 'deselect' and cb.isChecked():
+                                    cb.setChecked(False)
+                                self._drag_done.add(cb)
+                            break
+                super().mouseMoveEvent(event)
+
+            def mouseReleaseEvent(self, event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    _drag_mode[0] = None
+                super().mouseReleaseEvent(event)
         for im in img_list:
             row = QHBoxLayout()
             row.setSpacing(6)
-            thumb = QLabel(str(im["index"] + 1))
-            thumb.setFixedSize(thumb_sz, thumb_sz)
-            thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            thumb.setStyleSheet(
-                f"color: #475569; font-size: {scaled_font(10)}px; "
-                "background: #12122A; border: 1px solid #252550; border-radius: 6px;"
-            )
-            row.addWidget(thumb)
             idx = im["index"]
             label = f"第{idx+1}张" + (" [实况]" if im.get("live") else "")
             cb = QCheckBox(label); cb.setChecked(True)
             cb.setStyleSheet(f"color: #94A3B8; font-size: {scaled_font(12)}px;")
+            thumb = _ThumbLabel(str(idx + 1), cb)
+            thumb.setFixedSize(thumb_sz, thumb_sz)
+            thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            thumb.setCursor(Qt.CursorShape.PointingHandCursor)
+            thumb.setStyleSheet(
+                f"color: #475569; font-size: {scaled_font(10)}px; "
+                f"{_thumb_checked}"
+            )
+            # 勾选状态 ↔ 缩略图高亮
+            def _sync(c, lbl=thumb, cs=_thumb_checked, us=_thumb_unchecked):
+                lbl.setStyleSheet(
+                    f"color: #475569; font-size: {scaled_font(10)}px; "
+                    f"{cs if c else us}"
+                )
+            cb.toggled.connect(_sync)
+            _all_thumbs.append(thumb)
+            row.addWidget(thumb)
             cboxes.append((idx, cb))
             row.addWidget(cb); row.addStretch()
             sw_layout.addLayout(row)
@@ -627,17 +677,30 @@ class SinglePage(QWidget):
         sa.clicked.connect(lambda: [cb[1].setChecked(True) for cb in cboxes])
         da.clicked.connect(lambda: [cb[1].setChecked(False) for cb in cboxes])
 
-        # 后台线程加载缩略图
+        # 后台并发加载缩略图（4 线程）
         if _thumb_labels:
+            from concurrent.futures import ThreadPoolExecutor
             _results = qu.Queue()
             _done = [False]
-            def _worker():
-                for lbl, url in _thumb_labels:
-                    if _done[0]: break
-                    try:
-                        r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
-                        _results.put((lbl, r.content))
-                    except Exception: pass
+            _pending = [len(_thumb_labels)]
+
+            def _fetch_one(lbl, url):
+                if _done[0]:
+                    return
+                try:
+                    r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
+                    _results.put((lbl, r.content))
+                except Exception:
+                    pass
+                finally:
+                    _pending[0] -= 1
+
+            from src.settings.store import load as _load_stg
+            _workers = 20 if _load_stg().get("high_speed", False) else 6
+            _pool = ThreadPoolExecutor(max_workers=_workers)
+            for lbl, url in _thumb_labels:
+                _pool.submit(_fetch_one, lbl, url)
+
             def _poll():
                 try:
                     while True:
@@ -646,13 +709,17 @@ class SinglePage(QWidget):
                             pix = QPixmap(); pix.loadFromData(data)
                             lbl.setPixmap(pix.scaled(thumb_sz, thumb_sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
                             lbl.setText("")
-                            lbl.setStyleSheet("border: 1px solid #252550; border-radius: 6px;")
+                            is_checked = lbl._cb.isChecked()
+                            bdr = "2px solid #E11D48" if is_checked else "1px solid #252550"
+                            bg = "#1A1030" if is_checked else "#12122A"
+                            lbl.setStyleSheet(f"border: {bdr}; border-radius: 6px; background: {bg};")
                 except qu.Empty:
-                    if _worker_thread.is_alive():
+                    if _pending[0] > 0:
                         QTimer.singleShot(60, _poll)
-                except Exception: pass
-            _worker_thread = threading.Thread(target=_worker, daemon=True)
-            _worker_thread.start()
+                    else:
+                        _pool.shutdown(wait=False)
+                except Exception:
+                    pass
             QTimer.singleShot(30, _poll)
             dlg.finished.connect(lambda: _done.__setitem__(0, True))
 

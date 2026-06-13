@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
-from src.fonts import font_scale, scaled_font
+from src.gui.fonts import font_scale, scaled_font
 from src.config import VERSION
 from src.cookie import get_cookie_status, load_cookie, save_cookie
 from src.settings.store import load as load_settings, save as save_settings, set as store_set
@@ -238,6 +238,7 @@ class SettingsPage(QWidget):
         self._section_title(panel, "外观")
         self._font_row(panel)
         self._auto_raise_row(panel)
+        self._high_speed_row(panel)
         self._tray_row(panel)
 
         panel.add_stretch()
@@ -340,15 +341,33 @@ class SettingsPage(QWidget):
         self.font_changed.emit(font)
 
     def _auto_raise_row(self, panel: SettingsPanel):
-        """剪贴板检测自动弹窗开关"""
-        self._switch_row(panel, "链接自动弹窗",
-            "复制抖音链接时自动将窗口置顶并填入链接",
+        """剪贴板检测开关"""
+        self._switch_row(panel, "自动识别剪贴板链接",
+            "复制抖音链接时自动填入并跳转到对应页面",
             load_settings().get("auto_raise", True),
             self._on_auto_raise_toggled)
 
     def _on_auto_raise_toggled(self, enabled: bool):
         from src.settings.store import set as store_set
         store_set("auto_raise", enabled)
+
+    def _high_speed_row(self, panel: SettingsPanel):
+        """高速模式开关"""
+        self._switch_row(panel, "高速模式 ⚡",
+            "提高加载并发数，速度更快但有一定风控风险",
+            load_settings().get("high_speed", False),
+            self._on_high_speed_toggled)
+
+    def _on_high_speed_toggled(self, enabled: bool):
+        from src.settings.store import set as store_set
+        store_set("high_speed", enabled)
+        if enabled:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self, "高速模式",
+                "已开启高速模式，加载速度更快。\n\n"
+                "⚠ 注意：高并发请求可能触发平台风控，\n"
+                "建议仅在使用频率较低时开启。")
 
     def _tray_row(self, panel: SettingsPanel):
         """系统托盘开关（clawd-on-desk switch row）"""

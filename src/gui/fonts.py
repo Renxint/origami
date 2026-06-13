@@ -2,7 +2,7 @@
 """
 Origami — 字体大小工具函数
 
-从原 src/theme/stylesheet.py 提取，不依赖任何主题系统。
+从原 src/fonts.py 移入 gui/，纯 UI 工具，不属业务层。
 """
 
 from PyQt6.QtWidgets import QApplication

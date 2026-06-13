@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
 from PyQt6.QtGui import QAction, QFont
 
-from src.fonts import font_scale, scaled_font
+from src.gui.fonts import font_scale, scaled_font
 from src.environ import OUTPUT_OWN, OUTPUT_OTHER, USER_AGENT
 from src.utils import clean_name, pick_best_video_url, parse_sec_user_id
 from src.cookie import load_cookie, save_cookie
@@ -114,7 +114,7 @@ class BatchDownloadThread(QThread):
             # ── 目录结构 ──
             account_dir = self.save_dir / author_name
             if self.is_own:
-                sub = "作品" if self.mode == "posts" else "喜欢"
+                sub = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}.get(self.mode, '作品')
                 save_root = account_dir / sub
             else:
                 save_root = account_dir
@@ -146,9 +146,10 @@ class BatchDownloadThread(QThread):
                         extra={"aweme": aw},
                     ))
             else:
+                mode_name = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}.get(self.mode, '作品')
                 self.log_signal.emit(
                     f'<span style="color:#F59E0B;">[翻页]</span> 正在获取'
-                    f'{"作品" if self.mode == "posts" else "喜欢"}列表...'
+                    f'{mode_name}列表...'
                 )
                 all_items = []
                 cursor = 0
@@ -202,9 +203,9 @@ class BatchDownloadThread(QThread):
 
             total = len(all_items)
             self.total_signal.emit(total)
+            mode_name = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}.get(self.mode, '作品')
             self.log_signal.emit(
-                f'<span style="color:#22C55E;">[完成]</span> 共 {total} 个'
-                f'{"作品" if self.mode == "posts" else "喜欢"}'
+                f'<span style="color:#22C55E;">[完成]</span> 共 {total} 个{mode_name}'
             )
 
             # 下载追踪
@@ -249,14 +250,12 @@ class BatchDownloadThread(QThread):
                 aweme = item.extra.get("aweme", {})
                 aweme_id = item.item_id
                 desc = clean_name(item.title or aweme_id)
+                short = hex(abs(hash(aweme_id)) % 0x10000)[2:].zfill(4)
+                pos = f"{total - i:04d}_{short}_"  # 倒序+4位短哈希
 
                 if aweme_id in downloaded_ids:
-                    # 验证文件是否真的存在（用户可能删了文件夹）
-                    prefix5 = (desc.strip()[:5] or "0").ljust(5, "0")
-                    any_file = (
-                        any(save_root.glob(f"{desc}.*"))
-                        or any(save_root.glob(f"{prefix5}_*"))
-                    )
+                    # 用短哈希匹配已下载文件
+                    any_file = any(save_root.glob(f"*_{short}_*"))
                     if not any_file:
                         downloaded_ids.discard(aweme_id)
                     else:
@@ -277,14 +276,6 @@ class BatchDownloadThread(QThread):
                         or aweme.get("media_type") == 42
                     )
 
-                    # 图片命名前缀：描述前5字，不够用0补足5位
-                    def _img_prefix(d: str) -> str:
-                        # 取纯文本前5个字符，空的用0占位
-                        prefix = d.strip()[:5] if d.strip() else "0"
-                        return prefix.ljust(5, "0")
-
-                    pfx = _img_prefix(desc)
-
                     # ── 纯视频 ──
                     is_pure_video = bool(video) and not images and not is_live
                     if is_pure_video:
@@ -294,7 +285,7 @@ class BatchDownloadThread(QThread):
                             self.log_signal.emit(
                                 f'[{i+1}/{total}] <span style="color:#F59E0B;">[视频]</span> {desc}'
                             )
-                            self._dl(url, save_root / f"{desc}.mp4")
+                            self._dl(url, save_root / f"{pos}{desc}.mp4")
                             stats["video"] += 1
                             downloaded = True
                         else:
@@ -304,7 +295,7 @@ class BatchDownloadThread(QThread):
                                 self.log_signal.emit(
                                     f'[{i+1}/{total}] <span style="color:#F59E0B;">[音频]</span> {desc}'
                                 )
-                                self._dl(music_url, save_root / f"{desc}.mp3")
+                                self._dl(music_url, save_root / f"{pos}{desc}.mp3")
                                 stats["music"] += 1
                                 downloaded = True
 
@@ -317,14 +308,17 @@ class BatchDownloadThread(QThread):
                             self.log_signal.emit(
                                 f'[{i+1}/{total}] <span style="color:#F59E0B;">[图集]</span> {desc} ({len(images)}图)'
                             )
+                            img_filter = aweme.get("_img_filter", None)
                             for j, img in enumerate(images):
+                                if img_filter is not None and j not in img_filter:
+                                    continue
                                 urls = img.get("url_list", [])
                                 img_url = next(
                                     (u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()),
                                     urls[0] if urls else ""
                                 )
                                 if img_url:
-                                    self._dl(img_url, save_root / f"{pfx}_{j+1}.jpg")
+                                    self._dl(img_url, save_root / f"{pos}{j+1}.jpg")
                                     stats["image"] += 1
                                     downloaded = True
                         else:
@@ -343,7 +337,7 @@ class BatchDownloadThread(QThread):
                                     _c = iv.get(_ck) or {}
                                     _cu = (_c.get("url_list") or [""])[0]
                                     if _cu:
-                                        self._dl(_cu, save_root / f"{pfx}_{j+1}_封面.jpg")
+                                        self._dl(_cu, save_root / f"{pos}{j+1}_封面.jpg")
                                         stats["image"] += 1
                                         downloaded = True
                                         break
@@ -354,7 +348,7 @@ class BatchDownloadThread(QThread):
                                 if not lv:
                                     lv = ((iv.get("play_addr") or {}).get("url_list") or [""])[0]
                                 if lv:
-                                    self._dl(lv, save_root / f"{pfx}_{j+1}_实况.mp4")
+                                    self._dl(lv, save_root / f"{pos}{j+1}_实况.mp4")
                                     stats["video"] += 1
 
                     # ── 图片（图集 + 混在其中的实况照片，统一用 pfx_N 命名）──
@@ -377,7 +371,7 @@ class BatchDownloadThread(QThread):
                                 urls[0] if urls else ""
                             )
                             if img_url:
-                                self._dl(img_url, save_root / f"{pfx}_{j+1}.jpg")
+                                self._dl(img_url, save_root / f"{pos}{j+1}.jpg")
                                 stats["image"] += 1
                                 downloaded = True
                             # 图集中混入的实况照片 → 额外下载视频
@@ -387,7 +381,7 @@ class BatchDownloadThread(QThread):
                                     _c = iv.get(_ck) or {}
                                     _cu = (_c.get("url_list") or [""])[0]
                                     if _cu:
-                                        self._dl(_cu, save_root / f"{pfx}_{j+1}_封面.jpg")
+                                        self._dl(_cu, save_root / f"{pos}{j+1}_封面.jpg")
                                         stats["image"] += 1
                                         break
                                 lv = pick_best_video_url(iv) or ""
@@ -396,7 +390,7 @@ class BatchDownloadThread(QThread):
                                 if not lv:
                                     lv = ((iv.get("play_addr") or {}).get("url_list") or [""])[0]
                                 if lv:
-                                    self._dl(lv, save_root / f"{pfx}_{j+1}_实况.mp4")
+                                    self._dl(lv, save_root / f"{pos}{j+1}_实况.mp4")
                                     stats["video"] += 1
 
                     if not downloaded:
@@ -626,6 +620,47 @@ class BatchDownloadThread(QThread):
                 else:
                     raise e
 
+    def _dl_batch(self, tasks: list, item_index: int, item_total: int):
+        """并发下载一组文件，返回 (success, fail) 计数"""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        # 过滤已存在的文件
+        pending = [(url, path) for url, path in tasks if not path.exists()]
+        if not pending:
+            return 0, 0
+        success = 0
+        fail = 0
+
+        def _download(url, path):
+            if self._cancelled:
+                return False
+            path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                r = requests.get(url, stream=True, timeout=120,
+                                 headers={"User-Agent": USER_AGENT,
+                                          "Referer": "https://www.douyin.com/"})
+                r.raise_for_status()
+                with open(path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if self._cancelled:
+                            path.unlink(missing_ok=True)
+                            return False
+                        f.write(chunk)
+                return True
+            except Exception:
+                if path.exists():
+                    path.unlink(missing_ok=True)
+                return False
+
+        with ThreadPoolExecutor(max_workers=min(10, len(pending))) as pool:
+            futures = {pool.submit(_download, url, path): path
+                       for url, path in pending}
+            for f in as_completed(futures):
+                if f.result():
+                    success += 1
+                else:
+                    fail += 1
+        return success, fail
+
 
 # ═══════════════════════════════════════════════════════════
 # 批量下载页面
@@ -640,6 +675,7 @@ class BatchPage(QWidget):
     _bg_info = pyqtSignal(str)                # status text
     _bg_reset_ui = pyqtSignal()               # 重置上次下载的 UI 状态
     _bg_author_loaded = pyqtSignal(object, object, object, str)  # (author, profile, avatar_data, sec_uid)
+    _ui_callback = pyqtSignal(object)  # 后台线程→主线程执行回调（替代 QTimer.singleShot(0)）
 
     @staticmethod
     def _circle_pixmap(pix: "QPixmap", size: int) -> "QPixmap":
@@ -670,9 +706,15 @@ class BatchPage(QWidget):
         self._loaded_sec_uid = ""    # 已加载的用户 sec_uid
         self._own_posts_items = []   # 自己：作品列表（预加载缓存）
         self._own_likes_items = []   # 自己：喜欢列表（预加载缓存）
+        self._own_fav_items = []     # 自己：收藏列表
+        self._own_fav_id = ""        # 当前收藏夹 ID
         self._own_selected_ids = set()
         self._own_posts_loaded = False
         self._own_likes_loaded = False
+        self._own_fav_loaded = False
+        self._own_posts_loading = False
+        self._own_likes_loading = False
+        self._own_fav_loading = False
         self._url_debounce = QTimer()
         self._url_debounce.setSingleShot(True)
         self._url_debounce.setInterval(800)
@@ -687,6 +729,7 @@ class BatchPage(QWidget):
         self._bg_info.connect(self._set_other_info)
         self._bg_reset_ui.connect(self._reset_other_ui)
         self._bg_author_loaded.connect(self._on_bg_author_loaded)
+        self._ui_callback.connect(lambda cb: cb())  # 在线程→主线程桥接
         self._build()
 
     # ── 主体布局 ─────────────────────────────────────────
@@ -839,7 +882,7 @@ class BatchPage(QWidget):
         self._other_select_btn.setObjectName("secondaryBtn")
         self._other_select_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._other_select_btn.clicked.connect(self._show_select_dialog)
-        self._other_select_btn.hide()
+        self._other_select_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn_row.addWidget(self._other_select_btn)
         self._other_pause_btn = QPushButton("暂停")
         self._other_pause_btn.setObjectName("secondaryBtn")
@@ -857,7 +900,6 @@ class BatchPage(QWidget):
         other_clear.setObjectName("secondaryBtn")
         other_clear.clicked.connect(lambda: self._clear_other())
         btn_row.addWidget(other_clear)
-        btn_row.addStretch()
         right_col.addLayout(btn_row)
         main_row.addLayout(right_col, 4)
         layout.addLayout(main_row)
@@ -954,18 +996,20 @@ class BatchPage(QWidget):
         self._sub_likes.clicked.connect(lambda: self._switch_sub(1))
         info_row.addWidget(self._sub_likes)
 
+        self._sub_favs = QPushButton("收藏")
+        self._sub_favs.setCheckable(True)
+        self._sub_favs.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sub_favs.setEnabled(False)
+        self._sub_favs.setToolTip("收藏 API 需完整浏览器会话，暂不可用")
+        info_row.addWidget(self._sub_favs)
+
         info_row.addStretch()
         layout.addLayout(info_row)
         self._style_sub_tabs()
 
-        # 下载 + 暂停/取消
+        # 暂停/取消（下载通过查看列表→勾选弹窗直接触发）
         action_row = QHBoxLayout()
         action_row.setSpacing(6)
-        self._own_dl_btn = QPushButton("开始下载")
-        self._own_dl_btn.setMinimumHeight(font_scale(38))
-        self._own_dl_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._own_dl_btn.clicked.connect(self._start_own)
-        action_row.addWidget(self._own_dl_btn)
         self._own_pause_btn = QPushButton("暂停")
         self._own_pause_btn.setObjectName("secondaryBtn")
         self._own_pause_btn.setEnabled(False)
@@ -980,7 +1024,6 @@ class BatchPage(QWidget):
         self._own_select_btn.setObjectName("secondaryBtn")
         self._own_select_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._own_select_btn.clicked.connect(self._show_own_select_dialog)
-        self._own_select_btn.hide()
         action_row.addWidget(self._own_select_btn)
         layout.addLayout(action_row)
 
@@ -1035,7 +1078,7 @@ class BatchPage(QWidget):
     def _style_sub_tabs(self):
         """子标签样式"""
         pt = QApplication.instance().font().pointSize()
-        for btn in (self._sub_posts, self._sub_likes):
+        for btn in (self._sub_posts, self._sub_likes, self._sub_favs):
             if btn.isChecked():
                 btn.setStyleSheet(
                     f"font-size: {pt}pt; font-weight: bold; color: #FFFFFF; "
@@ -1056,92 +1099,202 @@ class BatchPage(QWidget):
 
     # ── 自己身份检测 ──────────────────────────────────────
 
+    def reset_own_cache(self):
+        """换号/退出后清空自己主页缓存"""
+        self._own_sec_uid = ""
+        self._own_posts_items = []
+        self._own_likes_items = []
+        self._own_selected_ids = set()
+        self._own_posts_loaded = False
+        self._own_likes_loaded = False
+        self._own_fav_loaded = False
+        self._own_posts_loading = False
+        self._own_likes_loading = False
+        self._own_fav_loading = False
+        self._own_fav_items = []
+        self._own_fav_id = ""
+        self._own_info.setText("")
+        self._own_avatar.hide()
+        self._own_select_btn.setText("查看列表")
+
     def _detect_own(self):
-        """切换到"自己主页"时，自动获取 sec_uid 和个人信息"""
+        """后台获取自己主页信息，不阻塞 UI"""
         if self._own_sec_uid:
             return
         cookie = load_cookie()
         if not cookie or "sessionid=" not in cookie:
             self._own_info.setText("⚠ 未登录，请先在首页登录")
             return
-        try:
-            from src.platforms.douyin import DouyinAdapter
-            from src.api import _get_avatar
-            from src.environ import USER_AGENT
-            import requests as req
-            from PyQt6.QtGui import QPixmap
+        self._own_info.setText("正在获取账号信息...")
+        import threading, requests as req
+        from PyQt6.QtGui import QPixmap
 
-            adapter = DouyinAdapter()
-            sec_uid = adapter.get_own_author_id(cookie)
-            if sec_uid:
-                self._own_sec_uid = sec_uid
+        def _fetch():
+            try:
+                from src.platforms.douyin import DouyinAdapter
+                from src.api import _get_avatar
+                from src.environ import USER_AGENT
+
+                adapter = DouyinAdapter()
+                sec_uid = adapter.get_own_author_id(cookie)
+                if not sec_uid:
+                    self._ui_callback.emit(lambda: self._own_info.setText(
+                        "⚠ 无法获取账号信息，请检查登录状态"))
+                    return
+
+                def _save_sec():
+                    self._own_sec_uid = sec_uid
+                self._ui_callback.emit(_save_sec)
+
                 try:
                     author = adapter.fetch_author(sec_uid, cookie)
                     profile = author.extra.get("profile", {})
                     likes_total = profile.get("favoriting_count", 0)
-                    self._own_info.setText(
-                        f"{author.nickname}  |  "
-                        f"作品: {author.post_count}  |  "
-                        f"粉丝: {author.follower_count}  |  "
-                        f"喜欢: {likes_total}"
-                    )
-                    self._sub_posts.setText(f"作品 ({author.post_count})")
-                    self._sub_likes.setText(f"喜欢 ({likes_total})")
-
+                    nickname = author.nickname
+                    post_count = author.post_count
+                    follower_count = author.follower_count
                     avatar_url = _get_avatar(profile)
+                    avatar_data = None
                     if avatar_url:
-                        av_sz = self._own_avatar.width() or 56
-                        cache_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "own_avatar.jpg"
                         try:
                             r = req.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=15)
-                            cache_path.parent.mkdir(parents=True, exist_ok=True)
-                            cache_path.write_bytes(r.content)
-                            pix = QPixmap(str(cache_path))
-                            self._own_avatar.setPixmap(
-                                self._circle_pixmap(pix, av_sz))
-                            self._own_avatar.show()
+                            avatar_data = r.content
                         except Exception:
-                            self._own_avatar.hide()
+                            pass
 
-                    # 预加载：先统计作品（HTTP 快），再统计喜欢（Puppeteer 慢）
+                    # 回主线程更新 UI
+                    def _apply():
+                        self._own_info.setText(
+                            f"{nickname}  |  "
+                            f"作品: {post_count}  |  "
+                            f"粉丝: {follower_count}  |  "
+                            f"喜欢: {likes_total}"
+                        )
+                        self._sub_posts.setText(f"作品 ({post_count})")
+                        self._sub_likes.setText(f"喜欢 ({likes_total})")
+                        self._sub_favs.setText("收藏")
+                        if avatar_data:
+                            try:
+                                av_sz = self._own_avatar.width() or 56
+                                cache_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "own_avatar.jpg"
+                                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                                cache_path.write_bytes(avatar_data)
+                                pix = QPixmap(str(cache_path))
+                                self._own_avatar.setPixmap(
+                                    self._circle_pixmap(pix, av_sz))
+                                self._own_avatar.show()
+                            except Exception:
+                                self._own_avatar.hide()
+                    self._ui_callback.emit(_apply)
+
+                    # 预加载统计：先标记再启动，防止重复调用
                     if not self._own_posts_loaded:
+                        self._own_posts_loaded = True
                         self._count_own_items(sec_uid, 'posts')
                     if not self._own_likes_loaded:
-                        QTimer.singleShot(2000, lambda: self._count_own_items(sec_uid, 'likes'))
+                        self._own_likes_loaded = True
+                        self._count_own_items(sec_uid, 'likes')
                 except Exception:
-                    self._own_info.setText(f"已识别 (sec_uid: {sec_uid[:20]}...)")
-            else:
-                self._own_info.setText("⚠ 无法获取账号信息，请检查登录状态")
-        except Exception as e:
-            self._own_info.setText(f"⚠ 获取失败: {e}")
+                    self._ui_callback.emit(lambda: self._own_info.setText(
+                        f"已识别 (sec_uid: {sec_uid[:20]}...)"))
+            except Exception as e:
+                self._ui_callback.emit(lambda: self._own_info.setText(
+                    f"⚠ 获取失败: {e}"))
+        threading.Thread(target=_fetch, daemon=True).start()
 
     def _switch_sub(self, idx: int):
         self._sub_posts.setChecked(idx == 0)
         self._sub_likes.setChecked(idx == 1)
+        self._sub_favs.setChecked(idx == 2)
         self._style_sub_tabs()
         if not self._own_sec_uid:
             return
-        mode = 'posts' if idx == 0 else 'likes'
-        cached = self._own_posts_items if mode == 'posts' else self._own_likes_items
-        if cached:
-            # 已有缓存，直接显示
-            self._own_select_btn.setText(f"查看列表 ({len(cached)})")
-            self._own_select_btn.show()
+        if idx == 0:
+            mode, loading, loaded, cached = (
+                'posts', self._own_posts_loading, self._own_posts_loaded, self._own_posts_items)
+        elif idx == 1:
+            mode, loading, loaded, cached = (
+                'likes', self._own_likes_loading, self._own_likes_loaded, self._own_likes_items)
         else:
+            mode, loading, loaded, cached = (
+                'favs', self._own_fav_loading, self._own_fav_loaded, self._own_fav_items)
+        if cached:
+            self._own_select_btn.setText(f"查看列表 ({len(cached)})")
+        elif loading:
+            self._own_select_btn.setText("查看列表 (加载中...)")
+        elif loaded:
+            self._own_select_btn.setText("查看列表 (0)")
+        else:
+            self._own_select_btn.setText("查看列表")
             self._count_own_items(self._own_sec_uid, mode)
 
     def _count_own_items(self, sec_uid: str, mode: str):
-        """后台翻页统计自己的作品/喜欢（线程版，不卡 UI）"""
-        store = self._own_posts_items if mode == 'posts' else self._own_likes_items
+        """后台翻页统计自己的作品/喜欢/收藏"""
+        if mode == 'posts':
+            store = self._own_posts_items
+            if self._own_posts_loading: return
+            self._own_posts_loading = True
+        elif mode == 'likes':
+            store = self._own_likes_items
+            if self._own_likes_loading: return
+            self._own_likes_loading = True
+        else:
+            store = self._own_fav_items
+            if self._own_fav_loading: return
+            self._own_fav_loading = True
         store.clear()
         self._own_selected_ids = set()
-        self._own_select_btn.hide()
 
-        tag = "作品" if mode == 'posts' else "喜欢"
+        tag = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}[mode]
         self._own_log_msg(f'[统计] 后台统计自己的{tag}...', '#F59E0B')
 
         cookie = load_cookie()
 
+        # ── favs 模式：主线程 QTimer 链（WebView 必须在主线程） ──
+        if mode == 'favs':
+            _total = [0]
+            _page = [0]
+            _cursor = [0]
+
+            def _fav_step():
+                from src.webview_api import get_favorite_collections as _gfc
+                data = _gfc(cursor=_cursor[0])
+                items = data.get("aweme_list", [])
+                err = data.get("_error", "")
+                if err:
+                    self._own_log_msg(f'[收藏] err={err}', '#EF4444')
+                self._own_log_msg(
+                    f'[收藏-v] items={len(items)}'
+                    + (f' err={err}' if err else ''),
+                    '#22C55E' if items else '#F59E0B')
+
+                if not items and _page[0] == 0:
+                    self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
+                    self._own_fav_loading = False
+                    self._own_fav_loaded = True
+                    return
+
+                store.extend(items)
+                _total[0] += len(items)
+                _page[0] += 1
+                has_more = data.get("has_more", 0)
+                _cursor[0] = (data.get("cursor")
+                              or data.get("next_cursor")
+                              or data.get("max_cursor", 0))
+
+                if has_more and _page[0] < 100:
+                    QTimer.singleShot(500, _fav_step)
+                else:
+                    self._own_log_msg(f'[统计] 共 {_total[0]} 个自己的{tag}', '#22C55E')
+                    if self._sub_favs.isChecked():
+                        self._own_select_btn.setText(f"查看列表 ({_total[0]})")
+                    self._own_fav_loading = False
+                    self._own_fav_loaded = True
+
+            QTimer.singleShot(100, _fav_step)
+            return
+
+        # ── posts/likes 模式：线程 ──
         def _run():
             if mode == 'posts':
                 from src.api import DouyinAPI
@@ -1152,50 +1305,64 @@ class BatchPage(QWidget):
             total = 0
             cursor = 0
             page = 0
-            while page < 100:
-                try:
-                    if mode == 'posts':
-                        data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
-                        items = data.get("aweme_list", [])
-                    else:
-                        data = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
-                        items = data.get("items", [])
-                        if isinstance(items, list) and items and hasattr(items[0], 'extra'):
-                            items = [i.extra.get("aweme", {}) for i in items]
-                except Exception as e:
-                    self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
-                    return
+            try:
+                while page < 100:
+                    try:
+                        if mode == 'posts':
+                            data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
+                            items = data.get("aweme_list", [])
+                        else:
+                            data = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
+                            items = data.get("items", [])
+                            if isinstance(items, list) and items and hasattr(items[0], 'extra'):
+                                items = [i.extra.get("aweme", {}) for i in items]
+                    except Exception as e:
+                        self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
+                        return
 
-                if not items and page == 0:
-                    self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
-                    QTimer.singleShot(0, lambda: self._own_select_btn.setText(f"查看列表 (0)"))
-                    QTimer.singleShot(0, lambda: self._own_select_btn.show())
-                    return
+                    if not items and page == 0:
+                        self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
+                        cm = 'posts' if self._sub_posts.isChecked() else 'likes'
+                        if cm == mode:
+                            self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 (0)"))
+                        return
 
-                store.extend(items)
-                total += len(items)
-                page += 1
-                has_more = data.get("has_more", 0)
-                cursor = data.get("next_cursor", data.get("max_cursor", 0))
-                if not has_more:
-                    break
-                time.sleep(0.3 if mode == 'posts' else 1.5)
+                    store.extend(items)
+                    total += len(items)
+                    page += 1
+                    has_more = data.get("has_more", 0)
+                    cursor = (data.get("next_cursor")
+                              or data.get("max_cursor", 0))
+                    if not has_more:
+                        break
+                    time.sleep(0.3 if mode == 'posts' else 1.5)
 
-            if mode == 'posts':
-                self._own_posts_loaded = True
-            else:
-                self._own_likes_loaded = True
-            self._own_log_msg(f'[统计] 共 {total} 个自己的{tag}', '#22C55E')
-            cur_mode = 'posts' if self._sub_posts.isChecked() else 'likes'
-            if cur_mode == mode:
-                QTimer.singleShot(0, lambda: self._own_select_btn.setText(f"查看列表 ({total})"))
-                QTimer.singleShot(0, lambda: self._own_select_btn.show())
+                self._own_log_msg(f'[统计] 共 {total} 个自己的{tag}', '#22C55E')
+                cur_mode = 'posts' if self._sub_posts.isChecked() else 'likes'
+                if cur_mode == mode:
+                    self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 ({total})"))
+                    self._ui_callback.emit(lambda: self._own_select_btn.show())
+            finally:
+                if mode == 'posts':
+                    self._own_posts_loading = False
+                    self._own_posts_loaded = True
+                else:
+                    self._own_likes_loading = False
+                    self._own_likes_loaded = True
 
         threading.Thread(target=_run, daemon=True).start()
 
     def _show_own_select_dialog(self):
-        """弹出自己的作品选择对话框"""
-        cur = self._own_posts_items if self._sub_posts.isChecked() else self._own_likes_items
+        """弹出自己的作品选择对话框（实时刷新，选完直接开始下载）"""
+        # 按实际选中状态取对应列表
+        if self._sub_posts.isChecked():
+            cur = self._own_posts_items
+        elif self._sub_likes.isChecked():
+            cur = self._own_likes_items
+        elif self._sub_favs.isChecked():
+            cur = self._own_fav_items
+        else:
+            return  # 无选中标签（不应发生）
         if not cur:
             return
         self._show_item_select_dialog(
@@ -1205,10 +1372,13 @@ class BatchPage(QWidget):
                 f"已选 {len(self._own_selected_ids)}/{len(cur)}"
             ),
             lambda msg: self._own_log_msg(msg, '#22C55E'),
+            on_confirm=self._start_own,
+            live=True,
         )
 
     def _show_item_select_dialog(self, all_items: list, selected_ids: set,
-                                  title: str, update_cb, log_cb):
+                                  title: str, update_cb, log_cb,
+                                  on_confirm=None, live=False):
         """通用作品选择弹窗（QListWidget + 异步 icon）"""
         from PyQt6.QtGui import QPixmap, QIcon
         import requests as _req
@@ -1241,13 +1411,69 @@ class BatchPage(QWidget):
             f"QListWidget::item {{ padding: 8px 10px; min-height: {icon_sz + 16}px; border-bottom: 1px solid #1E1E3A; }}"
             "QListWidget::item:hover { background: #12122A; }"
         )
-        for aw in all_items:
+        _bulk = [False]  # 全选/全不选时抑制主↔子勾选框信号联动
+        _gallery_masters = []  # 显式追踪所有图集的主勾选框，避免 findChildren 触 Qt 内部 bug
+        _drag_mode = [None]  # 拖选模式: None | 'select' | 'deselect'
+
+        # 缩略图选中/未选中样式
+        _thumb_checked = (
+            f"border: 2px solid #E11D48; border-radius: 4px;"
+            f"background: #1A1030;"
+        )
+        _thumb_unchecked = (
+            f"border: 1px solid #252550; border-radius: 4px;"
+            f"background: #12122A;"
+        )
+
+        class _ThumbLabel(QLabel):
+            """可点击+拖选缩略图：点击切换选中，按住拖拽批量选中"""
+            def __init__(self, text, checkbox, parent=None):
+                super().__init__(text, parent)
+                self._cb = checkbox  # 关联的 QCheckBox
+
+            def mousePressEvent(self, event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    _drag_mode[0] = 'select' if not self._cb.isChecked() else 'deselect'
+                    self._cb.toggle()
+                    self._drag_done = {self._cb}  # 已处理的 checkbox，防重复
+                super().mousePressEvent(event)
+
+            def mouseMoveEvent(self, event):
+                if _drag_mode[0] is not None:
+                    lp = lst.mapFromGlobal(event.globalPosition().toPoint())
+                    item = lst.itemAt(lp)
+                    if item is not None:
+                        w = lst.itemWidget(item)
+                        if w is not None:
+                            local = w.mapFromGlobal(event.globalPosition().toPoint())
+                            # 只匹配光标下那张缩略图（逐个检查 geometry）
+                            for tl in w.findChildren(_ThumbLabel):
+                                if tl.geometry().contains(local):
+                                    cb = tl._cb
+                                    if cb not in self._drag_done:
+                                        if _drag_mode[0] == 'select' and not cb.isChecked():
+                                            cb.setChecked(True)
+                                        elif _drag_mode[0] == 'deselect' and cb.isChecked():
+                                            cb.setChecked(False)
+                                        self._drag_done.add(cb)
+                                    break  # 命中一张就停
+                super().mouseMoveEvent(event)
+
+            def mouseReleaseEvent(self, event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    _drag_mode[0] = None
+                super().mouseReleaseEvent(event)
+
+        _video_items = []  # 视频作品的 (aweme_id, checkbox) 追踪
+
+        def _append_item(aw, checked):
+            """向列表追加一个作品条目（图集或视频），供初始加载和实时刷新共用"""
+            nonlocal icon_sz
             aweme_id = aw.get('aweme_id', '')
             desc = aw.get('desc', '') or '(无描述)'
             images = aw.get("images") or []
             is_live = aw.get("is_live_photo", False)
             video = aw.get("video")
-            checked = aweme_id in selected_ids or not selected_ids
 
             if images:
                 # 图集：一行缩略图 + 主勾选框控制全选/全不选
@@ -1258,7 +1484,6 @@ class BatchPage(QWidget):
                 # 主勾选框（控制整个图集）
                 gal_cb = QCheckBox()
                 gal_cb.setChecked(checked)
-                gal_cb.setStyleSheet("QCheckBox { spacing: 0px; }")
                 img_lay.addWidget(gal_cb)
                 img_cbs = []  # 子勾选框列表
                 for j, img in enumerate(images[:8]):
@@ -1267,19 +1492,26 @@ class BatchPage(QWidget):
                     col.setSpacing(2)
                     urls = img.get("url_list", [])
                     img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
-                    tl = QLabel(f"{j+1}")
+                    icb = QCheckBox()
+                    icb.setChecked(checked)
+                    tl = _ThumbLabel(f"{j+1}", icb)
                     tl.setFixedSize(icon_sz, icon_sz)
                     tl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    tl.setCursor(Qt.CursorShape.PointingHandCursor)
                     tl.setStyleSheet(
                         f"color: #475569; font-size: {scaled_font(8)}px; "
-                        "background: #12122A; border: 1px solid #252550; border-radius: 4px;"
+                        f"{_thumb_checked if checked else _thumb_unchecked}"
                     )
                     col.addWidget(tl)
                     if img_url:
                         _thumb_queue.append((tl, img_url, icon_sz))
-                    icb = QCheckBox()
-                    icb.setChecked(checked)
-                    icb.setStyleSheet("QCheckBox { spacing: 0px; }")
+                    # 勾选状态 → 缩略图高亮同步
+                    def _sync_thumb(c, label=tl, cs=_thumb_checked, us=_thumb_unchecked):
+                        label.setStyleSheet(
+                            f"color: #475569; font-size: {scaled_font(8)}px; "
+                            f"{cs if c else us}"
+                        )
+                    icb.toggled.connect(_sync_thumb)
                     col.addWidget(icb, 0, Qt.AlignmentFlag.AlignCenter)
                     img_lay.addLayout(col)
                     img_cbs.append((icb, img_id))
@@ -1287,6 +1519,8 @@ class BatchPage(QWidget):
                 # 主勾选框 ↔ 子勾选框联动
                 gal_cb.setTristate(False)
                 def _on_master(checked, master=gal_cb, cbs=img_cbs):
+                    if _bulk[0]:
+                        return
                     # clicked: 从 Partial 点击 → 直接 Checked
                     if master.checkState() == Qt.CheckState.PartiallyChecked:
                         master.blockSignals(True)
@@ -1297,6 +1531,8 @@ class BatchPage(QWidget):
                         cb.setChecked(checked)
                 gal_cb.clicked.connect(_on_master)
                 def _on_child(checked, master=gal_cb, cbs=img_cbs):
+                    if _bulk[0]:
+                        return
                     all_on = all(cb.isChecked() for cb, _ in cbs)
                     none_on = not any(cb.isChecked() for cb, _ in cbs)
                     master.blockSignals(True)
@@ -1311,48 +1547,104 @@ class BatchPage(QWidget):
                     cb.toggled.connect(_on_child)
                 for cb, img_id in img_cbs:
                     _gallery_items.append((None, cb, img_id))
+                _gallery_masters.append((gal_cb, img_cbs))
                 item = QListWidgetItem()
+                # 防御：确保图集项不显示 Qt 自带的勾选框（与自定义主框冲突）
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
                 item.setSizeHint(img_row.sizeHint())
                 lst.addItem(item)
                 lst.setItemWidget(item, img_row)
             else:
-                # 视频：普通列表项 + icon
+                # 视频：自定义行 = 勾选框 + 可点击封面 + 标签
                 itype = "实况" if is_live else "视频"
+                vrow = QWidget()
+                vrow.setMinimumHeight(icon_sz + 10)
+                vlay = QHBoxLayout(vrow)
+                vlay.setContentsMargins(6, 4, 8, 4)
+                vlay.setSpacing(8)
+                vlay.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+                v_icb = QCheckBox()
+                v_icb.setChecked(checked)
+                vlay.addWidget(v_icb)
+
+                v_thumb = _ThumbLabel(f"{desc[:3] or '...'}", v_icb)
+                v_thumb.setFixedSize(icon_sz, icon_sz)
+                v_thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                v_thumb.setCursor(Qt.CursorShape.PointingHandCursor)
+                v_thumb.setStyleSheet(
+                    f"color: #475569; font-size: {scaled_font(9)}px; "
+                    f"{_thumb_checked if checked else _thumb_unchecked}"
+                )
+                # 勾选状态 ↔ 封面高亮
+                def _vsync(c, label=v_thumb, cs=_thumb_checked, us=_thumb_unchecked):
+                    label.setStyleSheet(
+                        f"color: #475569; font-size: {scaled_font(9)}px; "
+                        f"{cs if c else us}"
+                    )
+                v_icb.toggled.connect(_vsync)
+                vlay.addWidget(v_thumb)
+
+                v_label = QLabel(f"[{itype}] {desc[:50]}")
+                v_label.setStyleSheet(
+                    f"color: #94A3B8; font-size: {scaled_font(12)}px; "
+                    "background: transparent; border: none;"
+                )
+                v_label.setWordWrap(True)
+                vlay.addWidget(v_label, 1)
+                vlay.addStretch()
+
                 item = QListWidgetItem()
-                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
-                item.setText(f"[{itype}] {desc[:50]}")
-                item.setData(Qt.ItemDataRole.UserRole, aweme_id)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+                item.setSizeHint(vrow.sizeHint())
                 lst.addItem(item)
+                lst.setItemWidget(item, vrow)
+
+                _video_items.append((aweme_id, v_icb))
+
                 thumb_url = ""
                 if video:
                     cover = video.get("cover") or video.get("origin_cover") or {}
                     covers = cover.get("url_list", [])
                     thumb_url = covers[0] if covers else ""
                 if thumb_url:
-                    _thumb_queue.append((item, thumb_url, icon_sz))  # 正方形统一尺寸
+                    _thumb_queue.append((v_thumb, thumb_url, icon_sz))
+
+        for aw in all_items:
+            aweme_id = aw.get('aweme_id', '')
+            checked = aweme_id in selected_ids or not selected_ids
+            _append_item(aw, checked)
 
         layout.addWidget(lst, 1)
 
         def _select_all():
-            for i in range(lst.count()):
-                it = lst.item(i)
-                if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
-                    it.setCheckState(Qt.CheckState.Checked)
-            # 递归找所有子 QCheckBox
-            def _all_cbs(w: QWidget):
-                for child in w.findChildren(QCheckBox):
-                    child.setChecked(True)
-            _all_cbs(lst)
+            _bulk[0] = True
+            lst.setUpdatesEnabled(False)
+            try:
+                # 图集
+                for master, children in _gallery_masters:
+                    master.setChecked(True)
+                    for cb, _ in children:
+                        cb.setChecked(True)
+                # 视频
+                for _, cb in _video_items:
+                    cb.setChecked(True)
+            finally:
+                lst.setUpdatesEnabled(True)
+                _bulk[0] = False
         def _deselect_all():
-            for i in range(lst.count()):
-                it = lst.item(i)
-                if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
-                    it.setCheckState(Qt.CheckState.Unchecked)
-            def _none_cbs(w: QWidget):
-                for child in w.findChildren(QCheckBox):
-                    child.setChecked(False)
-            _none_cbs(lst)
+            _bulk[0] = True
+            lst.setUpdatesEnabled(False)
+            try:
+                for master, children in _gallery_masters:
+                    master.setChecked(False)
+                    for cb, _ in children:
+                        cb.setChecked(False)
+                for _, cb in _video_items:
+                    cb.setChecked(False)
+            finally:
+                lst.setUpdatesEnabled(True)
+                _bulk[0] = False
         sel_all.clicked.connect(_select_all)
         desel_all.clicked.connect(_deselect_all)
 
@@ -1364,10 +1656,11 @@ class BatchPage(QWidget):
 
         def _confirm():
             selected = set()
-            for i in range(lst.count()):
-                it = lst.item(i)
-                if it.checkState() == Qt.CheckState.Checked:
-                    selected.add(it.data(Qt.ItemDataRole.UserRole))
+            # 视频作品
+            for aweme_id, cb in _video_items:
+                if cb.isChecked():
+                    selected.add(aweme_id)
+            # 图集（按图片维度）
             for _, cb, img_id in _gallery_items:
                 if cb.isChecked():
                     selected.add(img_id)
@@ -1377,25 +1670,37 @@ class BatchPage(QWidget):
             selected_ids.clear(); selected_ids.update(selected)
             log_cb(f'[选择] 已勾选 {len(selected)} 个加入下载队列')
             update_cb()
+            self._user_selected = True
             dlg.accept()
-            # 弹窗关闭后立即开始下载
-            QTimer.singleShot(100, self._start_selected_download)
+            QTimer.singleShot(100, on_confirm or self._start_selected_download)
         dl_btn.clicked.connect(_confirm)
 
-        # 异步加载缩略图
-        # 后台线程下载缩略图，不卡 UI 滚动
+        # 异步加载缩略图（4 线程并发，不按顺序排队）
         if _thumb_queue:
             import queue as qu
+            from concurrent.futures import ThreadPoolExecutor
             _results = qu.Queue()
             _done = [False]
-            def _worker():
-                for target, url, sz in _thumb_queue:
-                    if _done[0]: break
-                    try:
-                        r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
-                        pix = QPixmap(); pix.loadFromData(r.content)
-                        _results.put((target, pix, sz))
-                    except Exception: pass
+            _pending = [len(_thumb_queue)]
+
+            def _fetch_one(target, url, sz):
+                if _done[0]:
+                    return
+                try:
+                    r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
+                    pix = QPixmap(); pix.loadFromData(r.content)
+                    _results.put((target, pix, sz))
+                except Exception:
+                    pass
+                finally:
+                    _pending[0] -= 1
+
+            from src.settings.store import load as _load_stg
+            _workers = 20 if _load_stg().get("high_speed", False) else 6
+            _pool = ThreadPoolExecutor(max_workers=_workers)
+            for target, url, sz in _thumb_queue:
+                _pool.submit(_fetch_one, target, url, sz)
+
             def _poll():
                 try:
                     while True:
@@ -1407,17 +1712,35 @@ class BatchPage(QWidget):
                             else:
                                 target.setPixmap(sp)
                                 target.setText("")
-                                target.setStyleSheet("border: 1px solid #252550; border-radius: 4px;")
                 except qu.Empty:
-                    if _worker_thread.is_alive():
+                    if _pending[0] > 0:
                         QTimer.singleShot(80, _poll)
-                except Exception: pass
-            _worker_thread = threading.Thread(target=_worker, daemon=True)
-            _worker_thread.start()
+                    else:
+                        _pool.shutdown(wait=False)
+                except Exception:
+                    pass
             QTimer.singleShot(50, _poll)
             dlg.finished.connect(lambda: _done.__setitem__(0, True))
 
-        dlg.exec()
+        if live:
+            # 非模态：轮询列表，实时追加新条目
+            _last_count = len(all_items)
+            def _poll_live():
+                nonlocal _last_count
+                if not dlg.isVisible():
+                    return
+                cur_count = len(all_items)
+                if cur_count > _last_count:
+                    for aw in all_items[_last_count:]:
+                        _append_item(aw, True)
+                    cnt.setText(f"共 {cur_count} 个作品")
+                    _last_count = cur_count
+                QTimer.singleShot(600, _poll_live)
+            QTimer.singleShot(600, _poll_live)
+            dlg.setModal(False)
+            dlg.show()
+        else:
+            dlg.exec()
 
     # ══════════════════════════════════════════
     # 他人主页 — 下载逻辑
@@ -1535,7 +1858,8 @@ class BatchPage(QWidget):
             self._other_log_msg(f'[FAIL] 获取主页信息失败: {e}', '#EF4444')
 
     def _count_other_posts(self, sec_uid: str, author):
-        """后台翻页统计实际可用作品数"""
+        """后台翻页统计实际可用作品数（线程版，不阻塞 UI）"""
+        import threading, time as _time
         from src.api import DouyinAPI
 
         profile = author.extra.get("profile", {})
@@ -1549,65 +1873,72 @@ class BatchPage(QWidget):
         self._other_all_items = []
         self._selected_ids = set()
         self._loaded_sec_uid = sec_uid
-        api = DouyinAPI(cookie_string=load_cookie())
 
-        total = 0
-        cursor = 0
-        page = 0
-
-        def _next_page():
-            nonlocal total, cursor, page
+        def _run():
+            api = DouyinAPI(cookie_string=load_cookie())
+            total = 0
+            cursor = 0
+            page = 0
             try:
-                data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
-                items = data.get("aweme_list", [])
-                if not items and page == 0:
-                    self._other_log_msg('[统计] 无法获取作品列表', '#EF4444')
-                    return
-                for aw in items:
-                    self._other_all_items.append(aw)  # 存完整 aweme dict
-                total += len(items)
-                page += 1
-                has_more = data.get("has_more", 0)
-                cursor = data.get("max_cursor", 0)
-                if has_more and page < 100:
-                    QTimer.singleShot(200, _next_page)
-                else:
-                    diff = ""
-                    if profile_count and total != profile_count:
-                        diff = f" (资料显示 {profile_count}，差额 {profile_count - total})"
+                while page < 100:
+                    data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
+                    items = data.get("aweme_list", [])
+                    if not items and page == 0:
+                        self._ui_callback.emit(lambda: self._other_log_msg(
+                            '[统计] 无法获取作品列表', '#EF4444'))
+                        return
+                    for aw in items:
+                        self._other_all_items.append(aw)
+                    total += len(items)
+                    page += 1
+                    has_more = data.get("has_more", 0)
+                    cursor = data.get("max_cursor", 0)
+                    if not has_more:
+                        break
+                    _time.sleep(0.2)
+
+                # 翻页完成 → 主线程更新 UI
+                diff = ""
+                if profile_count and total != profile_count:
+                    diff = f" (资料显示 {profile_count}，差额 {profile_count - total})"
+
+                def _fmt(n: int) -> str:
+                    if n >= 10000:
+                        return f"{n/10000:.1f}万"
+                    return str(n)
+
+                flw = _fmt(author.follower_count)
+                fav = _fmt(profile.get('total_favorited', 0))
+                fwg = _fmt(profile.get('following_count', 0))
+                ip_loc = profile.get("district", "") or profile.get("province", "") or ""
+                nickname = author.nickname
+                unique_id = profile.get('unique_id', '')
+                age = profile.get("age", "")
+                bio = profile.get("desc", "")
+
+                def _done():
                     self._other_log_msg(
                         f'[统计] 翻页完成: 共 {total} 个可用作品{diff}',
-                        '#22C55E'
-                    )
-                    # 用抖音原生格式 + 实际统计数
-                    def _fmt(n: int) -> str:
-                        if n >= 10000:
-                            return f"{n/10000:.1f}万"
-                        return str(n)
-                    flw = _fmt(author.follower_count)
-                    fav = _fmt(profile.get('total_favorited', 0))
-                    fwg = _fmt(profile.get('following_count', 0))
-                    ip_loc = profile.get("district", "") or profile.get("province", "") or ""
+                        '#22C55E')
                     stats = f"关注 {fwg}  |  粉丝 {flw}  |  获赞 {fav}"
-                    det = f"抖音号：{profile.get('unique_id', '')}"
+                    det = f"抖音号：{unique_id}"
                     if ip_loc:
                         det += f"  IP属地：{ip_loc}"
-                    age = profile.get("age", "")
                     if age and str(age) not in ("0", "-1", ""):
                         det += f"  {age}岁"
-                    bio = profile.get("desc", "")
-                    self._set_other_info(author.nickname, stats, det, bio)
+                    self._set_other_info(nickname, stats, det, bio)
                     if diff:
                         self._other_log_msg(
-                            f'[统计] 可用 {total} 个作品{diff.strip()}', '#94A3B8'
-                        )
+                            f'[统计] 可用 {total} 个作品{diff.strip()}', '#94A3B8')
                     self._other_select_btn.setText(f"查看列表 ({total})")
-                    self._other_select_btn.show()
-                    QTimer.singleShot(300, self._show_select_dialog)
+                    if not getattr(self, '_user_selected', False):
+                        QTimer.singleShot(300, self._show_select_dialog)
+                self._ui_callback.emit(_done)
             except Exception as e:
-                self._other_log_msg(f'[统计] 翻页中断: {e}', '#EF4444')
+                self._ui_callback.emit(lambda: self._other_log_msg(
+                    f'[统计] 翻页中断: {e}', '#EF4444'))
 
-        QTimer.singleShot(300, _next_page)
+        threading.Thread(target=_run, daemon=True).start()
 
     def _set_downloading(self, active: bool):
         """通知主窗口暂停/恢复剪贴板检测"""
@@ -1682,10 +2013,9 @@ class BatchPage(QWidget):
         self._own_log.append(f'<span style="color:{color};">{msg}</span>')
 
     def _show_select_dialog(self):
-        """弹出他人作品选择对话框"""
+        """弹出他人作品选择对话框（实时刷新）"""
         if not self._other_all_items:
             return
-        # 下载中不弹窗
         if self.thread and self.thread.isRunning():
             return
         self._show_item_select_dialog(
@@ -1695,6 +2025,7 @@ class BatchPage(QWidget):
                 f"已选 {len(self._selected_ids)}/{len(self._other_all_items)}"
             ),
             lambda msg: self._other_log_msg(msg, '#22C55E'),
+            live=True,
         )
 
     def _reset_other_ui(self):
@@ -1709,7 +2040,8 @@ class BatchPage(QWidget):
         self._other_all_items = []
         self._selected_ids = set()
         self._loaded_sec_uid = ""
-        self._other_select_btn.hide()
+        self._user_selected = False
+        self._other_select_btn.setText("查看列表")
         self._other_pause_btn.setEnabled(False)
         self._other_cancel_btn.setEnabled(False)
         self._other_progress.hide()
@@ -1736,6 +2068,10 @@ class BatchPage(QWidget):
             self._bg_log.emit(f'[解析] {url[:80]}', '#94A3B8')
             sec_uid = parse_sec_user_id(url)
             self._bg_log.emit(f'[识别] sec_uid: {sec_uid[:30]}...', '#94A3B8')
+            # 相同 sec_uid 不重复加载
+            if sec_uid == self._loaded_sec_uid and self._other_all_items:
+                return
+            self._loaded_sec_uid = sec_uid
             # 拉取主页信息 + 头像（全部在后台线程）
             from src.platforms.douyin import DouyinAdapter
             from src.api import _get_avatar
@@ -1790,21 +2126,11 @@ class BatchPage(QWidget):
         self._trigger_fetch(raw)
 
     def _trigger_fetch(self, raw: str):
-        """触发后台拉取主页信息"""
-        self._url_debounce.stop()  # 阻止防抖重复触发
+        """触发后台拉取主页信息（全部 I/O 在线程内）"""
+        self._url_debounce.stop()
         if not self._ensure_cookie():
             return
-        url = self._parse_input(raw)
-        try:
-            sec_uid = parse_sec_user_id(url)
-        except ValueError:
-            self._bg_info.emit("无法解析链接")
-            return
-        # 相同 sec_uid 不重复加载
-        if sec_uid == self._loaded_sec_uid and self._other_all_items:
-            return
-        self._loaded_sec_uid = sec_uid
-        threading.Thread(target=lambda: self._auto_fetch_other(url), daemon=True).start()
+        threading.Thread(target=lambda: self._auto_fetch_other(raw), daemon=True).start()
 
     # ── 选中下载 ──────────────────────────────────────────
 
@@ -1815,7 +2141,10 @@ class BatchPage(QWidget):
             return
         if not self._ensure_cookie():
             return
-        url = self._parse_input(raw)
+        # sec_uid 已通过 _auto_fetch_other 解析好，不再阻塞主线程
+        import re
+        m = re.search(r'https?://[^\s]+', raw)
+        url = m.group(0).rstrip('.,;:!?）」)】') if m else raw
         save_dir = self._other_path.text().strip() or str(OUTPUT_OTHER)
 
         self._other_pause_btn.setEnabled(True)
@@ -1892,10 +2221,17 @@ class BatchPage(QWidget):
         if not self._ensure_cookie():
             return
 
-        mode = 'posts' if self._sub_posts.isChecked() else 'likes'
+        if self._sub_posts.isChecked():
+            mode = 'posts'
+            pre = self._own_posts_items or None
+        elif self._sub_likes.isChecked():
+            mode = 'likes'
+            pre = self._own_likes_items or None
+        else:
+            mode = 'favs'
+            pre = self._own_fav_items or None
         save_dir = self._own_path.text().strip() or str(OUTPUT_OWN)
 
-        self._own_dl_btn.setEnabled(False)
         self._own_pause_btn.setEnabled(True)
         self._own_cancel_btn.setEnabled(True)
         self._own_pause_btn.setText("暂停")
@@ -1903,7 +2239,6 @@ class BatchPage(QWidget):
         self._own_log.clear()
 
         own_sel = self._own_selected_ids if self._own_selected_ids else None
-        pre = (self._own_posts_items if mode == 'posts' else self._own_likes_items) or None
         self.thread = BatchDownloadThread(
             self._own_sec_uid, mode, save_dir, is_own=True,
             selected_ids=own_sel, pre_items=pre,
@@ -1936,7 +2271,6 @@ class BatchPage(QWidget):
 
     def _own_done(self, stats: dict):
         self._set_downloading(False)
-        self._own_dl_btn.setEnabled(True)
         self._own_pause_btn.setEnabled(False)
         self._own_cancel_btn.setEnabled(False)
         self._own_progress.setValue(self._own_progress.maximum())

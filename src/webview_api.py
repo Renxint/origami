@@ -16,6 +16,7 @@ from pathlib import Path
 from src.environ import NODE_CMD, BASE_DIR, CREATE_NO_WINDOW, COOKIE_FILE
 
 _API_SCRIPT = BASE_DIR / "sign-server" / "api-call.js"
+_SIGNED_SCRIPT = BASE_DIR / "sign-server" / "api-signed.js"
 
 
 def _call_api(url: str, timeout: float = 20) -> dict:
@@ -46,6 +47,39 @@ def _call_api(url: str, timeout: float = 20) -> dict:
         stdout = (result.stdout or "").strip()
         if result.returncode != 0 or not stdout:
             return {"_error": f"exit={result.returncode} err={result.stderr[:100]}"}
+        return json.loads(stdout)
+    except subprocess.TimeoutExpired:
+        return {"_error": "timeout"}
+    except Exception as e:
+        return {"_error": str(e)}
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
+    """收藏列表 API（POST，SDK 签名）"""
+    if not COOKIE_FILE.exists():
+        return {"_error": "not_logged_in"}
+
+    from src.cookie import load_cookie
+    plain_cookie = load_cookie()
+    if not plain_cookie:
+        return {"_error": "no_cookie"}
+    clean = "; ".join(c for c in plain_cookie.split("; ") if "=" in c and c.split("=", 1)[0])
+
+    import tempfile
+    tmp = Path(tempfile.mktemp(suffix=".txt"))
+    tmp.write_text(clean, encoding="utf-8")
+
+    try:
+        result = subprocess.run(
+            [NODE_CMD, str(_SIGNED_SCRIPT), str(tmp), str(cursor)],
+            capture_output=True, text=True, encoding='utf-8', timeout=timeout,
+            creationflags=CREATE_NO_WINDOW,
+        )
+        stdout = (result.stdout or "").strip()
+        if result.returncode != 0 or not stdout:
+            return {"_error": f"exit={result.returncode} err={(result.stderr or '')[:200]}"}
         return json.loads(stdout)
     except subprocess.TimeoutExpired:
         return {"_error": "timeout"}
@@ -109,3 +143,30 @@ def get_user_likes(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
               f"&aid=6383&device_platform=webapp&version_code=290100"
               f"&version_name=29.1.0&cookie_enabled=true")
     return _call_api(f"https://www.douyin.com/aweme/v1/web/aweme/favorite/?{params}")
+
+
+def get_favorite_collections(cursor: int = 0) -> dict:
+    """获取收藏→视频列表（导航 WebView + 拦截网络响应）"""
+    from src.gui.dialogs.webview_login import WebViewLogin
+    return WebViewLogin.api_call(cursor=cursor, timeout=30)
+
+
+def get_favorite_videos(max_cursor: int = 0, count: int = 18) -> dict:
+    """获取收藏的视频列表（翻页，Puppeteer）"""
+    params = (f"max_cursor={max_cursor}&count={count}"
+              f"&aid=6383&device_platform=webapp&version_code=290100"
+              f"&version_name=29.1.0&cookie_enabled=true"
+              f"&media_type=4")
+    return _call_api(
+        f"https://www.douyin.com/aweme/v1/web/aweme/favorite/?{params}",
+        timeout=30)
+
+
+def get_favorite_items(fav_id: str, max_cursor: int = 0,
+                       count: int = 18) -> dict:
+    """获取指定收藏夹的作品列表（Puppeteer）"""
+    params = (f"favorite_id={fav_id}&max_cursor={max_cursor}&count={count}"
+              f"&aid=6383&device_platform=webapp&version_code=290100"
+              f"&version_name=29.1.0&cookie_enabled=true")
+    return _call_api(
+        f"https://www.douyin.com/aweme/v1/web/favorite/list/item/?{params}")

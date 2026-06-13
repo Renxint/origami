@@ -10,10 +10,10 @@ from PyQt6.QtWidgets import (
     QPushButton, QFrame, QMessageBox, QInputDialog,
     QApplication,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from pathlib import Path
 
-from src.fonts import font_scale
+from src.gui.fonts import font_scale
 from src.config import VERSION, DINGTALK_WEBHOOK
 from src.cookie import get_cookie_status
 from src.gui.dialogs.cookie_dialog import show_login_dialog
@@ -35,10 +35,13 @@ class ModePage(QWidget):
     platform_selected = pyqtSignal(str)
     settings_clicked = pyqtSignal()
     cookie_updated = pyqtSignal()
+    _login_signal = pyqtSignal(str, object)  # (nickname, avatar_data) 后台→主线程
 
     def __init__(self):
         super().__init__()
+        self._login_signal.connect(self._set_login_ui)
         self._build()
+        QTimer.singleShot(500, self.refresh_login_status)
     def _clear_layout(self, layout):
         while layout.count():
             item = layout.takeAt(0)
@@ -50,10 +53,57 @@ class ModePage(QWidget):
 
     def _build(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 12, 20, 20)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(28)
 
         pt = QApplication.instance().font().pointSize()
+
+        # ── 顶栏：右侧登录状态 ──
+        top_bar = QHBoxLayout()
+        top_bar.addStretch()
+
+        self._login_avatar = QLabel()
+        av_sz = font_scale(32)
+        self._login_avatar.setFixedSize(av_sz, av_sz)
+        self._login_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._login_avatar.setStyleSheet(
+            f"border: 2px solid #334155; border-radius: {av_sz//2}px;"
+        )
+        self._login_avatar.hide()
+
+        # 抖音小图标（在头像前）
+        self._login_icon = QLabel()
+        icon_sz = font_scale(18)
+        icon_path = _ICONS_DIR / "douyin.png"
+        if icon_path.exists():
+            from PyQt6.QtGui import QPixmap
+            pix = QPixmap(str(icon_path)).scaled(icon_sz, icon_sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self._login_icon.setPixmap(pix)
+        self._login_icon.setFixedSize(icon_sz, icon_sz)
+        self._login_icon.hide()
+        top_bar.addWidget(self._login_icon)
+        top_bar.addWidget(self._login_avatar)
+
+        self._login_name = QPushButton("点击登录 →")
+        self._login_name.setObjectName("ghostBtn")
+        self._login_name.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._login_name.clicked.connect(self._on_login_clicked)
+        top_bar.addWidget(self._login_name)
+
+        # 退出登录按钮（仅登录时显示）
+        self._logout_btn = QPushButton("退出")
+        self._logout_btn.setObjectName("ghostBtn")
+        self._logout_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._logout_btn.setStyleSheet(
+            "QPushButton#ghostBtn { color: #EF4444; font-size: 10px; padding: 2px 6px; }"
+            "QPushButton#ghostBtn:hover { color: #FFF; background: #EF4444; }"
+        )
+        self._logout_btn.clicked.connect(self._logout)
+        self._logout_btn.hide()
+        top_bar.addWidget(self._logout_btn)
+
+        layout.addLayout(top_bar)
 
         # ── 标题 ──
         title = QLabel("Origami")
@@ -193,14 +243,98 @@ class ModePage(QWidget):
 
     def _on_login_clicked(self):
         show_login_dialog(self)
-        self.refresh_cookie_status()
+        self.refresh_login_status()
         self.cookie_updated.emit()
 
-    # ── 状态 ──
+    def _logout(self):
+        """退出登录：清除 Cookie + 重置 UI"""
+        from src.cookie import save_cookie
+        save_cookie("")
+        self._login_avatar.hide()
+        self._login_icon.hide()
+        self._login_name.setText("点击登录 →")
+        self._login_name.setEnabled(True)
+        self._logout_btn.hide()
+        self.cookie_updated.emit()
+
+    # ── 登录状态 ──
+
+    def refresh_login_status(self):
+        """后台拉取登录账号信息，更新右上角"""
+        from src.cookie import load_cookie
+        cookie = load_cookie()
+        if not cookie or "sessionid=" not in cookie:
+            self._login_avatar.hide()
+            self._login_icon.hide()
+            self._login_name.setText("点击登录 →")
+            self._login_name.setEnabled(True)
+            self._logout_btn.hide()
+            return
+        self._login_name.setText("加载中...")
+        self._login_name.setEnabled(False)
+        self._logout_btn.hide()
+
+        import threading, requests as req
+        def _fetch():
+            try:
+                from src.api import DouyinAPI, _get_avatar
+                from src.environ import USER_AGENT
+                api = DouyinAPI(cookie_string=cookie)
+                sec_uid = api.get_own_sec_uid()
+                if not sec_uid:
+                    self._login_signal.emit("已登录", None)
+                    return
+                profile = api.get_user_profile(sec_uid)
+                nickname = profile.get("nickname", "") or "已登录"
+                avatar_url = _get_avatar(profile)
+                avatar_data = None
+                if avatar_url:
+                    try:
+                        r = req.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=10)
+                        avatar_data = r.content
+                    except Exception:
+                        pass
+                self._login_signal.emit(nickname, avatar_data)
+            except Exception:
+                self._login_signal.emit("已登录", None)
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _set_login_ui(self, nickname: str, avatar_data):
+        """主线程更新登录状态 UI（头像圆形裁剪）"""
+        pt = QApplication.instance().font().pointSize()
+        self._login_name.setText(nickname)
+        self._login_name.setEnabled(False)
+        self._login_name.setStyleSheet(
+            f"color: #22C55E; font-size: {max(10, pt-3)}px; font-weight: bold; "
+            "background: transparent; border: none;"
+        )
+        self._logout_btn.show()
+        if avatar_data:
+            from PyQt6.QtGui import QPixmap, QPainter, QPainterPath, QBrush
+            from PyQt6.QtCore import QRectF
+            pix = QPixmap(); pix.loadFromData(avatar_data)
+            av_sz = self._login_avatar.width()
+            scaled = pix.scaled(av_sz, av_sz, Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                               Qt.TransformationMode.SmoothTransformation)
+            result = QPixmap(av_sz, av_sz)
+            result.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(result)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(QRectF(0, 0, av_sz, av_sz))
+            painter.setClipPath(path)
+            painter.drawPixmap(0, 0, scaled)
+            painter.end()
+            self._login_avatar.setPixmap(result)
+            self._login_avatar.show()
+            self._login_icon.show()
+        else:
+            self._login_avatar.hide()
+            self._login_icon.hide()
 
     def refresh_cookie_status(self):
-        """仅检查状态，UI 显示在各平台页中"""
-        pass
+        """检查登录状态并更新右上角"""
+        self.refresh_login_status()
 
     # ── 反馈 ──
 

@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from src.fonts import font_scale, scaled_font
+from src.gui.fonts import font_scale, scaled_font
 from src.environ import OUTPUT_HOMEPAGE, USER_AGENT
 from src.utils import clean_name, pick_best_video_url, parse_sec_user_id
 from src.cookie import load_cookie, save_cookie
