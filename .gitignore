@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 build/
+dist_out/
 dist/
 *.spec.bak
 data/Cookie.txt

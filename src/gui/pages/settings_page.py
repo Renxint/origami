@@ -858,11 +858,13 @@ class SettingsPage(QWidget):
         panel.content.addLayout(update_row)
 
         # 仓库
-        self._about_link_row(panel, "仓库", "gitee.com/Renxint/origami",
+        self._about_link_row(panel, "仓库", "github.com/Renxint/origami",
+                             "https://github.com/Renxint/origami")
+        self._about_link_row(panel, "镜像", "gitee.com/Renxint/origami",
                              "https://gitee.com/Renxint/origami")
         # 反馈
-        self._about_link_row(panel, "反馈", "Gitee Issues",
-                             "https://gitee.com/Renxint/origami/issues")
+        self._about_link_row(panel, "反馈", "GitHub Issues",
+                             "https://github.com/Renxint/origami/issues")
         # 作者
         self._about_info_row(panel, "作者", "Renxint")
         # 许可
