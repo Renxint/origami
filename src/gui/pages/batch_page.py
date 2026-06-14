@@ -1160,16 +1160,16 @@ class BatchPage(QWidget):
         self._own_posts_loading = False
         self._own_likes_loading = False
         self._own_fav_loading = False
-        self._own_posts_items = []
-        self._own_likes_items = []
-        self._own_fav_items = []
-        self._own_selected_ids = set()
+        # 用 clear() 保留引用，避免后台线程往旧列表写数据丢失
+        if not self._own_posts_loading:
+            self._own_posts_items.clear()
+        if not self._own_likes_loading:
+            self._own_likes_items.clear()
+        if not self._own_fav_loading:
+            self._own_fav_items.clear()
+        self._own_selected_ids.clear()
         self._detect_own(force=True)
-        # 刷新当前子标签内容
-        if self._sub_posts.isChecked():
-            self._count_own_items(self._own_sec_uid, 'posts')
-        elif self._sub_likes.isChecked():
-            self._count_own_items(self._own_sec_uid, 'likes')
+        # _detect_own 内部已自动调用 _count_own_items，无需重复
 
     def _detect_own(self, force=False):
         """后台获取自己主页信息，不阻塞 UI"""
