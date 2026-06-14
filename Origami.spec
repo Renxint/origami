@@ -51,6 +51,8 @@ datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
 # collect-all PyQt6: 原样收集所有 PyQt6 文件（解决 CArchive 中.pyd加载失败）
 tmp = collect_all('PyQt6')
 datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
+tmp = collect_all('PyQt6-WebEngine')
+datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
 
 # ── 排除 ──
 excludes = [

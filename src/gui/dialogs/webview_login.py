@@ -42,6 +42,8 @@ class WebViewLogin:
             _ensure_webengine()
         except ImportError:
             raise RuntimeError("PyQt6-WebEngine 未安装")
+        except Exception as e:
+            raise RuntimeError(f"PyQt6-WebEngine 加载失败: {e}")
 
     def run(self, parent=None) -> Optional[str]:
         dlg = QDialog(parent)

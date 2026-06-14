@@ -20,14 +20,13 @@ if getattr(sys, "frozen", False):
     if _qt_bin.exists():
         _dll_cookie = os.add_dll_directory(str(_qt_bin))  # 保持引用防止被 GC
 
-# QtWebEngine 必须在 QApplication 前导入
-try:
-    from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
-    import PyQt6.QtWebEngineCore  # noqa: F401
-except (ImportError, RuntimeError):
-    # PyInstaller 冻结环境下可能无法加载 WebEngine C 扩展，
-    # 后续通过 webview_login._ensure_webengine() 懒加载
-    pass
+# PyInstaller 打包版：不在模块级导入 WebEngine（懒加载由 webview_login._ensure_webengine() 处理）
+# 源码版：提前导入确保后续工作正常
+if not getattr(sys, "frozen", False):
+    try:
+        from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+    except ImportError:
+        pass
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo, Qt
