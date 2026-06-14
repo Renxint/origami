@@ -14,10 +14,12 @@ datas = [
     ('src/gui/assets', 'src/gui/assets'),
 ]
 
-# ── Node.js 运行时 ──
-# 不绑 node.exe（88MB），用户需自行安装 Node.js
-# 若系统无 Node，首次运行时会提示
+# ── Node.js 运行时（Puppeteer 必需）──
 binaries = []
+for np in ['C:/Program Files/nodejs/node.exe', 'C:/Program Files (x86)/nodejs/node.exe']:
+    if os.path.exists(np):
+        binaries.append((np, '.'))
+        break
 
 # ── 隐藏导入 ──
 hiddenimports = [
@@ -93,7 +95,7 @@ _skip_patterns = [
     'Qt6Svg', 'Qt6SvgWidgets',     # SVG
     'Qt6Qml', 'Qt6QmlModels', 'Qt6QmlWorkerScript', 'Qt6QmlMeta',  # QML（不用）
     'Qt6NetworkInformation', 'Qt6Nfc', 'Qt6Sensors',
-    'libcrypto-3',          # Node.js 依赖，不绑 node.exe 也可以删
+    # 'libcrypto-3',       # Node.js 需要，保留
     '.map',                 # source maps
 ]
 for _b in a.binaries:
