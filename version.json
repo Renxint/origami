@@ -1,5 +1,5 @@
 {
-  "version": "0.3.1",
-  "note": "Puppeteer 智能浏览器检测 — Chrome/Edge/Brave/Opera/Vivaldi 全盘扫描 + 全自动适配",
-  "url": "https://github.com/Renxint/origami/releases/download/v0.3.1/Origami_v0.3.1_setup.exe"
+  "version": "0.3.2",
+  "note": "勾选默认不勾选 + 版本检查Gitee + 下载页GitHub + 瘦身132MB",
+  "url": "https://github.com/Renxint/origami/releases/download/v0.3.2/Origami_v0.3.2_setup.exe"
 }

@@ -12,7 +12,7 @@ from pathlib import Path
 from src.environ import EXE_DIR
 
 # ── 版本 ─────────────────────────────────────────────────
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 VERSION_URL = "https://gitee.com/Renxint/origami/raw/main/version.json"
 
 # ── 钉钉反馈 webhook ─────────────────────────────────────
