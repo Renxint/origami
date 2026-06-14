@@ -730,6 +730,7 @@ class BatchPage(QWidget):
         super().__init__()
         self.thread = None
         self._own_sec_uid = ""
+        self._own_detecting = False  # 防并发重入
         self._other_all_items = []   # 他人：翻页统计后保存的全部作品
         self._selected_ids = set()   # 他人：用户勾选的作品 ID
         self._loaded_sec_uid = ""    # 已加载的用户 sec_uid
@@ -1159,6 +1160,9 @@ class BatchPage(QWidget):
         """后台获取自己主页信息，不阻塞 UI"""
         if self._own_sec_uid and not force:
             return
+        if getattr(self, '_own_detecting', False):
+            return  # 防止并发重复调用
+        self._own_detecting = True
         cookie = load_cookie()
         if not cookie or "sessionid=" not in cookie:
             self._own_info.setText("⚠ 未登录，请先在首页登录")
@@ -1238,6 +1242,8 @@ class BatchPage(QWidget):
             except Exception as e:
                 self._ui_callback.emit(lambda: self._own_info.setText(
                     f"⚠ 获取失败: {e}"))
+            finally:
+                self._own_detecting = False
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _switch_sub(self, idx: int):
