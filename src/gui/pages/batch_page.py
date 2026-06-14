@@ -1146,12 +1146,14 @@ class BatchPage(QWidget):
         self._own_select_btn.setText("查看列表")
 
     def refresh_own_if_active(self):
-        """登录后回调：强制重新检测自己主页（无论当前在哪个标签）"""
+        """登录后回调：延迟 2 秒等 session 稳定后再加载"""
         cookie = load_cookie()
         if not cookie or "sessionid=" not in cookie:
             return
-        self._own_log_msg("[自动刷新] 检测到登录，加载主页数据...", "#22C55E")
-        self._detect_own(force=True)
+        self._own_info.setText("登录成功，即将加载主页...")
+        self._own_log_msg("[自动刷新] 2秒后加载主页数据...", "#22C55E")
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(2000, lambda: self._detect_own(force=True))
 
     def _detect_own(self, force=False):
         """后台获取自己主页信息，不阻塞 UI"""
@@ -1161,6 +1163,7 @@ class BatchPage(QWidget):
         if not cookie or "sessionid=" not in cookie:
             self._own_info.setText("⚠ 未登录，请先在首页登录")
             return
+        self._own_log_msg(f"[诊断] cookie长度={len(cookie)} sessionid={'有' if 'sessionid=' in cookie else '无'}", "#64748B")
         self._own_info.setText("正在获取账号信息...")
         import threading, requests as req
         from PyQt6.QtGui import QPixmap
