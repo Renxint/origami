@@ -1275,7 +1275,7 @@ class BatchPage(QWidget):
         self._own_selected_ids = set()
 
         tag = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}[mode]
-        self._own_log_msg(f'[统计] 后台统计自己的{tag}...', '#F59E0B')
+        self._own_log_msg(f'[统计] 正在统计{tag}...', '#F59E0B')
 
         cookie = load_cookie()
 
@@ -1345,8 +1345,6 @@ class BatchPage(QWidget):
                             # fetch_likes 的翻页信息
                             data["has_more"] = result.get("has_more", 0)
                             data["max_cursor"] = result.get("next_cursor", 0)
-                        if page == 0 and not items:
-                            self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
                     except Exception as e:
                         self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
                         return
