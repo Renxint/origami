@@ -1381,9 +1381,9 @@ class BatchPage(QWidget):
                     has_more = data.get("has_more", 0)
                     cursor = (data.get("max_cursor", 0)
                               or data.get("cursor", 0))
-                    if page == 0:
+                    if page == 1:
                         self._own_log_msg(
-                            f'[统计] {tag} P1: {len(items)}项', '#64748B')
+                            f'[统计] 已加载 {total} 个{tag}...', '#64748B')
                     if not has_more:
                         break
                     if cursor == 0:

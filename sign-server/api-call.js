@@ -32,20 +32,40 @@ function findBrowser() {
         (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        'C:\\Program Files\\Chromium\\Application\\chrome.exe',
     ];
     for (const p of candidates) {
         if (fs.existsSync(p)) return p;
     }
+    try {
+        const cacheDir = (process.env.LOCALAPPDATA || process.env.USERPROFILE + '/.cache') + '/puppeteer';
+        if (fs.existsSync(cacheDir)) {
+            const dirs = fs.readdirSync(cacheDir);
+            for (const d of dirs) {
+                const chromePath = cacheDir + '/' + d + '/chrome-win64/chrome.exe';
+                if (fs.existsSync(chromePath)) return chromePath;
+            }
+        }
+    } catch (e) {}
     return null;
 }
 
 (async () => {
-    const exePath = findBrowser();
     const launchOpts = {
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     };
-    if (exePath) launchOpts.executablePath = exePath;
+    const exePath = findBrowser();
+    if (exePath) {
+        launchOpts.executablePath = exePath;
+    } else {
+        try {
+            const p = require('puppeteer');
+            const ep = await p.executablePath();
+            if (ep) launchOpts.executablePath = ep;
+        } catch(e) {}
+    }
 
     const browser = await puppeteer.launch(launchOpts);
     const page = await browser.newPage();

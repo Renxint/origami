@@ -1,13 +1,8 @@
 /**
  * 抖音 收藏 API 代理 — Puppeteer 签名版
  *
- * 收藏 listcollection 是 POST 端点，需要：
- *   - SDK 初始化 + 指纹注入（同 bootstrap）
- *   - POST body: count=10&cursor=0
- *   - referer: /user/self?showSubTab=video&showTab=favorite_collection
- *
  * 用法:
- *   node api-signed.js <cookie_file> <cursor>
+ *   node api-signed.js <cookie_file> [cursor]
  *
  * 输出（stdout）:
  *   纯 JSON 响应体
@@ -35,10 +30,22 @@ function findBrowser() {
         (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        'C:\\Program Files\\Chromium\\Application\\chrome.exe',
     ];
     for (const p of candidates) {
         if (fs.existsSync(p)) return p;
     }
+    try {
+        const cacheDir = (process.env.LOCALAPPDATA || process.env.USERPROFILE + '/.cache') + '/puppeteer';
+        if (fs.existsSync(cacheDir)) {
+            const dirs = fs.readdirSync(cacheDir);
+            for (const d of dirs) {
+                const chromePath = cacheDir + '/' + d + '/chrome-win64/chrome.exe';
+                if (fs.existsSync(chromePath)) return chromePath;
+            }
+        }
+    } catch (e) {}
     return null;
 }
 
@@ -50,12 +57,20 @@ const FINGERPRINTS = {
 };
 
 (async () => {
-    const exePath = findBrowser();
     const launchOpts = {
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     };
-    if (exePath) launchOpts.executablePath = exePath;
+    const exePath = findBrowser();
+    if (exePath) {
+        launchOpts.executablePath = exePath;
+    } else {
+        try {
+            const p = require('puppeteer');
+            const ep = await p.executablePath();
+            if (ep) launchOpts.executablePath = ep;
+        } catch(e) {}
+    }
 
     const browser = await puppeteer.launch(launchOpts);
     const page = await browser.newPage();
@@ -71,34 +86,32 @@ const FINGERPRINTS = {
             window.bdms.init({ aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5 });
         });
 
-        // Step 2: 重新加载 + Cookie + 再初始化 SDK
-        await page.goto('https://www.douyin.com/?recommend=1', {
-            waitUntil: 'domcontentloaded',
-            timeout: 30000,
-        });
-
+        // Step 2: 注入 Cookie 后重新导航
         const cookies = COOKIE_STR.split(';').map(c => {
-            const eq = c.trim().indexOf('=');
-            if (eq < 0) return null;
+            const eqIdx = c.trim().indexOf('=');
+            if (eqIdx < 0) return null;
             return {
-                name: c.substring(0, eq).trim(),
-                value: c.substring(eq + 1).trim(),
+                name: c.substring(0, eqIdx).trim(),
+                value: c.substring(eqIdx + 1).trim(),
                 domain: '.douyin.com',
                 path: '/',
             };
         }).filter(Boolean);
         await page.setCookie(...cookies);
 
+        await page.goto('https://www.douyin.com/?recommend=1', {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000,
+        });
         await page.waitForFunction(() => window.bdms && window.bdms.init, { timeout: 30000 });
         await page.evaluate(() => {
             window.bdms.init({
                 aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5,
-                paths: ['^/aweme/v1/', '^/aweme/v2/', '/douplus/',
-                        '^/live/', '^/captcha/', '^/ecom/', '^/luna/pc']
+                paths: ['^/aweme/v1/', '^/aweme/v2/', '/douplus/', '/v1/message/', '^/live/', '^/captcha/', '^/ecom/', '^/luna/pc']
             });
         });
 
-        // Step 3: 注入设备指纹
+        // Step 3: 注入指纹
         await page.evaluate((fp) => {
             if (fp.webid) localStorage.setItem('webid', fp.webid);
             if (fp.verifyFp) localStorage.setItem('verifyFp', fp.verifyFp);
@@ -106,29 +119,19 @@ const FINGERPRINTS = {
             if (fp.uifid) localStorage.setItem('uifid', fp.uifid);
         }, FINGERPRINTS);
 
-        // Step 4: POST 请求收藏列表 API（XMLHttpRequest 版，SDK 会拦截）
-        const result = await page.evaluate((cursor) => {
-            return new Promise((resolve) => {
-                const xhr = new XMLHttpRequest();
-                const url = 'https://www.douyin.com/aweme/v1/web/aweme/listcollection/';
-                const body = `count=20&cursor=${cursor}`;
-                xhr.open('POST', url, true);
-                xhr.withCredentials = true;
-                xhr.setRequestHeader('accept', 'application/json, text/plain, */*');
-                xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded; charset=UTF-8');
-                xhr.setRequestHeader('referer', 'https://www.douyin.com/user/self?from_tab_name=main&showSubTab=video&showTab=favorite_collection');
-                xhr.setRequestHeader('origin', 'https://www.douyin.com');
-                const uifid = localStorage.getItem('uifid') || '';
-                if (uifid) xhr.setRequestHeader('uifid', uifid);
-                xhr.onload = () => {
-                    try { resolve(JSON.parse(xhr.responseText)); }
-                    catch(e) { resolve({_error:'parse', _raw: xhr.responseText.substring(0,500)}); }
-                };
-                xhr.onerror = () => resolve({_error: 'xhr_error'});
-                xhr.timeout = 25000;
-                xhr.ontimeout = () => resolve({_error: 'timeout'});
-                xhr.send(body);
-            });
+        // Step 4: POST 收藏 API
+        const result = await page.evaluate(async (cursor) => {
+            try {
+                const r = await fetch('https://www.douyin.com/aweme/v1/web/favorite/listcollection/', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'count=10&cursor=' + cursor,
+                });
+                return await r.json();
+            } catch (e) {
+                return { _error: e.message };
+            }
         }, CURSOR);
 
         console.log(JSON.stringify(result));

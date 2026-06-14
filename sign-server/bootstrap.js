@@ -31,28 +31,33 @@ if (fs.existsSync(COOKIE_STR)) {
  */
 function findBrowser() {
     const candidates = [
-        // Chrome
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
-        // Edge
+        (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-        // Brave
         'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-        // Chromium
         'C:\\Program Files\\Chromium\\Application\\chrome.exe',
     ];
     for (const p of candidates) {
         if (fs.existsSync(p)) {
-            console.error('[bootstrap] 检测到浏览器: ' + p);
+            console.error('[bootstrap] found browser: ' + p);
             return p;
         }
     }
-    // Puppeteer 自带的 Chromium
+    // check puppeteer cache dirs
     try {
-        const puppeteer = require('puppeteer');
-        return puppeteer.executablePath();
+        const cacheDir = (process.env.LOCALAPPDATA || process.env.USERPROFILE + '/.cache') + '/puppeteer';
+        if (fs.existsSync(cacheDir)) {
+            const dirs = fs.readdirSync(cacheDir);
+            for (const d of dirs) {
+                const chromePath = cacheDir + '/' + d + '/chrome-win64/chrome.exe';
+                if (fs.existsSync(chromePath)) {
+                    console.error('[bootstrap] found cache: ' + chromePath);
+                    return chromePath;
+                }
+            }
+        }
     } catch (e) {}
     return null;
 }
@@ -67,29 +72,34 @@ const FINGERPRINTS = {
 (async () => {
     let browser;
     try {
-        console.error('[bootstrap] 启动浏览器...');
-        const browserPath = findBrowser();
-        if (!browserPath) {
-            console.error('[bootstrap] 未找到可用浏览器! 请安装 Chrome 或 Edge');
-            console.log(JSON.stringify({_error: '未找到可用浏览器，请安装 Chrome 或 Edge 后重试'}));
-            process.exit(1);
-        }
-        console.error('[bootstrap] 浏览器路径: ' + browserPath);
+        console.error('[bootstrap] launching browser...');
         const os = require('os');
-        const tmpDir = os.tmpdir() + '/douclean-edge-' + Date.now();
+        const tmpDir = os.tmpdir() + '/origami-' + Date.now();
         require('fs').mkdirSync(tmpDir, { recursive: true });
-        console.error('[bootstrap] 临时目录: ' + tmpDir);
 
-        browser = await puppeteer.launch({
+        const launchOpts = {
             headless: 'new',
-            executablePath: browserPath,
             args: [
                 '--no-sandbox',
                 '--disable-gpu',
                 '--disable-blink-features=AutomationControlled',
                 '--user-data-dir=' + tmpDir,
             ],
-        });
+        };
+        const browserPath = findBrowser();
+        if (browserPath) {
+            launchOpts.executablePath = browserPath;
+            console.error('[bootstrap] using: ' + browserPath);
+        } else {
+            console.error('[bootstrap] auto-detecting browser...');
+            try {
+                const p = require('puppeteer');
+                const ep = await p.executablePath();
+                if (ep) { launchOpts.executablePath = ep; console.error('[bootstrap] puppeteer: ' + ep); }
+            } catch(e) {}
+        }
+
+        browser = await puppeteer.launch(launchOpts);
         const page = await browser.newPage();
 
         await page.evaluateOnNewDocument(() => {
