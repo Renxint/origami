@@ -122,17 +122,17 @@ class ModePage(QWidget):
         title_sz = pt * 2 + 4
         title.setStyleSheet(
             f"font-size: {title_sz}px; font-weight: 800; color: #F1F5F9; "
-            "letter-spacing: 2px; font-family: 'Etaoin Shrdlu';"
+            "letter-spacing: 2px; font-family: 'Copperplate Gothic Bold';"
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_row.addWidget(title)
 
         ver = QLabel(f"v{VERSION}")
         ver.setStyleSheet(
-            f"font-size: {max(9, pt-6)}px; color: #000; background: #E11D48; "
+            f"font-size: {max(11, pt-3)}px; color: #000; background: #E11D48; "
             "border-radius: 4px; padding: 2px 8px;"
         )
-        ver.setFixedHeight(font_scale(20))
+        ver.setFixedHeight(font_scale(24))
         title_row.addWidget(ver)
         layout.addLayout(title_row)
 
