@@ -6,7 +6,7 @@
 #define MyAppNameCN "Origami - 多功能内容下载工具"
 #define MyAppPublisher "Renxint"
 #define MyAppURL "https://gitee.com/Renxint/origami"
-#define MyAppExeName "Origami_v0.3.0.exe"
+#define MyAppExeName "Origami_v0.3.1.exe"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
