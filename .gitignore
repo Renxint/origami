@@ -35,3 +35,4 @@ settings.json
 *.txt
 sniff_fullpage.png
 data/
+src/gui/assets/fonts/_samples/
