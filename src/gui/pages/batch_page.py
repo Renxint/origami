@@ -1341,14 +1341,10 @@ class BatchPage(QWidget):
             QTimer.singleShot(100, _fav_step)
             return
 
-        # ── posts/likes 模式：线程 ──
+        # ── posts/likes 模式：HTTP 线程（likes 也用 HTTP，不再走 Puppeteer）──
         def _run():
-            if mode == 'posts':
-                from src.api import DouyinAPI
-                api = DouyinAPI(cookie_string=cookie)
-            else:
-                from src.platforms.douyin import DouyinAdapter
-                adapter = DouyinAdapter()
+            from src.api import DouyinAPI
+            api = DouyinAPI(cookie_string=cookie)
             total = 0
             cursor = 0
             page = 0
@@ -1359,10 +1355,8 @@ class BatchPage(QWidget):
                             data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
                             items = data.get("aweme_list", [])
                         else:
-                            data = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
-                            items = data.get("items", [])
-                            if isinstance(items, list) and items and hasattr(items[0], 'extra'):
-                                items = [i.extra.get("aweme", {}) for i in items]
+                            data = api.get_user_likes(sec_uid, max_cursor=cursor, count=18)
+                            items = data.get("aweme_list", [])
                     except Exception as e:
                         self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
                         return
@@ -1381,18 +1375,17 @@ class BatchPage(QWidget):
                     total += len(items)
                     page += 1
                     has_more = data.get("has_more", 0)
-                    cursor = (data.get("next_cursor")
-                              or data.get("max_cursor", 0)
+                    cursor = (data.get("max_cursor", 0)
                               or data.get("cursor", 0))
-                    if page == 0:
+                    if page == 1:
                         self._own_log_msg(
-                            f'[调试] {tag} P1: has_more={has_more} cursor={cursor} '
-                            f'keys={list(data.keys())[:10]}', '#64748B')
-                    if not has_more and page > 0:
+                            f'[统计] {tag} P1: {len(items)}项 has_more={has_more} '
+                            f'cursor={cursor}', '#64748B')
+                    if not has_more:
                         break
-                    if cursor == 0 and page > 0:
+                    if cursor == 0:
                         break
-                    time.sleep(0.3 if mode == 'posts' else 1.5)
+                    time.sleep(0.3)
 
                 self._own_log_msg(f'[统计] 共 {total} 个自己的{tag}', '#22C55E')
                 cur_mode = 'posts' if self._sub_posts.isChecked() else 'likes'
