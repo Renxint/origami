@@ -1146,10 +1146,12 @@ class BatchPage(QWidget):
         self._own_select_btn.setText("查看列表")
 
     def refresh_own_if_active(self):
-        """登录后回调：如果正在看自己标签，自动重新加载"""
-        if self._tab_own.isChecked():
-            self._own_log_msg("[自动刷新] 检测到登录，重新加载主页...", "#F59E0B")
-            self._detect_own(force=True)
+        """登录后回调：强制重新检测自己主页（无论当前在哪个标签）"""
+        cookie = load_cookie()
+        if not cookie or "sessionid=" not in cookie:
+            return
+        self._own_log_msg("[自动刷新] 检测到登录，加载主页数据...", "#22C55E")
+        self._detect_own(force=True)
 
     def _detect_own(self, force=False):
         """后台获取自己主页信息，不阻塞 UI"""
