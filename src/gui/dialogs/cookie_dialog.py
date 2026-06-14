@@ -18,11 +18,9 @@ from src.cookie import load_cookie, save_cookie
 
 def show_login_dialog(parent) -> str | None:
     """
-    打开抖音 WebView 登录窗口。
-
-    返回:
-        登录成功返回 Cookie 字符串，取消返回 None
+    登录流程：优先 WebView → 失败则浏览器提取 → 最后手动粘贴
     """
+    # 1. 尝试 WebView 扫码登录
     from src.gui.dialogs.webview_login import WebViewLogin
     try:
         login = WebViewLogin()
@@ -31,6 +29,39 @@ def show_login_dialog(parent) -> str | None:
             save_cookie(cookie)
             QMessageBox.information(parent, "登录成功", "抖音登录成功，可以开始下载了！")
             return cookie
-    except RuntimeError as e:
-        QMessageBox.warning(parent, "组件缺失", str(e))
+    except RuntimeError:
+        pass  # WebView 不可用，继续下一步
+
+    # 2. 尝试从浏览器自动提取 Cookie
+    from src.cookie import extract_from_all_browsers
+    browser_cookies = extract_from_all_browsers()
+    valid_cookies = {b: c for b, c in browser_cookies.items() if c}
+    if valid_cookies:
+        browsers = list(valid_cookies.keys())
+        msg = "WebView 不可用，但检测到浏览器已登录：\n\n"
+        for b in browsers:
+            msg += f"  • {b} ✓\n"
+        msg += "\n是否使用浏览器 Cookie？"
+        reply = QMessageBox.question(parent, "浏览器登录", msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            cookie = valid_cookies[browsers[0]]
+            save_cookie(cookie)
+            QMessageBox.information(parent, "登录成功", f"已从 {browsers[0]} 提取 Cookie")
+            return cookie
+
+    # 3. 手动粘贴 Cookie
+    from PyQt6.QtWidgets import QInputDialog
+    text, ok = QInputDialog.getMultiLineText(
+        parent, "手动设置 Cookie",
+        "WebView 不可用，浏览器也未登录。\n请手动粘贴抖音 Cookie 字符串：", "")
+    if ok and text.strip():
+        from src.cookie import validate_cookie
+        if validate_cookie(text.strip()):
+            save_cookie(text.strip())
+            QMessageBox.information(parent, "登录成功", "Cookie 已保存")
+            return text.strip()
+        else:
+            QMessageBox.warning(parent, "无效 Cookie", "Cookie 格式不正确，需包含 sessionid 和 ttwid")
+
     return None
