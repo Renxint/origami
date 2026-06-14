@@ -1167,7 +1167,6 @@ class BatchPage(QWidget):
         if not cookie or "sessionid=" not in cookie:
             self._own_info.setText("⚠ 未登录，请先在首页登录")
             return
-        self._own_log_msg(f"[诊断] cookie长度={len(cookie)} sessionid={'有' if 'sessionid=' in cookie else '无'}", "#64748B")
         self._own_info.setText("正在获取账号信息...")
         import threading, requests as req
         from PyQt6.QtGui import QPixmap
@@ -1346,10 +1345,8 @@ class BatchPage(QWidget):
                             data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
                             items = data.get("aweme_list", [])
                             if page == 0:
-                                sc = data.get('status_code', '?')
                                 self._own_log_msg(
-                                    f'[诊断] posts API: status={sc} items={len(items)} '
-                                    f'has_more={data.get("has_more","?")}', '#64748B')
+                                    f'[统计] {tag} P1: {len(items)}项', '#64748B')
                         else:
                             from src.platforms.douyin import DouyinAdapter
                             adapter = DouyinAdapter()
@@ -1358,8 +1355,7 @@ class BatchPage(QWidget):
                             data = {}
                             if page == 0:
                                 self._own_log_msg(
-                                    f'[诊断] likes API: items={len(items)} '
-                                    f'has_more={result.get("has_more","?")}', '#64748B')
+                                    f'[统计] {tag} P1: {len(items)}项', '#64748B')
                             if isinstance(items, list) and items and hasattr(items[0], 'extra'):
                                 items = [i.extra.get("aweme", {}) for i in items]
                             # fetch_likes 的翻页信息
@@ -1387,8 +1383,7 @@ class BatchPage(QWidget):
                               or data.get("cursor", 0))
                     if page == 0:
                         self._own_log_msg(
-                            f'[统计] {tag} P1: {len(items)}项 has_more={has_more} '
-                            f'cursor={cursor}', '#64748B')
+                            f'[统计] {tag} P1: {len(items)}项', '#64748B')
                     if not has_more:
                         break
                     if cursor == 0:
