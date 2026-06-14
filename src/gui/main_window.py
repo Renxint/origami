@@ -561,7 +561,7 @@ class MainWindow(QMainWindow):
                 )
                 if reply == QMessageBox.StandardButton.Yes:
                     import webbrowser
-                    webbrowser.open("https://gitee.com/Renxint/origami/releases")
+                    webbrowser.open("https://github.com/Renxint/origami/releases")
         except Exception:
             pass
 
