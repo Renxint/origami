@@ -1,6 +1,5 @@
 ; Origami — Inno Setup 安装脚本
 ; 用法: python build.py --installer
-; 前置: 先装 Inno Setup 6 → https://jrsoftware.org/isdl.php
 
 #define MyAppName "Origami"
 #define MyAppNameCN "Origami - 多功能内容下载工具"
@@ -28,16 +27,10 @@ SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName={#MyAppName} v{#MyAppVersion}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-; 覆盖安装时先删旧版exe
-[InstallDelete]
-Type: files; Name: "{app}\Origami.exe"
-Type: filesandordirs; Name: "{app}\_internal"
-Type: files; Name: "{app}\unins000.*"
 VersionInfoVersion={#MyAppVersion}
 VersionInfoDescription={#MyAppNameCN}
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
-; 深色主题安装向导
 WizardSizePercent=120,100
 WizardResizable=no
 
@@ -46,6 +39,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式:"; Flags: checkedonce
+
+[InstallDelete]
+Type: files; Name: "{app}\Origami.exe"
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\unins000.*"
 
 [Files]
 Source: "dist_out\{#MyAppName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -60,4 +58,3 @@ Filename: "{app}\{#MyAppExeName}"; Description: "立即启动 {#MyAppName}"; Fla
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_update"
 Type: filesandordirs; Name: "{app}\settings.json"
-; 用户下载内容保留不删（在输出目录中）

@@ -1663,7 +1663,7 @@ class BatchPage(QWidget):
 
         for aw in all_items:
             aweme_id = aw.get('aweme_id', '')
-            checked = aweme_id in selected_ids or not selected_ids
+            checked = aweme_id in selected_ids
             _append_item(aw, checked)
 
         layout.addWidget(lst, 1)
