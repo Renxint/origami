@@ -73,9 +73,10 @@ def create_installer():
         return
 
     iss_file = PROJECT_DIR / "installer.iss"
-    # 动态替换版本号
+    # 动态替换版本号（匹配任意 Origami_v*.*.*.exe）
+    import re
     content = iss_file.read_text(encoding="utf-8")
-    content = content.replace("Origami_v0.1.0.exe", f"Origami_v{VERSION}.exe")
+    content = re.sub(r'Origami_v\d+\.\d+\.\d+\.exe', f'Origami_v{VERSION}.exe', content)
     iss_file.write_text(content, encoding="utf-8")
     print(f"[Origami] 生成安装包 v{VERSION}...")
     result = subprocess.run(
