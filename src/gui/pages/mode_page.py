@@ -119,7 +119,7 @@ class ModePage(QWidget):
         title_row.addWidget(icon_lbl)
 
         title = QLabel("Origami")
-        title_sz = pt * 2 + 4
+        title_sz = pt * 2 + 8
         title.setStyleSheet(
             f"font-size: {title_sz}px; font-weight: 800; color: #F1F5F9; "
             "letter-spacing: 2px; font-family: 'Copperplate Gothic Bold';"
@@ -129,7 +129,7 @@ class ModePage(QWidget):
 
         ver = QLabel(f"v{VERSION}")
         ver.setStyleSheet(
-            f"font-size: {max(11, pt-3)}px; color: #000; background: #E11D48; "
+            f"font-size: {max(11, pt-3)}px; font-weight: bold; color: #000; background: #E11D48; "
             "border-radius: 4px; padding: 2px 8px;"
         )
         ver.setFixedHeight(font_scale(24))
