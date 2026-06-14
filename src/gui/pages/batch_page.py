@@ -1339,6 +1339,11 @@ class BatchPage(QWidget):
                             api = DouyinAPI(cookie_string=cookie)
                             data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
                             items = data.get("aweme_list", [])
+                            if page == 0:
+                                sc = data.get('status_code', '?')
+                                self._own_log_msg(
+                                    f'[诊断] posts API: status={sc} items={len(items)} '
+                                    f'has_more={data.get("has_more","?")}', '#64748B')
                         else:
                             from src.platforms.douyin import DouyinAdapter
                             adapter = DouyinAdapter()
