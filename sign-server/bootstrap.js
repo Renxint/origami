@@ -30,22 +30,44 @@ if (fs.existsSync(COOKIE_STR)) {
  * 自动检测系统中可用的浏览器路径
  */
 function findBrowser() {
+    // 1. 按优先级检查已知路径
     const candidates = [
+        (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        (process.env.LOCALAPPDATA || '') + '\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
         'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Chromium\\Application\\chrome.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Vivaldi\\Application\\vivaldi.exe',
+        'C:\\Program Files\\Opera\\opera.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Programs\\Opera\\opera.exe',
     ];
     for (const p of candidates) {
         if (fs.existsSync(p)) {
-            console.error('[bootstrap] found browser: ' + p);
+            console.error('[bootstrap] found: ' + p);
             return p;
         }
     }
-    // check puppeteer cache dirs
+    // 2. 扫描 Program Files 下所有 chrome.exe / msedge.exe
+    try {
+        const { execSync } = require('child_process');
+        const result = execSync(
+            'where /R "%ProgramFiles%" chrome.exe msedge.exe brave.exe 2>nul & ' +
+            'where /R "%LOCALAPPDATA%" chrome.exe msedge.exe brave.exe 2>nul',
+            { timeout: 5000, encoding: 'utf8', shell: 'cmd.exe' }
+        ).trim();
+        const lines = result.split(/\r?\n/).filter(l => l && fs.existsSync(l));
+        if (lines.length > 0) {
+            console.error('[bootstrap] scanned: ' + lines[0]);
+            return lines[0];
+        }
+    } catch (e) {}
+    // 3. Puppeteer 缓存
     try {
         const cacheDir = (process.env.LOCALAPPDATA || process.env.USERPROFILE + '/.cache') + '/puppeteer';
         if (fs.existsSync(cacheDir)) {
@@ -53,7 +75,7 @@ function findBrowser() {
             for (const d of dirs) {
                 const chromePath = cacheDir + '/' + d + '/chrome-win64/chrome.exe';
                 if (fs.existsSync(chromePath)) {
-                    console.error('[bootstrap] found cache: ' + chromePath);
+                    console.error('[bootstrap] cache: ' + chromePath);
                     return chromePath;
                 }
             }

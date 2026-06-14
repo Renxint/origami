@@ -27,24 +27,38 @@ const COOKIE_STR = fs.readFileSync(COOKIE_FILE, 'utf-8').trim();
 
 function findBrowser() {
     const candidates = [
+        (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        (process.env.LOCALAPPDATA || '') + '\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
         'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Chromium\\Application\\chrome.exe',
+        (process.env.LOCALAPPDATA || '') + '\\Vivaldi\\Application\\vivaldi.exe',
+        'C:\\Program Files\\Opera\\opera.exe',
     ];
     for (const p of candidates) {
         if (fs.existsSync(p)) return p;
     }
     try {
+        const { execSync } = require('child_process');
+        const result = execSync(
+            'where /R "%ProgramFiles%" chrome.exe msedge.exe brave.exe 2>nul & ' +
+            'where /R "%LOCALAPPDATA%" chrome.exe msedge.exe brave.exe 2>nul',
+            { timeout: 5000, encoding: 'utf8', shell: 'cmd.exe' }
+        ).trim();
+        const lines = result.split(/\r?\n/).filter(l => l && fs.existsSync(l));
+        if (lines.length > 0) return lines[0];
+    } catch (e) {}
+    try {
         const cacheDir = (process.env.LOCALAPPDATA || process.env.USERPROFILE + '/.cache') + '/puppeteer';
         if (fs.existsSync(cacheDir)) {
-            const dirs = fs.readdirSync(cacheDir);
-            for (const d of dirs) {
-                const chromePath = cacheDir + '/' + d + '/chrome-win64/chrome.exe';
-                if (fs.existsSync(chromePath)) return chromePath;
+            for (const d of fs.readdirSync(cacheDir)) {
+                const p = cacheDir + '/' + d + '/chrome-win64/chrome.exe';
+                if (fs.existsSync(p)) return p;
             }
         }
     } catch (e) {}
