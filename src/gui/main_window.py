@@ -553,16 +553,15 @@ class MainWindow(QMainWindow):
             remote = data.get("version", "")
             if compare_versions(remote, VERSION) > 0:
                 note = data.get("note", "")
-                url = data.get("url", "")
                 reply = QMessageBox.question(
                     self, "发现新版本",
-                    f"当前版本: v{VERSION}\n最新版本: v{remote}\n"
-                    f"更新内容: {note}\n\n是否后台下载? (下次启动时自动安装)",
+                    f"当前版本: v{VERSION}\n最新版本: v{remote}\n\n"
+                    f"{note}\n\n是否打开下载页面?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
-                if reply == QMessageBox.StandardButton.Yes and url:
-                    self.stack.setCurrentIndex(4)
-                    self.update_page.start_update(url)
+                if reply == QMessageBox.StandardButton.Yes:
+                    import webbrowser
+                    webbrowser.open("https://github.com/Renxint/origami/releases")
         except Exception:
             pass
 
