@@ -136,7 +136,7 @@ class ModePage(QWidget):
         title_row.addWidget(ver)
         layout.addLayout(title_row)
 
-        sub = QLabel("选择平台开始下载")
+        sub = QLabel("折你所爱，存你所想")
         sub.setStyleSheet(f"font-size: {max(12, pt-2)}px; color: #64748B;")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(sub)
