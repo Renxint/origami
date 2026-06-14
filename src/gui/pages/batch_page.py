@@ -1349,7 +1349,11 @@ class BatchPage(QWidget):
                             adapter = DouyinAdapter()
                             result = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
                             items = result.get("items", [])
-                            data = {}  # fetch_likes 返回结构不同
+                            data = {}
+                            if page == 0:
+                                self._own_log_msg(
+                                    f'[诊断] likes API: items={len(items)} '
+                                    f'has_more={result.get("has_more","?")}', '#64748B')
                             if isinstance(items, list) and items and hasattr(items[0], 'extra'):
                                 items = [i.extra.get("aweme", {}) for i in items]
                             # fetch_likes 的翻页信息
