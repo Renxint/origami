@@ -18,41 +18,47 @@ if getattr(sys, "frozen", False):
     # 确保 Windows 能找到 Qt6/bin 下的 DLL（QtWebEngine 依赖）
     _qt_bin = Path(sys._MEIPASS) / "PyQt6" / "Qt6" / "bin"
     if _qt_bin.exists():
-        _dll_cookie = os.add_dll_directory(str(_qt_bin))  # 保持引用防止被 GC
+        _dll_cookie = os.add_dll_directory(str(_qt_bin))
 
-# PyInstaller 打包版：不在模块级导入 WebEngine（懒加载由 webview_login._ensure_webengine() 处理）
-# 源码版：提前导入确保后续工作正常
-if not getattr(sys, "frozen", False):
-    try:
-        from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
-    except ImportError:
-        pass
-
+# 基础 PyQt 导入（不触发 QtNetwork，避免 WebEngine 加载冲突）
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo, Qt
 from PyQt6.QtGui import QPalette, QColor, QFont
 
-# 必须在任何 QObject 创建前设置（包括 QLocalSocket）
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.settings.store import load as load_settings
-from src.gui.main_window import (
-    MainWindow, setup_single_instance,
-    _startup_overwrite_if_needed, _instance_socket,
-    global_exception_handler,
-)
 
-sys.excepthook = global_exception_handler
+# 单实例和主窗口在 main() 内延迟导入，避免 QtNetwork 先于 WebEngine 加载
+sys.excepthook = lambda t, v, tb: __import__('traceback').print_exception(t, v, tb)
 
 
 def main():
+    from src.gui.main_window import (
+        MainWindow, setup_single_instance,
+        _startup_overwrite_if_needed,
+    )
+    # _instance_socket 需声明 global
+    from src.gui.main_window import _instance_socket as _inst_sock
     global _instance_socket
 
     # 启动前：检测更新并替换
     _startup_overwrite_if_needed()
 
-    # 单实例检测
+    # QApplication
+    app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
+
+    # 🔑 冻结版：先加载 WebEngine，再让其他模块（QtNetwork）进来
+    if getattr(sys, "frozen", False):
+        try:
+            from src.gui.dialogs.webview_login import _ensure_webengine
+            _ensure_webengine()
+        except Exception:
+            pass
+
+    # 单实例检测（内部首次加载 QtNetwork → QLocalSocket）
     _instance_socket = setup_single_instance()
     if _instance_socket is None:
         return
@@ -60,9 +66,6 @@ def main():
     # 启动常驻浏览器服务
     from src.webview_api import start_server as _start_srv
     _start_srv()
-
-    app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(False)
 
     # 加载自定义字体
     from PyQt6.QtGui import QFontDatabase

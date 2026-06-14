@@ -34,7 +34,6 @@ from src.gui.pages import (
 from src.gui.pages.douyin_page import DouyinPage
 
 # ── 单实例 ────────────────────────────────────────────────
-from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 _instance_socket = None
 
@@ -50,6 +49,7 @@ def _slog(msg: str):
 
 def setup_single_instance():
     """单实例检测"""
+    from PyQt6.QtNetwork import QLocalServer, QLocalSocket
     global _instance_socket
     _slog("setup_single_instance START")
     sock = QLocalSocket()
