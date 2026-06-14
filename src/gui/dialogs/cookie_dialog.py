@@ -18,7 +18,7 @@ from src.cookie import load_cookie, save_cookie
 
 def show_login_dialog(parent) -> str | None:
     """
-    登录流程：优先 WebView → 失败则浏览器提取 → 最后手动粘贴
+    登录流程：优先 WebView → 失败则浏览器提取
     """
     # 1. 尝试 WebView 扫码登录
     from src.gui.dialogs.webview_login import WebViewLogin
@@ -38,7 +38,7 @@ def show_login_dialog(parent) -> str | None:
     valid_cookies = {b: c for b, c in browser_cookies.items() if c}
     if valid_cookies:
         browsers = list(valid_cookies.keys())
-        msg = "WebView 不可用，但检测到浏览器已登录：\n\n"
+        msg = "WebView 组件不可用，但检测到浏览器已登录抖音：\n\n"
         for b in browsers:
             msg += f"  • {b} ✓\n"
         msg += "\n是否使用浏览器 Cookie？"
@@ -50,18 +50,5 @@ def show_login_dialog(parent) -> str | None:
             QMessageBox.information(parent, "登录成功", f"已从 {browsers[0]} 提取 Cookie")
             return cookie
 
-    # 3. 手动粘贴 Cookie
-    from PyQt6.QtWidgets import QInputDialog
-    text, ok = QInputDialog.getMultiLineText(
-        parent, "手动设置 Cookie",
-        "WebView 不可用，浏览器也未登录。\n请手动粘贴抖音 Cookie 字符串：", "")
-    if ok and text.strip():
-        from src.cookie import validate_cookie
-        if validate_cookie(text.strip()):
-            save_cookie(text.strip())
-            QMessageBox.information(parent, "登录成功", "Cookie 已保存")
-            return text.strip()
-        else:
-            QMessageBox.warning(parent, "无效 Cookie", "Cookie 格式不正确，需包含 sessionid 和 ttwid")
-
+    QMessageBox.warning(parent, "登录失败", "WebView 不可用且浏览器未登录抖音。\n请先在 Chrome/Edge 中登录抖音后再试。")
     return None
