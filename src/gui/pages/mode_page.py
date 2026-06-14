@@ -122,7 +122,7 @@ class ModePage(QWidget):
         title_sz = pt * 2 + 4
         title.setStyleSheet(
             f"font-size: {title_sz}px; font-weight: 800; color: #F1F5F9; "
-            "letter-spacing: 2px; font-family: 'Poppins', sans-serif;"
+            "letter-spacing: 2px; font-family: 'Etaoin Shrdlu';"
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_row.addWidget(title)
