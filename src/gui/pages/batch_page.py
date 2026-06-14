@@ -1152,11 +1152,17 @@ class BatchPage(QWidget):
 
     def _refresh_own_page(self):
         """手动刷新自己主页内容"""
+        self._own_log_msg("[刷新] 开始刷新...", "#F59E0B")
         self._own_info.setText("正在刷新...")
         self._own_posts_loaded = False
         self._own_likes_loaded = False
+        self._own_fav_loaded = False
+        self._own_posts_loading = False
+        self._own_likes_loading = False
+        self._own_fav_loading = False
         self._own_posts_items = []
         self._own_likes_items = []
+        self._own_fav_items = []
         self._own_selected_ids = set()
         self._detect_own(force=True)
 
