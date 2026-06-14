@@ -6,7 +6,7 @@
 #define MyAppNameCN "Origami - 多功能内容下载工具"
 #define MyAppPublisher "Renxint"
 #define MyAppURL "https://gitee.com/Renxint/origami"
-#define MyAppExeName "Origami_v0.3.1.exe"
+#define MyAppExeName "Origami.exe"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -43,7 +43,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式:"; Flags: checkedonce
 
 [Files]
-Source: "dist_out\{#MyAppName}_v{#MyAppVersion}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist_out\{#MyAppName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyAppNameCN}"
