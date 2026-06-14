@@ -1382,8 +1382,15 @@ class BatchPage(QWidget):
                     page += 1
                     has_more = data.get("has_more", 0)
                     cursor = (data.get("next_cursor")
-                              or data.get("max_cursor", 0))
-                    if not has_more or cursor == 0:
+                              or data.get("max_cursor", 0)
+                              or data.get("cursor", 0))
+                    if page == 0:
+                        self._own_log_msg(
+                            f'[调试] {tag} P1: has_more={has_more} cursor={cursor} '
+                            f'keys={list(data.keys())[:10]}', '#64748B')
+                    if not has_more and page > 0:
+                        break
+                    if cursor == 0 and page > 0:
                         break
                     time.sleep(0.3 if mode == 'posts' else 1.5)
 
