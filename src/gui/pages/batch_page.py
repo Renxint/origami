@@ -1050,6 +1050,11 @@ class BatchPage(QWidget):
         self._own_select_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._own_select_btn.clicked.connect(self._show_own_select_dialog)
         action_row.addWidget(self._own_select_btn)
+        self._own_refresh_btn = QPushButton("刷新")
+        self._own_refresh_btn.setObjectName("secondaryBtn")
+        self._own_refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._own_refresh_btn.clicked.connect(self._refresh_own_page)
+        action_row.addWidget(self._own_refresh_btn)
         layout.addLayout(action_row)
 
         # 保存路径
@@ -1145,9 +1150,19 @@ class BatchPage(QWidget):
         self._own_avatar.hide()
         self._own_select_btn.setText("查看列表")
 
-    def _detect_own(self):
+    def _refresh_own_page(self):
+        """手动刷新自己主页内容"""
+        self._own_info.setText("正在刷新...")
+        self._own_posts_loaded = False
+        self._own_likes_loaded = False
+        self._own_posts_items = []
+        self._own_likes_items = []
+        self._own_selected_ids = set()
+        self._detect_own(force=True)
+
+    def _detect_own(self, force=False):
         """后台获取自己主页信息，不阻塞 UI"""
-        if self._own_sec_uid:
+        if self._own_sec_uid and not force:
             return
         cookie = load_cookie()
         if not cookie or "sessionid=" not in cookie:
