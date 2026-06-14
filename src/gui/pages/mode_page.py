@@ -119,7 +119,7 @@ class ModePage(QWidget):
         title_row.addWidget(icon_lbl)
 
         title = QLabel("Origami")
-        title_sz = pt * 2 + 8
+        title_sz = pt * 2 + 14
         title.setStyleSheet(
             f"font-size: {title_sz}px; font-weight: 800; color: #F1F5F9; "
             "letter-spacing: 2px; font-family: 'Copperplate Gothic Bold';"
