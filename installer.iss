@@ -9,7 +9,7 @@
 #define MyAppExeName "Origami.exe"
 
 [Setup]
-AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -26,8 +26,13 @@ SetupIconFile=app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName={#MyAppName}
+UninstallDisplayName={#MyAppName} v{#MyAppVersion}
 UninstallDisplayIcon={app}\{#MyAppExeName}
+; 覆盖安装时先删旧版exe
+[InstallDelete]
+Type: files; Name: "{app}\Origami.exe"
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\unins000.*"
 VersionInfoVersion={#MyAppVersion}
 VersionInfoDescription={#MyAppNameCN}
 PrivilegesRequired=lowest
