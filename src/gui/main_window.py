@@ -411,6 +411,8 @@ class MainWindow(QMainWindow):
         self.douyin_page.refresh_cookie_status()
         self.settings_page.refresh_cookie_status()
         self.batch_page.reset_own_cache()
+        # 登录后如果正在看"自己"标签，自动刷新
+        self.batch_page.refresh_own_if_active()
 
     # ── 字体/主题 ──
 

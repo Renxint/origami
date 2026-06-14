@@ -1135,20 +1135,26 @@ class BatchPage(QWidget):
     def reset_own_cache(self):
         """换号/退出后清空自己主页缓存"""
         self._own_sec_uid = ""
-        self._own_posts_items = []
-        self._own_likes_items = []
-        self._own_selected_ids = set()
+        self._own_posts_items.clear()
+        self._own_likes_items.clear()
+        self._own_selected_ids.clear()
         self._own_posts_loaded = False
         self._own_likes_loaded = False
         self._own_fav_loaded = False
         self._own_posts_loading = False
         self._own_likes_loading = False
         self._own_fav_loading = False
-        self._own_fav_items = []
+        self._own_fav_items.clear()
         self._own_fav_id = ""
         self._own_info.setText("")
         self._own_avatar.hide()
         self._own_select_btn.setText("查看列表")
+
+    def refresh_own_if_active(self):
+        """登录后回调：如果正在看自己标签，自动重新加载"""
+        if self._tab_own.isChecked():
+            self._own_log_msg("[自动刷新] 检测到登录，重新加载主页...", "#F59E0B")
+            self._detect_own(force=True)
 
     def _refresh_own_page(self):
         """手动刷新自己主页内容"""
