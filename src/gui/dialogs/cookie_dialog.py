@@ -38,17 +38,17 @@ def show_login_dialog(parent) -> str | None:
     valid_cookies = {b: c for b, c in browser_cookies.items() if c}
     if valid_cookies:
         browsers = list(valid_cookies.keys())
-        msg = "WebView 组件不可用，但检测到浏览器已登录抖音：\n\n"
+        msg = "未检测到登录，但在浏览器中发现了已登录的账号：\n\n"
         for b in browsers:
-            msg += f"  • {b} ✓\n"
-        msg += "\n是否使用浏览器 Cookie？"
-        reply = QMessageBox.question(parent, "浏览器登录", msg,
+            msg += f"  • {b}\n"
+        msg += "\n是否直接使用？"
+        reply = QMessageBox.question(parent, "登录", msg,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             cookie = valid_cookies[browsers[0]]
             save_cookie(cookie)
-            QMessageBox.information(parent, "登录成功", f"已从 {browsers[0]} 提取 Cookie")
+            QMessageBox.information(parent, "登录成功", f"已关联 {browsers[0]} 账号")
             return cookie
 
-    QMessageBox.warning(parent, "登录失败", "WebView 不可用且浏览器未登录抖音。\n请先在 Chrome/Edge 中登录抖音后再试。")
+    # 用户取消登录，不弹窗打扰
     return None
