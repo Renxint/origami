@@ -1165,6 +1165,11 @@ class BatchPage(QWidget):
         self._own_fav_items = []
         self._own_selected_ids = set()
         self._detect_own(force=True)
+        # 刷新当前子标签内容
+        if self._sub_posts.isChecked():
+            self._count_own_items(self._own_sec_uid, 'posts')
+        elif self._sub_likes.isChecked():
+            self._count_own_items(self._own_sec_uid, 'likes')
 
     def _detect_own(self, force=False):
         """后台获取自己主页信息，不阻塞 UI"""

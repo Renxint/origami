@@ -55,12 +55,8 @@ def main():
         try:
             from src.gui.dialogs.webview_login import _ensure_webengine
             _ensure_webengine()
-        except Exception as e:
-            # 写入日志方便诊断
-            try:
-                (EXE_DIR / "_weberr.log").write_text(str(e), encoding="utf-8")
-            except Exception:
-                pass
+        except Exception:
+            pass
 
     # 单实例检测（内部首次加载 QtNetwork → QLocalSocket）
     _instance_socket = setup_single_instance()
