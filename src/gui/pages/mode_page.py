@@ -126,7 +126,6 @@ class ModePage(QWidget):
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_row.addWidget(title)
-        layout.addLayout(title_row)
 
         ver = QLabel(f"v{VERSION}")
         ver.setStyleSheet(
@@ -134,10 +133,8 @@ class ModePage(QWidget):
             "border-radius: 4px; padding: 2px 8px;"
         )
         ver.setFixedHeight(font_scale(20))
-        ver_row = QHBoxLayout()
-        ver_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ver_row.addWidget(ver)
-        layout.addLayout(ver_row)
+        title_row.addWidget(ver)
+        layout.addLayout(title_row)
 
         sub = QLabel("选择平台开始下载")
         sub.setStyleSheet(f"font-size: {max(12, pt-2)}px; color: #64748B;")
