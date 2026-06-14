@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
-  "note": "全新 UI：Copperplate Gothic 标题 + 折你所爱存你所想标语 + 登录自动刷新 + WebEngine 修复",
-  "url": "https://github.com/Renxint/origami/releases/download/v0.3.0/Origami_v0.3.0_setup.exe"
+  "version": "0.3.1",
+  "note": "Puppeteer 智能浏览器检测 — Chrome/Edge/Brave/Opera/Vivaldi 全盘扫描 + 全自动适配",
+  "url": "https://github.com/Renxint/origami/releases/download/v0.3.1/Origami_v0.3.1_setup.exe"
 }
