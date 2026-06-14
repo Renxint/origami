@@ -1367,11 +1367,14 @@ class BatchPage(QWidget):
                         self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
                         return
 
-                    if not items and page == 0:
-                        self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
-                        cm = 'posts' if self._sub_posts.isChecked() else 'likes'
-                        if cm == mode:
-                            self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 (0)"))
+                    if not items:
+                        if page == 0:
+                            self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
+                            cm = 'posts' if self._sub_posts.isChecked() else 'likes'
+                            if cm == mode:
+                                self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 (0)"))
+                        else:
+                            self._own_log_msg(f'[统计] {tag} 翻页结束 (共{total})', '#22C55E')
                         return
 
                     store.extend(items)
@@ -1380,7 +1383,7 @@ class BatchPage(QWidget):
                     has_more = data.get("has_more", 0)
                     cursor = (data.get("next_cursor")
                               or data.get("max_cursor", 0))
-                    if not has_more:
+                    if not has_more or cursor == 0:
                         break
                     time.sleep(0.3 if mode == 'posts' else 1.5)
 
