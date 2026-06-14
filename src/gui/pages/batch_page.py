@@ -1341,10 +1341,8 @@ class BatchPage(QWidget):
             QTimer.singleShot(100, _fav_step)
             return
 
-        # ── posts/likes 模式：HTTP 线程（likes 也用 HTTP，不再走 Puppeteer）──
+        # ── posts/likes 模式：posts用HTTP，likes用Puppeteer ──
         def _run():
-            from src.api import DouyinAPI
-            api = DouyinAPI(cookie_string=cookie)
             total = 0
             cursor = 0
             page = 0
@@ -1352,15 +1350,23 @@ class BatchPage(QWidget):
                 while page < 100:
                     try:
                         if mode == 'posts':
+                            from src.api import DouyinAPI
+                            api = DouyinAPI(cookie_string=cookie)
                             data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
                             items = data.get("aweme_list", [])
                         else:
-                            data = api.get_user_likes(sec_uid, max_cursor=cursor, count=18)
-                            items = data.get("aweme_list", [])
+                            from src.platforms.douyin import DouyinAdapter
+                            adapter = DouyinAdapter()
+                            result = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
+                            items = result.get("items", [])
+                            data = {}  # fetch_likes 返回结构不同
+                            if isinstance(items, list) and items and hasattr(items[0], 'extra'):
+                                items = [i.extra.get("aweme", {}) for i in items]
+                            # fetch_likes 的翻页信息
+                            data["has_more"] = result.get("has_more", 0)
+                            data["max_cursor"] = result.get("next_cursor", 0)
                         if page == 0 and not items:
-                            # 首页无数据时输出完整响应用于诊断
-                            self._own_log_msg(
-                                f'[诊断] {tag} P1空响应: {str(data)[:300]}', '#EF4444')
+                            self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
                     except Exception as e:
                         self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
                         return
@@ -1381,11 +1387,10 @@ class BatchPage(QWidget):
                     has_more = data.get("has_more", 0)
                     cursor = (data.get("max_cursor", 0)
                               or data.get("cursor", 0))
-                    if page == 1:
-                        status = data.get("status_code", "?")
+                    if page == 0:
                         self._own_log_msg(
                             f'[统计] {tag} P1: {len(items)}项 has_more={has_more} '
-                            f'cursor={cursor} status={status}', '#64748B')
+                            f'cursor={cursor}', '#64748B')
                     if not has_more:
                         break
                     if cursor == 0:
