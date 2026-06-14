@@ -1357,6 +1357,10 @@ class BatchPage(QWidget):
                         else:
                             data = api.get_user_likes(sec_uid, max_cursor=cursor, count=18)
                             items = data.get("aweme_list", [])
+                        if page == 0 and not items:
+                            # 首页无数据时输出完整响应用于诊断
+                            self._own_log_msg(
+                                f'[诊断] {tag} P1空响应: {str(data)[:300]}', '#EF4444')
                     except Exception as e:
                         self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
                         return
@@ -1378,9 +1382,10 @@ class BatchPage(QWidget):
                     cursor = (data.get("max_cursor", 0)
                               or data.get("cursor", 0))
                     if page == 1:
+                        status = data.get("status_code", "?")
                         self._own_log_msg(
                             f'[统计] {tag} P1: {len(items)}项 has_more={has_more} '
-                            f'cursor={cursor}', '#64748B')
+                            f'cursor={cursor} status={status}', '#64748B')
                     if not has_more:
                         break
                     if cursor == 0:
