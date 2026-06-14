@@ -1050,11 +1050,6 @@ class BatchPage(QWidget):
         self._own_select_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._own_select_btn.clicked.connect(self._show_own_select_dialog)
         action_row.addWidget(self._own_select_btn)
-        self._own_refresh_btn = QPushButton("刷新")
-        self._own_refresh_btn.setObjectName("secondaryBtn")
-        self._own_refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._own_refresh_btn.clicked.connect(self._refresh_own_page)
-        action_row.addWidget(self._own_refresh_btn)
         layout.addLayout(action_row)
 
         # 保存路径
@@ -1155,27 +1150,6 @@ class BatchPage(QWidget):
         if self._tab_own.isChecked():
             self._own_log_msg("[自动刷新] 检测到登录，重新加载主页...", "#F59E0B")
             self._detect_own(force=True)
-
-    def _refresh_own_page(self):
-        """手动刷新自己主页内容"""
-        self._own_log_msg("[刷新] 开始刷新...", "#F59E0B")
-        self._own_info.setText("正在刷新...")
-        self._own_posts_loaded = False
-        self._own_likes_loaded = False
-        self._own_fav_loaded = False
-        self._own_posts_loading = False
-        self._own_likes_loading = False
-        self._own_fav_loading = False
-        # 用 clear() 保留引用，避免后台线程往旧列表写数据丢失
-        if not self._own_posts_loading:
-            self._own_posts_items.clear()
-        if not self._own_likes_loading:
-            self._own_likes_items.clear()
-        if not self._own_fav_loading:
-            self._own_fav_items.clear()
-        self._own_selected_ids.clear()
-        self._detect_own(force=True)
-        # _detect_own 内部已自动调用 _count_own_items，无需重复
 
     def _detect_own(self, force=False):
         """后台获取自己主页信息，不阻塞 UI"""
