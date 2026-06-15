@@ -1,4 +1,4 @@
-name: Build Origami
+name: Build and Sign Origami
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-and-sign:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,12 +26,38 @@ jobs:
           pip install -r requirements.txt
           cd sign-server && npm install && cd ..
 
-      - name: Build
-        shell: cmd
-        run: python build.py
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y
 
-      - name: Upload artifact
+      - name: Build installer
+        shell: cmd
+        run: python build.py --installer
+
+      - name: Upload unsigned artifact
+        id: upload-unsigned
         uses: actions/upload-artifact@v4
         with:
-          name: Origami
-          path: dist_out/Origami/
+          name: Origami-unsigned
+          path: dist_out/Origami_v*_setup.exe
+          if-no-files-found: error
+
+      - name: Submit to SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'origami'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: 'default'
+          github-artifact-id: '${{ steps.upload-unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 600
+          output-artifact-directory: './signed'
+
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Origami-signed
+          path: ./signed/
+          if-no-files-found: error
