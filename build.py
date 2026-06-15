@@ -13,6 +13,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
+# CI runner 编码兼容
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 PROJECT_DIR = Path(__file__).resolve().parent
 DIST_DIR = PROJECT_DIR / "dist_out"
 SPEC_FILE = PROJECT_DIR / "Origami.spec"
