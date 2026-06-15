@@ -19,9 +19,10 @@ SPEC_FILE = PROJECT_DIR / "Origami.spec"
 
 from src.config import VERSION
 
-# Inno Setup 路径
+# Inno Setup 路径（本地 + CI runner）
 ISCC_PATHS = [
     Path("D:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
+    Path("C:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
 ]
 
 
