@@ -2452,6 +2452,8 @@ class BatchPage(QWidget):
                 QMessageBox.warning(self, "删除失败", str(e))
 
     def _refresh_other_list(self):
+        bar = self._other_list.verticalScrollBar()
+        old = bar.value()
         self._other_list.clear()
         path = Path(self._other_path.text() or str(OUTPUT_OTHER))
         if not path.exists():
@@ -2473,8 +2475,11 @@ class BatchPage(QWidget):
                 item.setToolTip(str(d))
                 self._other_list.addItem(item)
                 self._other_list.setItemWidget(item, row)
+        QTimer.singleShot(0, lambda: bar.setValue(min(old, bar.maximum())))
 
     def _refresh_own_list(self):
+        bar = self._own_list.verticalScrollBar()
+        old = bar.value()
         self._own_list.clear()
         path = Path(self._own_path.text() or str(OUTPUT_OWN))
         if not path.exists():
@@ -2496,3 +2501,4 @@ class BatchPage(QWidget):
                 item.setToolTip(str(d))
                 self._own_list.addItem(item)
                 self._own_list.setItemWidget(item, row)
+        QTimer.singleShot(0, lambda: bar.setValue(min(old, bar.maximum())))
