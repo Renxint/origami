@@ -124,7 +124,7 @@ def start_server():
         try:
             subprocess.run(
                 'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
-                shell=True, capture_output=True, timeout=5,
+                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
                 creationflags=CREATE_NO_WINDOW,
             )
             time.sleep(0.5)
@@ -149,11 +149,11 @@ def stop_server():
             except Exception:
                 pass
             _server_process = None
-    # 兜底：按端口杀残留
+    # 兜底：按端口杀残留（用 DEVNULL 免 capture_output 的线程在 atexit 卡死）
     try:
         subprocess.run(
             'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
-            shell=True, capture_output=True, timeout=3,
+            shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3,
             creationflags=CREATE_NO_WINDOW,
         )
     except Exception:
