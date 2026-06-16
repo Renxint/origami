@@ -14,6 +14,7 @@ TODO: 多主页并行下载
 import os
 import json
 import time
+import hashlib
 import threading
 from pathlib import Path
 
@@ -264,7 +265,7 @@ class BatchDownloadThread(QThread):
                 aweme = item.extra.get("aweme", {})
                 aweme_id = item.item_id
                 desc = clean_name(item.title or aweme_id)
-                short = hex(abs(hash(aweme_id)) % 0x10000)[2:].zfill(4)
+                short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
                 _oi = item.extra.get("_orig_idx", i)
                 pos = f"{_orig_total - _oi:04d}_{short}_"  # 主页倒序编号
 
