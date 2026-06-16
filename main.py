@@ -64,6 +64,13 @@ _threading.excepthook = _thread_hook
 
 sys.excepthook = lambda t, v, tb: __import__('traceback').print_exception(t, v, tb)
 
+# IDE 终止 / Ctrl+C 静默退出
+import signal as _signal
+def _sigint_handler(sig, frame):
+    QApplication.quit()
+_signal.signal(_signal.SIGINT, _sigint_handler)
+_signal.signal(_signal.SIGTERM, _sigint_handler)
+
 
 def main():
     from src.gui.main_window import (
