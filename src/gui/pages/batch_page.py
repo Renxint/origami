@@ -138,17 +138,19 @@ class BatchDownloadThread(QThread):
             # ── 获取作品列表 ──
             if self.pre_items:
                 # 已有预加载数据，直接转 MediaItem
-                all_items = []
-                for aw in self.pre_items:
-                    all_items.append(MediaItem(
-                        platform="douyin",
-                        item_id=aw.get("aweme_id", ""),
-                        item_type="实况" if aw.get("is_live_photo") else (
-                            "gallery" if aw.get("images") else "video"),
-                        title=aw.get("desc", ""),
-                        author=aw.get("author", {}).get("nickname", ""),
-                        extra={"aweme": aw},
-                    ))
+            all_items = []
+            _orig_idx = 0
+            for aw in self.pre_items:
+                all_items.append(MediaItem(
+                    platform="douyin",
+                    item_id=aw.get("aweme_id", ""),
+                    item_type="实况" if aw.get("is_live_photo") else (
+                        "gallery" if aw.get("images") else "video"),
+                    title=aw.get("desc", ""),
+                    author=aw.get("author", {}).get("nickname", ""),
+                    extra={"aweme": aw, "_orig_idx": _orig_idx},
+                ))
+                _orig_idx += 1
             else:
                 mode_name = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}.get(self.mode, '作品')
                 self.log_signal.emit(
@@ -177,6 +179,11 @@ class BatchDownloadThread(QThread):
                     if not data.get("has_more"):
                         break
                     cursor = data.get("next_cursor", 0)
+
+            # 记录主页原始顺序（筛选前）
+            _orig_total = len(all_items)
+            for _i, _it in enumerate(all_items):
+                _it.extra["_orig_idx"] = _i
 
             # 筛选勾选的作品（支持 aweme_id 和 aweme_id:img_idx 格式）
             if self.selected_ids:
@@ -262,7 +269,8 @@ class BatchDownloadThread(QThread):
                 aweme_id = item.item_id
                 desc = clean_name(item.title or aweme_id)
                 short = hex(abs(hash(aweme_id)) % 0x10000)[2:].zfill(4)
-                pos = f"{total - i:04d}_{short}_"  # 倒序+4位短哈希
+                _oi = item.extra.get("_orig_idx", i)
+                pos = f"{_orig_total - _oi:04d}_{short}_"  # 主页倒序编号
 
                 if aweme_id in downloaded_ids:
                     # 用短哈希匹配已下载文件
