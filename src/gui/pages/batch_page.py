@@ -389,10 +389,9 @@ class BatchDownloadThread(QThread):
                                 continue
                             # 静态图
                             urls = img.get("url_list", [])
-                            img_url = next(
-                                (u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()),
-                                urls[0] if urls else ""
-                            )
+                            # 取最后一张（最高画质），jpeg/jpg 优先
+                            _jpegs = [u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()]
+                            img_url = _jpegs[-1] if _jpegs else (urls[-1] if urls else "")
                             if img_url:
                                 self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
                                 stats["image"] += 1
