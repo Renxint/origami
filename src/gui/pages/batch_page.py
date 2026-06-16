@@ -138,19 +138,19 @@ class BatchDownloadThread(QThread):
             # ── 获取作品列表 ──
             if self.pre_items:
                 # 已有预加载数据，直接转 MediaItem
-            all_items = []
-            _orig_idx = 0
-            for aw in self.pre_items:
-                all_items.append(MediaItem(
-                    platform="douyin",
-                    item_id=aw.get("aweme_id", ""),
-                    item_type="实况" if aw.get("is_live_photo") else (
-                        "gallery" if aw.get("images") else "video"),
-                    title=aw.get("desc", ""),
-                    author=aw.get("author", {}).get("nickname", ""),
-                    extra={"aweme": aw, "_orig_idx": _orig_idx},
-                ))
-                _orig_idx += 1
+                all_items = []
+                _orig_idx = 0
+                for aw in self.pre_items:
+                    all_items.append(MediaItem(
+                        platform="douyin",
+                        item_id=aw.get("aweme_id", ""),
+                        item_type="实况" if aw.get("is_live_photo") else (
+                            "gallery" if aw.get("images") else "video"),
+                        title=aw.get("desc", ""),
+                        author=aw.get("author", {}).get("nickname", ""),
+                        extra={"aweme": aw, "_orig_idx": _orig_idx},
+                    ))
+                    _orig_idx += 1
             else:
                 mode_name = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}.get(self.mode, '作品')
                 self.log_signal.emit(
