@@ -1743,6 +1743,8 @@ class BatchPage(QWidget):
                 _pool.submit(_fetch_one, target, url, sz)
 
             def _poll():
+                if _done[0]:
+                    return
                 try:
                     while True:
                         target, pix, sz = _results.get_nowait()
@@ -1754,12 +1756,13 @@ class BatchPage(QWidget):
                                 target.setPixmap(sp)
                                 target.setText("")
                 except qu.Empty:
-                    if _pending[0] > 0:
+                    if _pending[0] > 0 and not _done[0]:
                         QTimer.singleShot(80, _poll)
                     else:
                         _pool.shutdown(wait=False)
-                except Exception:
-                    pass
+                except (KeyboardInterrupt, Exception):
+                    _done[0] = True
+                    _pool.shutdown(wait=False)
             QTimer.singleShot(50, _poll)
             dlg.finished.connect(lambda: _done.__setitem__(0, True))
 

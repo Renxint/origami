@@ -836,6 +836,8 @@ class SinglePage(QWidget):
                 _pool.submit(_fetch_one, lbl, url)
 
             def _poll():
+                if _done[0]:
+                    return
                 try:
                     while True:
                         lbl, data = _results.get_nowait()
@@ -848,12 +850,13 @@ class SinglePage(QWidget):
                             bg = "#1A1030" if is_checked else "#12122A"
                             lbl.setStyleSheet(f"border: {bdr}; border-radius: 6px; background: {bg};")
                 except qu.Empty:
-                    if _pending[0] > 0:
+                    if _pending[0] > 0 and not _done[0]:
                         QTimer.singleShot(60, _poll)
                     else:
                         _pool.shutdown(wait=False)
-                except Exception:
-                    pass
+                except (KeyboardInterrupt, Exception):
+                    _done[0] = True
+                    _pool.shutdown(wait=False)
             QTimer.singleShot(30, _poll)
             dlg.finished.connect(lambda: _done.__setitem__(0, True))
 
@@ -1262,6 +1265,8 @@ class SinglePage(QWidget):
                 except qu.Empty:
                     if _pending[0] > 0:
                         QTimer.singleShot(80, _poll)
+                except (KeyboardInterrupt, Exception):
+                    pass
 
             threading.Thread(target=_worker, daemon=True).start()
             QTimer.singleShot(50, _poll)
@@ -1459,6 +1464,8 @@ class SinglePage(QWidget):
             except qu.Empty:
                 if _pending[0] > 0:
                     QTimer.singleShot(80, _poll)
+            except (KeyboardInterrupt, Exception):
+                pass
 
         threading.Thread(target=_worker, daemon=True).start()
         QTimer.singleShot(50, _poll)
