@@ -243,7 +243,8 @@ class BatchDownloadThread(QThread):
                             typ = "未知"
                         status = "已下载" if it.item_id in downloaded_ids else "跳过"
                         lines.append(f"{idx+1}. [{typ}] [{status}] {d}")
-                    (save_root / "作品目录.md").write_text("\n".join(lines), encoding="utf-8")
+                    _ts = time.strftime("%Y%m%d_%H%M%S")
+                    (save_root / f"作品目录_{_ts}.md").write_text("\n".join(lines), encoding="utf-8")
                 except Exception:
                     pass
 
