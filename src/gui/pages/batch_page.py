@@ -350,8 +350,7 @@ class BatchDownloadThread(QThread):
                                 if img_filter is not None and j not in img_filter:
                                     continue
                                 iv = img.get("video") or {}
-                                if img.get("live_photo_type") != 1 or not iv:
-                                    continue
+                                is_live_img = img.get("live_photo_type") == 1 and iv
                                 # 静态图（不用封面）
                                 urls = img.get("url_list", [])
                                 img_url = next(
@@ -362,6 +361,8 @@ class BatchDownloadThread(QThread):
                                     self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
                                     stats["image"] += 1
                                     downloaded = True
+                                if not is_live_img:
+                                    continue
                                 # 实况视频
                                 lv = pick_best_video_url(iv) or ""
                                 if not lv:
