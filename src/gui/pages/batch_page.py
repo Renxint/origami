@@ -172,10 +172,6 @@ class BatchDownloadThread(QThread):
                     items = data.get("items", [])
                     all_items.extend(items)
                     page += 1
-                    self.log_signal.emit(
-                        f'<span style="color:#94A3B8;">[第{page}页]</span> '
-                        f'获取 {len(items)} 个，累计 {len(all_items)} 个'
-                    )
                     if not data.get("has_more"):
                         break
                     cursor = data.get("next_cursor", 0)
@@ -1311,10 +1307,6 @@ class BatchPage(QWidget):
                 err = data.get("_error", "")
                 if err:
                     self._own_log_msg(f'[收藏] {err}', '#EF4444')
-                self._own_log_msg(
-                    f'[收藏-v] items={len(items)}'
-                    + (f' err={err}' if err else ''),
-                    '#22C55E' if items else '#F59E0B')
 
                 if not items and _page[0] == 0:
                     self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
@@ -1353,18 +1345,12 @@ class BatchPage(QWidget):
                             api = DouyinAPI(cookie_string=cookie)
                             data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
                             items = data.get("aweme_list", [])
-                            if page == 0:
-                                self._own_log_msg(
-                                    f'[统计] {tag} P1: {len(items)}项', '#64748B')
                         else:
                             from src.platforms.douyin import DouyinAdapter
                             adapter = DouyinAdapter()
                             result = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
                             items = result.get("items", [])
                             data = {}
-                            if page == 0:
-                                self._own_log_msg(
-                                    f'[统计] {tag} P1: {len(items)}项', '#64748B')
                             if isinstance(items, list) and items and hasattr(items[0], 'extra'):
                                 items = [i.extra.get("aweme", {}) for i in items]
                             # fetch_likes 的翻页信息
