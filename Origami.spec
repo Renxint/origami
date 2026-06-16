@@ -27,7 +27,7 @@ hiddenimports = [
     'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets',
     'PyQt6.QtNetwork', 'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore', 'PyQt6.QtOpenGL',
-    'requests', 'certifi', 'urllib3', 'browser_cookie3',
+    'requests', 'certifi', 'urllib3',
     'src', 'src.environ', 'src.config', 'src.api', 'src.utils',
     'src.cookie', 'src.downloader', 'src.webview_api', 'src.exceptions',
     'src.gui.fonts', 'src.stylesheet',

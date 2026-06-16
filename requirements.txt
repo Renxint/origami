@@ -1,6 +1,5 @@
 PyQt6>=6.5
 requests>=2.28
 certifi>=2023.7
-browser-cookie3>=0.19
 pyinstaller>=6.0
 # PyQt6-WebEngine  # 可选：扫码登录功能需要（pip install PyQt6-WebEngine）

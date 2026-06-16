@@ -2,10 +2,7 @@
 """
 Origami — Cookie 获取与管理
 
-三层 fallback:
-  1. browser-cookie3 自动提取
-  2. WebView 扫码登录
-  3. 手动粘贴
+通过 WebView 扫码登录获取抖音 Cookie，Base64 编码本地持久化。
 """
 
 import base64
@@ -70,53 +67,5 @@ def get_cookie_age_days() -> Optional[float]:
 
 
 # ═══════════════════════════════════════════════════════════
-# 浏览器自动提取
-# ═══════════════════════════════════════════════════════════
-
-_BROWSER_PATHS = {
-    "Chrome":  r"%LOCALAPPDATA%\Google\Chrome\User Data\Default\Network\Cookies",
-    "Edge":    r"%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Network\Cookies",
-    "Firefox": r"%APPDATA%\Mozilla\Firefox\Profiles",
-    "Brave":   r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data\Default\Network\Cookies",
-    "Opera":   r"%APPDATA%\Opera Software\Opera Stable\Network\Cookies",
-}
-
-def detect_available_browsers() -> list[str]:
-    import os
-    available = []
-    for name, path_tmpl in _BROWSER_PATHS.items():
-        path = os.path.expandvars(path_tmpl)
-        if name == "Firefox":
-            if os.path.isdir(path):
-                available.append(name)
-        elif os.path.exists(path):
-            available.append(name)
-    return available
-
-def extract_from_browser(browser: str = "chrome", domain: str = ".douyin.com") -> Optional[str]:
-    try:
-        import browser_cookie3
-        extractors = {
-            "chrome": browser_cookie3.chrome, "edge": browser_cookie3.edge,
-            "firefox": browser_cookie3.firefox, "brave": browser_cookie3.brave,
-            "opera": browser_cookie3.opera,
-        }
-        fn = extractors.get(browser.lower())
-        if fn is None:
-            return None
-        cj = fn(domain_name=domain)
-        cookie_str = "; ".join(f"{c.name}={c.value}" for c in cj)
-        return cookie_str if validate_cookie(cookie_str) else None
-    except Exception:
-        return None
-
-def extract_from_all_browsers(domain: str = ".douyin.com") -> dict[str, Optional[str]]:
-    results = {}
-    for browser in detect_available_browsers():
-        results[browser] = extract_from_browser(browser, domain)
-    return results
-
-
-# ═══════════════════════════════════════════════════════════
-# WebView 扫码登录 → 已移至 src/gui/dialogs/webview_login.py
+# 扫码登录 → src/gui/dialogs/webview_login.py
 # ═══════════════════════════════════════════════════════════

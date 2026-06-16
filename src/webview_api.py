@@ -173,11 +173,11 @@ def call_server(endpoint, **params):
     # 懒启动：如果服务器没在跑，自动拉起来
     if not _is_server_ready():
         start_server()
-        # 等待就绪（最多 30s）
-        for _ in range(30):
+        # 等待就绪（前 5s 每 0.5s 快检，后 10s 每秒，最多 15s）
+        for i in range(20):
             if _is_server_ready():
                 break
-            time.sleep(1)
+            time.sleep(0.5 if i < 10 else 1)
 
     try:
         r = _r.post(url, params=params, timeout=60)

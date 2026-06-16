@@ -1,5 +1,5 @@
 {
-  "version": "0.3.2",
-  "note": "勾选默认不勾选 + 版本检查Gitee + 下载页GitHub + 瘦身132MB",
-  "url": "https://github.com/Renxint/origami/releases/download/v0.3.2/Origami_v0.3.2_setup.exe"
+  "version": "0.6.0",
+  "note": "v0.6.0: 清理死代码 + sign-server等待优化 + 代码整洁",
+  "url": "https://github.com/Renxint/origami/releases/download/v0.6.0/Origami_v0.6.0_setup.exe"
 }

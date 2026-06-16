@@ -892,7 +892,7 @@ class SettingsPage(QWidget):
         self._section_title(panel, "技术栈")
 
         tech_text = QLabel("Python 3.12  ·  PyQt6  ·  Node.js\n"
-                           "requests  ·  browser-cookie3")
+                           "requests  ·  Puppeteer")
         tech_text.setStyleSheet(f"color: #64748B; font-size: {scaled_font(11)}px; line-height: 1.6;")
         panel.content.addWidget(tech_text)
         panel.content.addSpacing(4)

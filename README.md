@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.12+-green?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-red" alt="License">
-  <img src="https://img.shields.io/badge/version-0.3.2-E11D48" alt="Version">
+  <img src="https://img.shields.io/badge/version-0.6.0-E11D48" alt="Version">
   <img src="https://img.shields.io/github/stars/Renxint/origami?style=flat" alt="Stars">
   <img src="https://img.shields.io/github/downloads/Renxint/origami/total" alt="Downloads">
 </p>
@@ -50,7 +50,7 @@
 
 | 方式 | 命令 / 链接 |
 |------|------------|
-| **安装包（推荐）** | [📦 下载 Origami_v0.3.2_setup.exe](https://github.com/Renxint/origami/releases/latest) |
+| **安装包（推荐）** | [📦 下载 Origami_v0.6.0_setup.exe](https://github.com/Renxint/origami/releases/latest) |
 | **免安装版** | [📁 下载便携版](https://github.com/Renxint/origami/releases) |
 
 ---
@@ -59,7 +59,7 @@
 
 ### 安装
 
-1. 下载 `Origami_v0.3.2_setup.exe`，双击安装
+1. 下载 `Origami_v0.6.0_setup.exe`，双击安装
 2. 或在 [Releases](https://github.com/Renxint/origami/releases) 下载免安装版
 
 ### 登录
