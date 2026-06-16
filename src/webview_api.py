@@ -11,6 +11,8 @@ Origami — 抖音 API 代理
 import json
 import subprocess
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 from src.environ import (NODE_CMD, BASE_DIR, CREATE_NO_WINDOW,
@@ -92,44 +94,91 @@ def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
 
 # ── 常驻浏览器服务 ──
 _server_process = None
+_server_lock = threading.Lock()
+
+
+def _is_server_ready():
+    """检查 sign-server 健康状态（快速探测，不阻塞）"""
+    import requests as _r
+    try:
+        r = _r.get(f"{SIGN_SERVER_URL}/health", timeout=1)
+        return r.json().get('sdkReady', False)
+    except Exception:
+        return False
+
 
 def start_server():
-    """启动常驻 Node 浏览器服务（软件启动时调用一次）"""
+    """启动常驻 Node 浏览器服务（线程安全，可重复调用）"""
     global _server_process
-    import subprocess, time
-    try:
-        r = __import__('requests').get(f"{SIGN_SERVER_URL}/health", timeout=2)
-        if r.json().get('ok'):
-            return True  # 已在运行
-    except Exception:
-        pass
-    _server_process = subprocess.Popen(
-        [NODE_CMD, str(SIGN_SERVER_JS)],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        creationflags=CREATE_NO_WINDOW,
-    )
-    # 等待服务就绪
-    for _ in range(30):
+
+    # 快速路径：已经在跑，直接返回（无锁）
+    if _server_process and _server_process.poll() is None and _is_server_ready():
+        return True
+
+    with _server_lock:
+        # 二次确认（可能被其他线程抢先启动了）
+        if _server_process and _server_process.poll() is None and _is_server_ready():
+            return True
+
+        # 清理上次残留的 sign-server（只杀端口 9876）
         try:
-            r = __import__('requests').get(f"{SIGN_SERVER_URL}/health", timeout=1)
-            if r.json().get('ok'):
-                return True
+            subprocess.run(
+                'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
+                shell=True, capture_output=True, timeout=5,
+                creationflags=CREATE_NO_WINDOW,
+            )
+            time.sleep(0.5)
         except Exception:
             pass
-        time.sleep(1)
-    return False
+
+        _server_process = subprocess.Popen(
+            [NODE_CMD, str(SIGN_SERVER_JS)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    return True
+
 
 def stop_server():
-    """关闭常驻服务"""
+    """关闭常驻服务（快速杀）"""
     global _server_process
-    if _server_process:
-        _server_process.terminate()
-        _server_process = None
+    with _server_lock:
+        if _server_process:
+            try:
+                _server_process.kill()
+            except Exception:
+                pass
+            _server_process = None
+    # 兜底：按端口杀残留
+    try:
+        subprocess.run(
+            'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
+            shell=True, capture_output=True, timeout=3,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    except Exception:
+        pass
+
 
 def call_server(endpoint, **params):
-    """调用常驻服务端点，返回 JSON"""
+    """调用常驻服务端点（自动启动 sign-server，线程安全）
+
+    内置懒启动：如果 sign-server 没在跑，自动拉起并等待就绪。
+    调用方无需关心服务器状态。
+    """
     import requests as _r
+
     url = f"{SIGN_SERVER_URL}/{endpoint}"
+
+    # 懒启动：如果服务器没在跑，自动拉起来
+    if not _is_server_ready():
+        start_server()
+        # 等待就绪（最多 30s）
+        for _ in range(30):
+            if _is_server_ready():
+                break
+            time.sleep(1)
+
     try:
         r = _r.post(url, params=params, timeout=60)
         return r.json()

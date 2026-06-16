@@ -13,12 +13,23 @@ from pathlib import Path
 
 # PyInstaller 打包后 Qt 路径修正（必须在任何 PyQt 导入之前）
 if getattr(sys, "frozen", False):
-    Path(sys.executable).parent.joinpath("qt.conf").write_text(
+    _internal = Path(sys._MEIPASS)
+    _exe_dir = Path(sys.executable).parent
+    _exe_dir.joinpath("qt.conf").write_text(
         "[Paths]\nPrefix = _internal/PyQt6/Qt6\n", encoding="utf-8")
-    # 确保 Windows 能找到 Qt6/bin 下的 DLL（QtWebEngine 依赖）
-    _qt_bin = Path(sys._MEIPASS) / "PyQt6" / "Qt6" / "bin"
+    _qt_bin = _internal / "PyQt6" / "Qt6" / "bin"
     if _qt_bin.exists():
         _dll_cookie = os.add_dll_directory(str(_qt_bin))
+    # QtWebEngine 必须找到渲染进程
+    _qt_wep = _qt_bin / "QtWebEngineProcess.exe"
+    if _qt_wep.exists():
+        os.environ["QTWEBENGINEPROCESS_PATH"] = str(_qt_wep)
+    # Qt 从 resources 目录找 qt.conf，必须写一份
+    _qt_res = _internal / "PyQt6" / "Qt6" / "resources"
+    if _qt_res.exists():
+        (_qt_res / "qt.conf").write_text("[Paths]\nPrefix = ..\n", encoding="utf-8")
+    # 把 Qt bin 加入 PATH（兜底）
+    os.environ["PATH"] = str(_qt_bin) + ";" + os.environ.get("PATH", "")
 
 # 基础 PyQt 导入（不触发 QtNetwork，避免 WebEngine 加载冲突）
 from PyQt6.QtWidgets import QApplication
@@ -31,6 +42,26 @@ from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.settings.store import load as load_settings
 
 # 单实例和主窗口在 main() 内延迟导入，避免 QtNetwork 先于 WebEngine 加载
+# 兜底：任何退出都清理 sign-server 防止僵尸进程
+import atexit
+def _cleanup_sign_server():
+    try:
+        from src.webview_api import stop_server
+        stop_server()
+    except Exception:
+        pass
+atexit.register(_cleanup_sign_server)
+
+# 关闭时后台线程静默
+import threading as _threading
+def _thread_hook(args):
+    from src.environ import APP_SHUTTING_DOWN
+    exc = args.exc_value
+    if APP_SHUTTING_DOWN and isinstance(exc, RuntimeError) and 'deleted' in str(exc):
+        return
+    __import__('traceback').print_exception(args.exc_type, exc, args.exc_traceback)
+_threading.excepthook = _thread_hook
+
 sys.excepthook = lambda t, v, tb: __import__('traceback').print_exception(t, v, tb)
 
 
@@ -62,10 +93,6 @@ def main():
     _instance_socket = setup_single_instance()
     if _instance_socket is None:
         return
-
-    # 启动常驻浏览器服务
-    from src.webview_api import start_server as _start_srv
-    _start_srv()
 
     # 加载自定义字体
     from PyQt6.QtGui import QFontDatabase
@@ -112,6 +139,12 @@ def main():
 
     window = MainWindow()
     window.show()
+    # 仅在已登录时启动 sign-server
+    from src.cookie import load_cookie
+    if load_cookie():
+        from PyQt6.QtCore import QTimer
+        from src.webview_api import start_server
+        QTimer.singleShot(500, start_server)
     sys.exit(app.exec())
 
 

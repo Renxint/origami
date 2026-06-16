@@ -41,9 +41,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式:"; Flags: checkedonce
 
 [InstallDelete]
+; 升级时删除旧版本文件，但保留用户数据
 Type: files; Name: "{app}\Origami.exe"
+Type: files; Name: "{app}\Origami_v*.exe"
 Type: filesandordirs; Name: "{app}\_internal"
 Type: files; Name: "{app}\unins000.*"
+; 不删: settings.json, data/, output/ — 用户数据保留
 
 [Files]
 Source: "dist_out\{#MyAppName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -56,5 +59,11 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "立即启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
+; 运行时生成的日志/临时文件（卸载时清理）
+Type: files; Name: "{app}\_*.log"
+Type: files; Name: "{app}\_*.txt"
+Type: files; Name: "{app}\_*.png"
+Type: files; Name: "{app}\_*.json"
+Type: files; Name: "{app}\qt.conf"
 Type: filesandordirs; Name: "{app}\_update"
-Type: filesandordirs; Name: "{app}\settings.json"
+; 保留: settings.json, output/ — 用户数据不删

@@ -66,7 +66,7 @@ excludes = [
     'PyQt6.QtSerialPort','PyQt6.QtSql','PyQt6.QtSvg','PyQt6.QtSvgWidgets',
     'PyQt6.QtTest','PyQt6.QtTextToSpeech',
     # 'PyQt6.QtWebChannel',  # WebEngine 依赖，不能排除
-    'PyQt6.QtWebEngineQuick','PyQt6.QtWebSockets','PyQt6.QtXml',
+    'PyQt6.QtWebEngineQuick','PyQt6.QtXml',
 ]
 
 a = Analysis(
@@ -83,36 +83,8 @@ exe = EXE(
     upx=False,
     console=False, icon=['app.ico'],
 )
-# ── 瘦身：去掉调试资源和不必要的 DLL ──
-_binaries = []
-_skip_patterns = [
-    'debug.pak', 'devtools_resources.pak',
-    'avcodec', 'avformat', 'avutil', 'swresample', 'swscale',  # FFmpeg（非多媒体不用）
-    'opengl32sw',           # 软件 OpenGL 回退
-    'Qt6Designer',          # Qt Designer（开发工具）
-    'Qt6Pdf', 'Qt6PdfWidgets',  # PDF（不用）
-    'Qt6Quick3D', 'Qt6QuickWidgets', 'Qt6QuickControls2',  # QML 3D
-    'Qt6Svg', 'Qt6SvgWidgets',     # SVG
-    'Qt6Qml', 'Qt6QmlModels', 'Qt6QmlWorkerScript', 'Qt6QmlMeta',  # QML（不用）
-    'Qt6NetworkInformation', 'Qt6Nfc', 'Qt6Sensors',
-    # 'libcrypto-3',       # Node.js 需要，保留
-    '.map',                 # source maps
-]
-for _b in a.binaries:
-    _name = _b[0].lower() if isinstance(_b, tuple) else ''
-    if any(_p.lower() in _name.lower() for _p in _skip_patterns):
-        continue
-    _binaries.append(_b)
-
-_datas = []
-for _d in a.datas:
-    _name = _d[0].lower() if isinstance(_d, tuple) else ''
-    if any(_p.lower() in _name.lower() for _p in _skip_patterns):
-        continue
-    _datas.append(_d)
-
 coll = COLLECT(
-    exe, _binaries, _datas, strip=False,
+    exe, a.binaries, a.datas, strip=False,
     upx=False,
     name='Origami',
 )

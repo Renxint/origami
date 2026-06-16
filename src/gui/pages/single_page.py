@@ -52,13 +52,15 @@ def colored_log(msg: str) -> str:
     return msg
 
 
-def ensure_cookie(parent_widget) -> str:
-    """确保已登录，未登录则弹出登录窗口"""
+def ensure_cookie(parent_widget, allow_relogin=True) -> str:
+    """确保已登录（sign-server 由 call_server 自动懒启动，无需手动管理）"""
     cookie_str = load_cookie()
     if cookie_str:
         return cookie_str
-    show_login_dialog(parent_widget)
-    return load_cookie()
+    if allow_relogin:
+        show_login_dialog(parent_widget)
+        return load_cookie()
+    return ""
 
 
 # ═══════════════════════════════════════════════════════════
@@ -66,28 +68,34 @@ def ensure_cookie(parent_widget) -> str:
 # ═══════════════════════════════════════════════════════════
 class SingleDownloadThread(QThread):
     log = pyqtSignal(str)
-    progress = pyqtSignal(int, int)  # (current, total)
+    progress = pyqtSignal(int, int)
     finished = pyqtSignal(bool, str)
     author_signal = pyqtSignal(dict)
     gallery_signal = pyqtSignal(list, object)
+    cache_aweme = pyqtSignal(dict)
+    cookie_expired = pyqtSignal()
 
-    def __init__(self, raw_text: str, save_dir: str, music: bool = False):
+    def __init__(self, raw_text: str, save_dir: str, music: bool = False, preview_mode: bool = False):
         super().__init__()
         self.raw_text = raw_text
         self.save_dir = Path(save_dir) if save_dir else OUTPUT_SINGLE
         self.download_music = music
+        self.preview_mode = preview_mode
 
     def run(self):
         import time as _t; _start = _t.time()
         try:
-            self.log.emit("[>>] 解析链接...")
-            aweme_id = self._resolve(self.raw_text)
-            self.log.emit(f"[OK] 视频ID: {aweme_id}")
-
-            cookie = load_cookie()
-
-            self.log.emit("[>>] 获取数据...")
-            aweme = self._fetch(aweme_id, cookie)
+            if getattr(self, '_cached_aweme', None):
+                aweme = self._cached_aweme
+                aweme_id = aweme.get("aweme_id", "")
+                self.log.emit("[OK] 使用缓存数据")
+            else:
+                self.log.emit("[>>] 解析链接...")
+                aweme_id = self._resolve(self.raw_text)
+                self.log.emit(f"[OK] 视频ID: {aweme_id}")
+                cookie = load_cookie()
+                self.log.emit("[>>] 获取数据...")
+                aweme = self._fetch(aweme_id, cookie)
 
             desc = aweme.get("desc", "") or aweme_id
             author_info = aweme.get("author", {})
@@ -126,10 +134,15 @@ class SingleDownloadThread(QThread):
             self.log.emit(f"  统计: {stats_line}")
             self.log.emit(f"  描述: {desc[:60]}")
 
+            if self.preview_mode:
+                self.cache_aweme.emit(aweme)
+
             # 图集/note：只要有图片就弹选择框
             images = aweme.get("images") or []
+            video = aweme.get("video")
             selected_indices = None
             if images:
+                self._is_gallery = True
                 evt = threading.Event()
                 img_list = []
                 for j, img in enumerate(images):
@@ -140,9 +153,26 @@ class SingleDownloadThread(QThread):
                         "live": img.get("live_photo_type", 0) == 1,
                         "thumb": None,  # 缩略图由 UI 异步加载
                     })
+                self._is_gallery = True
                 self.gallery_signal.emit(img_list, evt)
                 evt.wait(120)
                 selected_indices = getattr(self, '_selected_img_indices', None)
+
+            elif self.preview_mode and video:
+                evt = threading.Event()
+                self._is_gallery = False
+                cover = ""
+                for src in ("cover", "origin_cover", "dynamic_cover"):
+                    ul = (video.get(src) or {}).get("url_list") or []
+                    cover = next((u for u in ul if u), "")
+                    if cover: break
+                self.gallery_signal.emit([{"index": 0, "url": cover,
+                    "live": aweme.get("is_live_photo", False), "thumb": None}], evt)
+                evt.wait(120)
+                selected_indices = getattr(self, '_selected_img_indices', None)
+                if selected_indices is not None and len(selected_indices) == 0:
+                    self.finished.emit(False, "已取消")
+                    return
 
             self._download_aweme(aweme, selected_indices)
             e = int(_t.time() - _start); h, r = divmod(e, 3600); m, s = divmod(r, 60)
@@ -190,6 +220,8 @@ class SingleDownloadThread(QThread):
                 self.log.emit("[>>] 重试中...")
                 time.sleep(3)
                 continue
+            if "not_logged_in" in err or "cookie" in err.lower():
+                self.cookie_expired.emit()
             raise RuntimeError(err)
         raise RuntimeError("获取视频数据失败")
     def _download_aweme(self, aweme: dict, selected_indices: set = None):
@@ -402,10 +434,10 @@ class SinglePage(QWidget):
         self._comments_ready.connect(self._apply_comments)
         self._dl_log_signal.connect(lambda msg: self.log_view.append(msg))
         self.thread = None
-        self._auto_timer = QTimer()
+        self._auto_timer = QTimer(self)
         self._auto_timer.setSingleShot(True)
-        self._auto_timer.timeout.connect(self._start)
-        self._refresh_timer = QTimer()
+        self._auto_timer.timeout.connect(self._auto_parse)
+        self._refresh_timer = QTimer(self)
         self._refresh_timer.setInterval(3000)
         self._refresh_timer.timeout.connect(self._refresh_downloaded)
         self._refresh_timer.start()
@@ -479,7 +511,7 @@ class SinglePage(QWidget):
         clear_btn.setToolTip("清除链接")
         clear_btn.clicked.connect(self._clear_all)
         url_row.addWidget(clear_btn)
-        self.dl_btn = QPushButton("开始下载")
+        self.dl_btn = QPushButton("查看列表")
         self.dl_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.dl_btn.clicked.connect(self._start)
         self.dl_btn.setMinimumHeight(font_scale(42))
@@ -575,6 +607,8 @@ class SinglePage(QWidget):
                 QMessageBox.warning(self, "删除失败", str(e))
 
     def _refresh_downloaded(self):
+        bar = self.downloaded_list.verticalScrollBar()
+        old = bar.value()
         self.downloaded_list.clear()
         out = Path(self.path_input.text().strip()) if self.path_input.text().strip() else OUTPUT_SINGLE
         if not out.exists():
@@ -609,6 +643,7 @@ class SinglePage(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, str(d))
             self.downloaded_list.addItem(item)
             self.downloaded_list.setItemWidget(item, row)
+        bar.setValue(min(old, bar.maximum()))
 
     def _open_folder(self):
         item = self.downloaded_list.currentItem()
@@ -626,8 +661,23 @@ class SinglePage(QWidget):
             return
         self._auto_timer.start(800)
 
+    def _auto_parse(self):
+        self._cached_img_list = None
+        self._cached_aweme = None
+        self._start()
+
     def _on_gallery(self, img_list: list, evt):
-        """图集选择弹窗（秒开，缩略图异步加载）"""
+        """图集选择弹窗 / 视频预览弹窗"""
+        self._cached_img_list = img_list
+        # 单视频 → 视频预览弹窗；图集 → 图集弹窗
+        aw = getattr(self, '_cached_aweme', {}) or {}
+        is_gallery = bool(aw.get("images"))
+        if len(img_list) == 1 and not is_gallery:
+            try:
+                self._on_video_preview(img_list[0], evt)
+            except Exception:
+                evt.set()  # 兜底：出错也释放线程
+            return
         from PyQt6.QtWidgets import QDialog, QScrollArea
         from PyQt6.QtGui import QPixmap
         import requests as _req
@@ -641,15 +691,29 @@ class SinglePage(QWidget):
         layout = QVBoxLayout(dlg)
         layout.setSpacing(6)
 
-        music_cb = QCheckBox("下载BGM")
-        music_cb.setChecked(True)
-        music_cb.setStyleSheet(f"color: #F59E0B; font-size: {scaled_font(12)}px; font-weight: bold;")
-        layout.addWidget(music_cb)
-
-        top = QHBoxLayout()
+        # BGM + 全选/全不选 同行
+        top = QHBoxLayout(); top.setSpacing(8)
+        music_cb = QCheckBox()
+        music_cb.setChecked(False)
+        music_cb.setCursor(Qt.CursorShape.PointingHandCursor)
+        bgm_thumb = QLabel("🎵")
+        bgm_thumb.setFixedSize(font_scale(40), font_scale(40))
+        bgm_thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        _mu2 = "border: 1px solid #252550; border-radius: 6px; background: #12122A;"
+        _mc2 = "border: 2px solid #E11D48; border-radius: 6px; background: #1A1030;"
+        bgm_thumb.setStyleSheet(_mu2 + "font-size:18px;")
+        bgm_thumb.mousePressEvent = lambda e: music_cb.toggle()
+        music_cb.toggled.connect(lambda c: bgm_thumb.setStyleSheet(
+            (_mc2 if c else _mu2) + "font-size:18px;"))
+        top.addWidget(music_cb)
+        top.addWidget(bgm_thumb)
+        bgm_label = QLabel("下载BGM")
+        bgm_label.setStyleSheet(f"color:#F59E0B;font-size:{scaled_font(11)}px;font-weight:bold;")
+        top.addWidget(bgm_label)
+        top.addStretch()
         sa = QPushButton("全选"); sa.setObjectName("secondaryBtn")
         da = QPushButton("全不选"); da.setObjectName("secondaryBtn")
-        top.addWidget(sa); top.addWidget(da); top.addStretch()
+        top.addWidget(sa); top.addWidget(da)
         layout.addLayout(top)
 
         scroll = QScrollArea()
@@ -709,7 +773,7 @@ class SinglePage(QWidget):
             row.setSpacing(6)
             idx = im["index"]
             label = f"第{idx+1}张" + (" [实况]" if im.get("live") else "")
-            cb = QCheckBox(label); cb.setChecked(True)
+            cb = QCheckBox(label); cb.setChecked(False)
             cb.setStyleSheet(f"color: #94A3B8; font-size: {scaled_font(12)}px;")
             thumb = _ThumbLabel(str(idx + 1), cb)
             thumb.setFixedSize(thumb_sz, thumb_sz)
@@ -744,8 +808,8 @@ class SinglePage(QWidget):
         ok.setCursor(Qt.CursorShape.PointingHandCursor); bottom.addWidget(ok)
         layout.addLayout(bottom)
 
-        sa.clicked.connect(lambda: [cb[1].setChecked(True) for cb in cboxes])
-        da.clicked.connect(lambda: [cb[1].setChecked(False) for cb in cboxes])
+        sa.clicked.connect(lambda: ([cb[1].setChecked(True) for cb in cboxes], music_cb.setChecked(True)))
+        da.clicked.connect(lambda: ([cb[1].setChecked(False) for cb in cboxes], music_cb.setChecked(False)))
 
         # 后台并发加载缩略图（4 线程）
         if _thumb_labels:
@@ -811,14 +875,120 @@ class SinglePage(QWidget):
             self.thread._selected_img_indices = set()
         evt.set()
 
+    def _on_cookie_expired(self):
+        self.log_view.append(colored_log("[WARN] Cookie 已过期，请重新登录"))
+        self.status.setText("Cookie 已过期")
+        show_login_dialog(self)
+        self.dl_btn.setEnabled(True)
+        self.dl_btn.setText("查看列表")
+
+    def _on_video_preview(self, img, evt):
+        from PyQt6.QtWidgets import QDialog
+        from PyQt6.QtGui import QPixmap
+        import requests as _req
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("视频预览")
+        dlg.setStyleSheet("QDialog { background: #0A0A14; }")
+        layout = QVBoxLayout(dlg); layout.setSpacing(8)
+
+        cover_url = img.get("url", "")
+        cover = QLabel()
+        cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cover.setFixedHeight(font_scale(280))
+        cover.setStyleSheet("background: #0A0A14; border: 1px solid #252550; border-radius: 6px; color: #64748B;")
+        cover.setText("加载封面中..." if cover_url else "视频作品")
+        layout.addWidget(cover, 1)
+
+        if cover_url:
+            _cover_result = []
+            def _fetch_cover():
+                try:
+                    r = _req.get(cover_url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"},
+                               timeout=8)
+                    _cover_result.append(r.content)
+                except Exception:
+                    _cover_result.append(None)
+            threading.Thread(target=_fetch_cover, daemon=True).start()
+
+            def _poll_cover():
+                if _cover_result:
+                    data = _cover_result[0]
+                    if data and data[:2] == b'\xff\xd8':
+                        pix = QPixmap()
+                        pix.loadFromData(data)
+                        if not pix.isNull():
+                            max_w = font_scale(680); max_h = font_scale(390)
+                            if pix.width() > max_w or pix.height() > max_h:
+                                pix = pix.scaled(max_w, max_h, Qt.AspectRatioMode.KeepAspectRatio,
+                                    Qt.TransformationMode.SmoothTransformation)
+                            cover.setPixmap(pix)
+                            return
+                    cover.setText("封面加载失败")
+                else:
+                    QTimer.singleShot(200, _poll_cover)
+            QTimer.singleShot(100, _poll_cover)
+
+        # 标题
+        title = self._author_name.text() or "视频作品"
+        tl = QLabel(title); tl.setWordWrap(True)
+        tl.setStyleSheet(f"color: #F1F5F9; font-size: {scaled_font(13)}px; font-weight: bold;")
+        layout.addWidget(tl)
+
+        # 统计
+        stats = self._author_stats.text()
+        if stats:
+            sl = QLabel(stats)
+            sl.setStyleSheet(f"color: #94A3B8; font-size: {scaled_font(11)}px;")
+            layout.addWidget(sl)
+
+        layout.addStretch()
+        btn_row = QHBoxLayout(); btn_row.addStretch()
+        cancel = QPushButton("取消"); cancel.setObjectName("secondaryBtn")
+        cancel.clicked.connect(dlg.reject); btn_row.addWidget(cancel)
+        dl = QPushButton("下载选中"); dl.setCursor(Qt.CursorShape.PointingHandCursor)
+        dl.clicked.connect(lambda: (
+            setattr(self.thread, '_selected_img_indices', {0}), dlg.accept()))
+        btn_row.addWidget(dl)
+        layout.addLayout(btn_row)
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self.thread._selected_img_indices = {0}
+        else:
+            self.thread._selected_img_indices = set()
+        evt.set()
+
+    def _do_cached_download(self):
+        save_dir = self.path_input.text().strip() or str(OUTPUT_SINGLE)
+        thread = SingleDownloadThread("", save_dir, False, preview_mode=False)
+        thread._cached_aweme = self._cached_aweme
+        thread._selected_img_indices = getattr(self.thread, '_selected_img_indices', None)
+        thread.log.connect(self._log)
+        thread.progress.connect(lambda cur, total: (
+            self.progress.setMaximum(total), self.progress.setValue(cur)))
+        thread.finished.connect(self._done)
+        self.thread = thread
+        self._set_downloading(True)
+        self.dl_btn.setEnabled(False)
+        thread.start()
+
     def _clear_all(self):
-        """清除链接、作者信息和作品简介"""
         self._auto_timer.stop()
+        if hasattr(self, 'thread') and self.thread and self.thread.isRunning():
+            self.thread.quit(); self.thread.wait(2000)
         self.url_input.clear()
         self._author_avatar.hide()
         self._author_name.setText("")
         self._author_stats.setText("")
         self._aweme_desc.hide()
+        self._cached_img_list = None
+        self._cached_aweme = None
+        self._last_url = None
+        self.log_view.clear()
+        self.status.setText("")
+        self.dl_btn.setEnabled(False)
+        self.dl_btn.setText("查看列表")
+        self.progress.setVisible(False)
 
     def _show_author(self, info: dict):
         """显示作者头像、昵称、统计信息"""
@@ -876,27 +1046,27 @@ class SinglePage(QWidget):
 
     def _start(self):
         text = self.url_input.text().strip()
-        if not text:
-            return
-
+        if not text: return
         cookie = ensure_cookie(self)
-        if not cookie:
-            self.status.setText("已取消 - Cookie 未设置")
-            return
-
+        if not cookie: self.status.setText("已取消 - Cookie 未设置"); return
         save_dir = self.path_input.text().strip() or str(OUTPUT_SINGLE)
-        # 清除上一次的作者信息
+        if hasattr(self, '_cached_img_list') and self._cached_img_list:
+            evt = threading.Event()
+            self._on_gallery(self._cached_img_list, evt)
+            evt.wait(120)
+            if hasattr(self.thread, '_selected_img_indices'):
+                sel = self.thread._selected_img_indices
+                if sel is not None and len(sel) == 0: return
+                self._do_cached_download()
+            return
         self._author_avatar.hide()
         self._author_name.setText("")
         self._author_stats.setText("")
         self._aweme_desc.hide()
-        self.dl_btn.setEnabled(False)
-        self.dl_btn.setText("下载中...")
         self.progress.setVisible(True)
         self.progress.setValue(0)
         self.log_view.clear()
-
-        self.thread = SingleDownloadThread(text, save_dir, False)  # BGM 在画廊弹窗选
+        self.thread = SingleDownloadThread(text, save_dir, False, preview_mode=True)
         self.thread.log.connect(self._log)
         self.thread.progress.connect(lambda cur, total: (
             self.progress.setMaximum(total), self.progress.setValue(cur)
@@ -904,7 +1074,11 @@ class SinglePage(QWidget):
         self.thread.finished.connect(self._done)
         self.thread.author_signal.connect(self._show_author)
         self.thread.gallery_signal.connect(self._on_gallery)
+        self.thread.cache_aweme.connect(lambda aw: setattr(self, '_cached_aweme', aw))
+        self.thread.cookie_expired.connect(self._on_cookie_expired)
         self._set_downloading(True)
+        self.dl_btn.setEnabled(False)
+        self.dl_btn.setText("加载中...")
         self.thread.start()
 
     def _log(self, msg: str):
@@ -1516,7 +1690,8 @@ class SinglePage(QWidget):
         self._refresh_downloaded()
 
         self.dl_btn.setEnabled(True)
-        self.dl_btn.setText("开始下载")
+        from src.settings.store import load as _ls
+        self.dl_btn.setText("查看列表")
         self.status.setText(msg)
         w = self.window()
         if ok and hasattr(w, "tray_notify"):
