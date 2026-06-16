@@ -1537,7 +1537,7 @@ class BatchPage(QWidget):
                 gal_cb.setChecked(checked)
                 img_lay.addWidget(gal_cb)
                 img_cbs = []  # 子勾选框列表
-                for j, img in enumerate(images[:8]):
+                for j, img in enumerate(images):
                     img_id = f"{aweme_id}:{j}"
                     col = QVBoxLayout()
                     col.setSpacing(2)

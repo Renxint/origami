@@ -643,7 +643,7 @@ class SinglePage(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, str(d))
             self.downloaded_list.addItem(item)
             self.downloaded_list.setItemWidget(item, row)
-        bar.setValue(min(old, bar.maximum()))
+        QTimer.singleShot(0, lambda: bar.setValue(min(old, bar.maximum())))
 
     def _open_folder(self):
         item = self.downloaded_list.currentItem()
