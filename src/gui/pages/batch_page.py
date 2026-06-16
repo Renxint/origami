@@ -352,15 +352,16 @@ class BatchDownloadThread(QThread):
                                 iv = img.get("video") or {}
                                 if img.get("live_photo_type") != 1 or not iv:
                                     continue
-                                # 实况封面
-                                for _ck in ("cover", "origin_cover"):
-                                    _c = iv.get(_ck) or {}
-                                    _cu = (_c.get("url_list") or [""])[0]
-                                    if _cu:
-                                        self._dl_or_batch(_batch_tasks, _cu, save_root / f"{pos}{j+1}_封面.jpg")
-                                        stats["image"] += 1
-                                        downloaded = True
-                                        break
+                                # 静态图（不用封面）
+                                urls = img.get("url_list", [])
+                                img_url = next(
+                                    (u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()),
+                                    urls[0] if urls else ""
+                                )
+                                if img_url:
+                                    self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
+                                    stats["image"] += 1
+                                    downloaded = True
                                 # 实况视频
                                 lv = pick_best_video_url(iv) or ""
                                 if not lv:
@@ -394,16 +395,9 @@ class BatchDownloadThread(QThread):
                                 self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
                                 stats["image"] += 1
                                 downloaded = True
-                            # 图集中混入的实况照片 → 额外下载视频
+                            # 图集中混入的实况照片 → 只需额外下载视频（静态图已在上方下载）
                             iv = img.get("video") or {}
                             if img.get("live_photo_type") == 1 and iv:
-                                for _ck in ("cover", "origin_cover"):
-                                    _c = iv.get(_ck) or {}
-                                    _cu = (_c.get("url_list") or [""])[0]
-                                    if _cu:
-                                        self._dl_or_batch(_batch_tasks, _cu, save_root / f"{pos}{j+1}_封面.jpg")
-                                        stats["image"] += 1
-                                        break
                                 lv = pick_best_video_url(iv) or ""
                                 if not lv:
                                     lv = ((iv.get("download_addr") or {}).get("url_list") or [""])[0]
