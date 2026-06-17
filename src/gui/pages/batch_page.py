@@ -264,6 +264,16 @@ class BatchDownloadThread(QThread):
 
                 aweme = item.extra.get("aweme", {})
                 aweme_id = item.item_id
+                # 通过 sign-server 获取无水印详情（失败则用翻页数据兜底）
+                try:
+                    from src.webview_api import call_server
+                    fresh = call_server('video', aweme_id=aweme_id)
+                    if "_error" not in fresh:
+                        fresh_aweme = fresh.get("aweme_detail", {})
+                        if fresh_aweme:
+                            aweme = fresh_aweme
+                except Exception:
+                    pass
                 desc = clean_name(item.title or aweme_id)
                 short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
                 _oi = item.extra.get("_orig_idx", i)
@@ -1773,7 +1783,7 @@ class BatchPage(QWidget):
                 cur_count = len(all_items)
                 if cur_count > _last_count:
                     for aw in all_items[_last_count:]:
-                        _append_item(aw, True)
+                        _append_item(aw, False)
                     cnt.setText(f"共 {cur_count} 个作品")
                     _last_count = cur_count
                     # 新缩略图加入队列 → 启动新线程加载
