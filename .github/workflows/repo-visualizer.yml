@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   visualize:
     runs-on: ubuntu-latest
@@ -14,3 +17,13 @@ jobs:
         with:
           output_file: "diagram.svg"
           excluded_paths: "node_modules,.git,output,build,dist"
+          should_push: true
+      - name: Auto-commit diagram
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -f "diagram.svg" ]; then
+            git add diagram.svg
+            git diff --cached --quiet || git commit -m "[bot] 更新代码地图"
+            git push
+          fi
