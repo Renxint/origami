@@ -685,6 +685,8 @@ class MainWindow(QMainWindow):
 
     def _real_quit(self):
         from src.settings.store import set as store_set
+        import src.environ
+        src.environ.APP_SHUTTING_DOWN = True  # 抑制后台线程报错
         try:
             geo_hex = self.saveGeometry().toHex().data().decode()
             store_set("geometry", {"geo": geo_hex})
@@ -697,6 +699,9 @@ class MainWindow(QMainWindow):
                 _instance_socket.close()
         except Exception:
             pass
+        # 杀掉 sign-server，防止僵尸进程
+        from src.webview_api import stop_server
+        stop_server()
         QApplication.quit()
         # 兜底：如果 quit() 被阻止则强制退出
         QTimer.singleShot(500, lambda: __import__("os")._exit(0))
