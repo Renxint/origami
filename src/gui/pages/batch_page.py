@@ -2456,9 +2456,9 @@ class BatchPage(QWidget):
             return
         for d in sorted(path.iterdir(), key=lambda p: p.stat().st_mtime):
             if d.is_dir():
-                tracker = d / ".downloaded.json"
+                tracker = next(d.rglob(".downloaded.json"), None)
                 count = 0
-                if tracker.exists():
+                if tracker:
                     try:
                         count = len(json.loads(tracker.read_text(encoding="utf-8")))
                     except Exception:
@@ -2482,9 +2482,9 @@ class BatchPage(QWidget):
             return
         for d in sorted(path.iterdir(), key=lambda p: p.stat().st_mtime):
             if d.is_dir():
-                tracker = d / ".downloaded.json"
+                tracker = next(d.rglob(".downloaded.json"), None)
                 count = 0
-                if tracker.exists():
+                if tracker:
                     try:
                         count = len(json.loads(tracker.read_text(encoding="utf-8")))
                     except Exception:

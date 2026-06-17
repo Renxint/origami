@@ -242,7 +242,7 @@ class SingleDownloadThread(QThread):
 
         # 计算总任务数
         total = 0
-        if video and pick_best_video_url(video): total += 1
+        if video and not images and pick_best_video_url(video): total += 1
         if images and not (selected_indices is not None and len(selected_indices) == 0):
             for j, img in enumerate(images):
                 if selected_indices is not None and j not in selected_indices: continue
