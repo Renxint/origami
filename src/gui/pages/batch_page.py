@@ -1654,10 +1654,28 @@ class BatchPage(QWidget):
                 if thumb_url:
                     _thumb_queue.append((v_thumb, thumb_url, icon_sz))
 
-        for aw in all_items:
-            aweme_id = aw.get('aweme_id', '')
-            checked = aweme_id in selected_ids
-            _append_item(aw, checked)
+        # 分批加载列表，避免一次性创建大量 widget 阻塞主线程
+        _batch_idx = [0]
+        _batch_size = 12
+
+        def _load_batch():
+            end = min(_batch_idx[0] + _batch_size, len(all_items))
+            lst.setUpdatesEnabled(False)
+            for i in range(_batch_idx[0], end):
+                aw = all_items[i]
+                checked = aw.get('aweme_id', '') in selected_ids
+                _append_item(aw, checked)
+            lst.setUpdatesEnabled(True)
+            _batch_idx[0] = end
+            if _batch_idx[0] < len(all_items):
+                QTimer.singleShot(15, _load_batch)
+            else:
+                # 全部加载完毕 → 启动缩略图 + 实时轮询
+                _start_thumb_loading()
+                if live:
+                    QTimer.singleShot(600, _poll_live)
+
+        QTimer.singleShot(0, _load_batch)
 
         layout.addWidget(lst, 1)
 
@@ -1719,55 +1737,56 @@ class BatchPage(QWidget):
             QTimer.singleShot(100, on_confirm or self._start_selected_download)
         dl_btn.clicked.connect(_confirm)
 
-        # 异步加载缩略图（4 线程并发，不按顺序排队）
-        if _thumb_queue:
-            import queue as qu
-            from concurrent.futures import ThreadPoolExecutor
-            _results = qu.Queue()
-            _done = [False]
-            _pending = [len(_thumb_queue)]
+        # 异步加载缩略图 — 等分批加载完成后由 _load_batch 回调触发
+        def _start_thumb_loading():
+            if _thumb_queue:
+                import queue as qu
+                from concurrent.futures import ThreadPoolExecutor
+                _results = qu.Queue()
+                _done = [False]
+                _pending = [len(_thumb_queue)]
 
-            def _fetch_one(target, url, sz):
-                if _done[0]:
-                    return
-                try:
-                    r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
-                    pix = QPixmap(); pix.loadFromData(r.content)
-                    _results.put((target, pix, sz))
-                except Exception:
-                    pass
-                finally:
-                    _pending[0] -= 1
+                def _fetch_one(target, url, sz):
+                    if _done[0]:
+                        return
+                    try:
+                        r = _req.get(url, headers={"User-Agent": USER_AGENT, "Referer": "https://www.douyin.com/"}, timeout=10)
+                        pix = QPixmap(); pix.loadFromData(r.content)
+                        _results.put((target, pix, sz))
+                    except Exception:
+                        pass
+                    finally:
+                        _pending[0] -= 1
 
-            from src.settings.store import load as _load_stg
-            _workers = 20 if _load_stg().get("high_speed", False) else 6
-            _pool = ThreadPoolExecutor(max_workers=_workers)
-            for target, url, sz in _thumb_queue:
-                _pool.submit(_fetch_one, target, url, sz)
+                from src.settings.store import load as _load_stg
+                _workers = 20 if _load_stg().get("high_speed", False) else 6
+                _pool = ThreadPoolExecutor(max_workers=_workers)
+                for target, url, sz in _thumb_queue:
+                    _pool.submit(_fetch_one, target, url, sz)
 
-            def _poll():
-                if _done[0]:
-                    return
-                try:
-                    while True:
-                        target, pix, sz = _results.get_nowait()
-                        if dlg.isVisible():
-                            sp = pix.scaled(sz, sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                            if isinstance(target, QListWidgetItem):
-                                target.setIcon(QIcon(sp))
-                            else:
-                                target.setPixmap(sp)
-                                target.setText("")
-                except qu.Empty:
-                    if _pending[0] > 0 and not _done[0]:
-                        QTimer.singleShot(80, _poll)
-                    else:
+                def _poll():
+                    if _done[0]:
+                        return
+                    try:
+                        while True:
+                            target, pix, sz = _results.get_nowait()
+                            if dlg.isVisible():
+                                sp = pix.scaled(sz, sz, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                                if isinstance(target, QListWidgetItem):
+                                    target.setIcon(QIcon(sp))
+                                else:
+                                    target.setPixmap(sp)
+                                    target.setText("")
+                    except qu.Empty:
+                        if _pending[0] > 0 and not _done[0]:
+                            QTimer.singleShot(80, _poll)
+                        else:
+                            _pool.shutdown(wait=False)
+                    except (KeyboardInterrupt, Exception):
+                        _done[0] = True
                         _pool.shutdown(wait=False)
-                except (KeyboardInterrupt, Exception):
-                    _done[0] = True
-                    _pool.shutdown(wait=False)
-            QTimer.singleShot(50, _poll)
-            dlg.finished.connect(lambda: _done.__setitem__(0, True))
+                QTimer.singleShot(50, _poll)
+                dlg.finished.connect(lambda: _done.__setitem__(0, True))
 
         if live:
             # 非模态：轮询列表，实时追加新条目 + 加载缩略图
@@ -1809,7 +1828,7 @@ class BatchPage(QWidget):
                         _new_thread = threading.Thread(target=_new_worker, daemon=True)
                         _new_thread.start(); QTimer.singleShot(50, _new_poll)
                 QTimer.singleShot(600, _poll_live)
-            QTimer.singleShot(600, _poll_live)
+            # _poll_live 由 _load_batch 完成后自动启动
             dlg.setModal(False)
             dlg.show()
         else:
