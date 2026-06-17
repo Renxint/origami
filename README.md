@@ -25,6 +25,7 @@
   <img src="https://img.shields.io/github/downloads/Renxint/origami/total" alt="Downloads">
   <img src="https://img.shields.io/github/repo-size/Renxint/origami" alt="Repo Size">
   <img src="https://img.shields.io/github/last-commit/Renxint/origami" alt="Last Commit">
+  <img src="https://www.codefactor.io/repository/github/renxint/origami/badge" alt="CodeFactor">
 </p>
 
 <p align="center">
