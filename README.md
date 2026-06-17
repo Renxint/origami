@@ -6,7 +6,7 @@
 
 **Windows 端多平台内容管理工具 · 插件式架构 · 纯本地运行**
 
-![visitors](https://count.getloli.com/get/@origami?theme=rule34)
+![visitors](https://count.getloli.com/get/@origami?theme=booru-lewd)
 
 </div>
 
