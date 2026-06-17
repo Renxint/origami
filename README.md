@@ -4,9 +4,7 @@
 
 # Origami · 折你所爱，存你所想
 
-**Windows 端多平台内容下载工具 · 纯 Python 打造 · 界面优雅**
-
-抖音单视频 / 图集 / 实况照片 / 主页批量下载 · 即将支持 B站、微博
+**Windows 端多平台内容管理工具 · 插件式架构 · 纯本地运行**
 
 ![visitors](https://count.getloli.com/get/@origami?theme=rule34)
 
@@ -21,7 +19,6 @@
   <img src="https://img.shields.io/github/downloads/Renxint/origami/total" alt="Downloads">
 </p>
 
-<!-- TODO: 替换为实际演示 GIF -->
 <div align="center">
   <img src="https://raw.githubusercontent.com/Renxint/origami/main/docs/demo.gif" alt="Origami Demo" width="700">
 </div>
@@ -34,22 +31,40 @@
 
 ---
 
-## ✨ 为什么选择 Origami？
+## ✨ 亮点
 
-| 🚀 极速下载 | 🎨 优雅界面 | 🛡️ 安全可靠 |
+| 🧩 插件式架构 | 🎨 原生桌面体验 | 🛡️ 纯本地 · 无数据收集 |
 |:---:|:---:|:---:|
-| Puppeteer 智能反爬 | PyQt6 现代 UI | MIT 开源 |
-| 支持多任务并发 | 托盘最小化 | 无数据收集 · 本地运行 |
-| 仅 132MB 安装包 | 暗色/亮色主题 | SignPath 代码签名 |
+| PlatformAdapter 设计模式 | PyQt6 深色/亮色主题 | 所有数据留在你的电脑上 |
+| 新平台三步入驻 | 托盘运行 · 快捷键 · 单实例 | SignPath 代码签名 · MIT 开源 |
 
-> 💡 不需要在手机上操作，不需要抓包，登录后粘贴链接即可下载。支持抖音视频、图集、实况照片，正在扩展 B站和微博。
+> 💡 Origami 是一个**多平台内容管理桌面应用**，采用插件式架构。当前支持多个内容平台的内容获取与本地归档。本项目也是 Python 桌面应用开发与网络协议逆向的**学习实践**。
 
 ---
 
-## 📥 下载安装
+## 🏗️ 技术架构
 
-| 方式 | 命令 / 链接 |
-|------|------------|
+```
+src/platforms/          ← 插件式平台适配器（策略模式 + 注册表）
+  ├── base.py           ← PlatformAdapter 抽象基类（接口契约）
+  ├── douyin.py         ← 平台适配器实现
+  └── __init__.py       ← 全局注册表，新平台一行 import 即可接入
+
+sign-server/            ← Node.js 签名与反爬服务（独立进程）
+src/gui/                ← PyQt6 原生桌面界面
+src/webview_api.py      ← Puppeteer 自动化引擎
+```
+
+**核心技术栈：** Python 3.12 · PyQt6 · Node.js · Puppeteer · requests
+
+**工程化：** Inno Setup 安装器 · SignPath 代码签名 · 单实例检测 · 自动更新
+
+---
+
+## 📥 安装
+
+| 方式 | 链接 |
+|------|------|
 | **安装包（推荐）** | [📦 下载 Origami_v0.6.0_setup.exe](https://github.com/Renxint/origami/releases/latest) |
 | **免安装版** | [📁 下载便携版](https://github.com/Renxint/origami/releases) |
 
@@ -64,32 +79,31 @@
 
 ### 登录
 
-1. 启动后点击首页「抖音」卡片
+1. 启动后点击首页平台卡片
 2. 点击右上角「点击登录 →」
-3. 在弹出的浏览器中扫码登录抖音
-4. 登录成功后自动返回，右上角显示头像和昵称
+3. 在弹出的浏览器中扫码登录
+4. 登录成功后自动返回，显示头像和昵称
 
-### 单个作品下载
+### 单个作品
 
-1. 首页 → 抖音 → 单个作品下载
-2. 粘贴抖音分享链接或口令
-3. 点击「开始下载」
-4. 图集作品会弹出选择框，可勾选要下载的图片
-5. 下载完成后右键列表可打开文件夹
+1. 首页 → 选择平台 → 单个作品
+2. 粘贴分享链接或口令
+3. 点击「开始」
+4. 图集作品可选择要保存的图片
+5. 完成后可打开所在文件夹
 
-### 批量下载他人主页
+### 批量归档
 
-1. 首页 → 抖音 → 批量作品下载
-2. 切换到「下载他人」标签
-3. 粘贴用户主页链接
-4. 选择数量，点击「开始下载」
-5. 支持暂停 / 取消
+1. 首页 → 选择平台 → 批量
+2. 粘贴主页链接
+3. 选择数量，点击「开始」
+4. 支持暂停 / 取消
 
-### 下载自己主页
+### 个人主页
 
-1. 批量作品下载页 → 切换到「自己」标签
+1. 批量页 → 切换到「自己」标签
 2. 登录后自动加载账号信息和作品统计
-3. 点击「查看列表」→ 勾选要下载的作品 → 开始下载
+3. 点击「查看列表」→ 勾选 → 开始
 
 ---
 
@@ -109,9 +123,9 @@
 ### 环境要求
 
 - Python 3.12+
-- Node.js（用于 Puppeteer API 代理）
+- Node.js（用于签名服务）
 
-### 安装运行
+### 启动
 
 ```bash
 git clone https://github.com/Renxint/origami.git
@@ -129,6 +143,18 @@ python main.py
 
 ---
 
+## 🔌 新增平台
+
+三步接入新平台：
+
+1. 创建 `src/platforms/newplatform.py`
+2. 继承 `PlatformAdapter`，实现 `resolve_url` / `fetch_media` / `fetch_author` / `fetch_posts`
+3. 在文件末尾调用 `register_platform(NewPlatformAdapter)`
+
+GUI 自动识别所有已注册平台，无需修改界面代码。
+
+---
+
 ## 📁 项目结构
 
 ```
@@ -137,40 +163,32 @@ Origami/
 ├── src/
 │   ├── environ.py       # 环境路径
 │   ├── config.py        # 全局配置
-│   ├── api.py           # 抖音 HTTP API
+│   ├── api.py           # HTTP API 客户端
 │   ├── cookie.py        # Cookie 管理
-│   ├── downloader.py    # 通用下载器
+│   ├── downloader.py    # 通用下载引擎
 │   ├── utils.py         # 工具函数
-│   ├── webview_api.py   # Puppeteer API 代理
+│   ├── webview_api.py   # Puppeteer 自动化
 │   ├── settings/        # 配置管理
-│   ├── platforms/       # 平台适配器
+│   ├── platforms/       # 平台适配器（插件式架构）
 │   └── gui/             # PyQt6 界面
-├── sign-server/         # Node.js 服务
+├── sign-server/         # Node.js 签名服务
 ├── translations/        # Qt 中文翻译
 └── src/gui/assets/      # 图标 / 字体
 ```
 
 ---
 
-## 🔌 新增平台
-
-三步接入新平台：
-
-1. 创建 `src/platforms/bilibili.py`
-2. 继承 `PlatformAdapter`，实现 `resolve_url` / `fetch_media` / `fetch_author` / `fetch_posts`
-3. 末尾调用 `register_platform(BilibiliAdapter)`
-
----
-
-## 🧰 技术栈
-
-Python 3.12 · PyQt6 · Node.js · Puppeteer · requests
-
----
-
 ## 🙏 致谢
 
 - 代码签名由 [SignPath.io](https://signpath.io) 免费提供，证书由 [SignPath Foundation](https://signpath.org/) 颁发
+
+---
+
+## ⚠️ 声明
+
+本项目为 Python 桌面应用开发与网络协议学习的**实践项目**，源代码仅用于个人研究。
+
+请遵守各平台服务条款，在授权范围内使用。使用者自行承担所有责任。
 
 ---
 
