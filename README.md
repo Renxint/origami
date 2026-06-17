@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://github.com/Renxint/origami">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=timeAuto&height=160&section=header&text=Origami%20%C2%B7%20%E6%8A%98%E4%BD%A0%E6%89%80%E7%88%B1&fontSize=45&fontAlignY=35" width="100%" alt="Origami">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30,25,20,15,10&height=160&section=header&text=Origami%20%C2%B7%20%E6%8A%98%E4%BD%A0%E6%89%80%E7%88%B1&fontSize=45&fontAlignY=35" width="100%" alt="Origami">
 </a>
 
 <p align="center">
@@ -244,7 +244,7 @@ MIT License — © 2026 Renxint
 
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=timeAuto&height=100&section=footer&text=&fontSize=0" width="100%">
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30,25,20,15,10&height=100&section=footer&text=&fontSize=0" width="100%">
 
 Made with ❤️ by [Renxint](https://github.com/Renxint)
 
