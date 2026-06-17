@@ -17,6 +17,14 @@
   <img src="https://img.shields.io/badge/version-0.6.0-E11D48" alt="Version">
   <img src="https://img.shields.io/github/stars/Renxint/origami?style=flat" alt="Stars">
   <img src="https://img.shields.io/github/downloads/Renxint/origami/total" alt="Downloads">
+  <img src="https://img.shields.io/github/repo-size/Renxint/origami" alt="Repo Size">
+  <img src="https://img.shields.io/github/last-commit/Renxint/origami" alt="Last Commit">
+</p>
+
+<p align="center">
+  <a href="https://github.com/Renxint/origami">
+    <img src="https://skillicons.dev/icons?i=py,qt,nodejs,js,html,css,bash,git,github,githubactions" alt="Tech Stack">
+  </a>
 </p>
 
 <div align="center">
@@ -197,6 +205,16 @@ Origami/
 <a href="https://github.com/Renxint/origami/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Renxint/origami" />
 </a>
+
+---
+
+## 📊 项目活跃度
+
+<p align="center">
+  <a href="https://github.com/Renxint/origami">
+    <img src="https://github-readme-activity-graph.vercel.app/graph?username=Renxint&repo=origami&theme=react-dark&hide_border=true" alt="Activity Graph" width="100%">
+  </a>
+</p>
 
 ---
 
