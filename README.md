@@ -1,11 +1,14 @@
 <div align="center">
 
 <a href="https://github.com/Renxint/origami">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30&height=220&section=header&text=Origami%20%C2%B7%20%E6%8A%98%E4%BD%A0%E6%89%80%E7%88%B1&fontSize=48&fontAlignY=30" width="100%" alt="Origami">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30&height=160&section=header&text=Origami%20%C2%B7%20%E6%8A%98%E4%BD%A0%E6%89%80%E7%88%B1&fontSize=45&fontAlignY=35" width="100%" alt="Origami">
 </a>
+
+<p align="center">
   <a href="https://github.com/Renxint/origami">
-    <img src="https://readme-typing-svg.demolab.com?font=Noto+Sans+SC&weight=600&size=18&duration=3500&pause=1000&color=20BDFF&center=true&vCenter=true&width=500&lines=%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;PyQt6+%2B+Puppeteer+%2B+Node.js;%E6%96%B0%E5%B9%B3%E5%8F%B0%E4%B8%89%E6%AD%A5%E5%85%A5%E9%A9%BB" alt="Typing SVG">
+    <img src="https://readme-typing-svg.demolab.com?font=Noto+Sans+SC&weight=600&size=22&duration=3500&pause=1000&color=20BDFF&center=true&vCenter=true&width=500&lines=%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;PyQt6+%2B+Puppeteer+%2B+Node.js;%E6%96%B0%E5%B9%B3%E5%8F%B0%E4%B8%89%E6%AD%A5%E5%85%A5%E9%A9%BB" alt="Typing SVG">
   </a>
+</p>
 
 <img src="logo.png" alt="Origami" width="140">
 
