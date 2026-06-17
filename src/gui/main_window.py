@@ -702,9 +702,10 @@ class MainWindow(QMainWindow):
         # 杀掉 sign-server，防止僵尸进程
         from src.webview_api import stop_server
         stop_server()
+        QApplication.processEvents()
         QApplication.quit()
         # 兜底：如果 quit() 被阻止则强制退出
-        QTimer.singleShot(500, lambda: __import__("os")._exit(0))
+        QTimer.singleShot(200, lambda: __import__("os")._exit(0))
 
     def tray_notify(self, title: str, msg: str,
                     icon=QSystemTrayIcon.MessageIcon.Information,

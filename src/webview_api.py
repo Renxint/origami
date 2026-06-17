@@ -140,8 +140,9 @@ def start_server():
 
 
 def stop_server():
-    """关闭常驻服务（快速杀）"""
+    """关闭常驻服务（快速杀，未启动则秒退）"""
     global _server_process
+    was_running = False
     with _server_lock:
         if _server_process:
             try:
@@ -149,6 +150,9 @@ def stop_server():
             except Exception:
                 pass
             _server_process = None
+            was_running = True
+    if not was_running:
+        return  # 没启动过，跳过端口扫描
     # 兜底：按端口杀残留（用 DEVNULL 免 capture_output 的线程在 atexit 卡死）
     try:
         subprocess.run(
