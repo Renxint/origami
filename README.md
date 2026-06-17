@@ -226,6 +226,17 @@ Origami/
 
 ---
 
+## 📊 仓库总览
+
+<p align="center">
+  <a href="https://github.com/Renxint/origami">
+    <img src="https://github-readme-stats.vercel.app/api/pin/?username=Renxint&repo=origami&theme=tokyo-night&hide_border=true" alt="Repo Card" />
+    <img src="https://github-readme-stats.vercel.app/api?username=Renxint&show_icons=true&theme=tokyo-night&hide_border=true&include_all_commits=true&count_private=true&hide=stars,contribs" alt="Stats" />
+  </a>
+</p>
+
+---
+
 ## 📊 项目活跃度
 
 <p align="center">
