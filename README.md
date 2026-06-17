@@ -196,6 +196,14 @@ Origami/
 
 ---
 
+## 🗺️ 代码地图
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Renxint/origami/main/diagram.svg" alt="Repo Visualizer" width="100%">
+</p>
+
+---
+
 ## 🙏 致谢
 
 - 代码签名由 [SignPath.io](https://signpath.io) 免费提供，证书由 [SignPath Foundation](https://signpath.org/) 颁发
