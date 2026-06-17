@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://github.com/Renxint/origami">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30,25,20,15,10&height=160&section=header&text=Origami%20%C2%B7%20%E6%8A%98%E4%BD%A0%E6%89%80%E7%88%B1&fontSize=48&fontAlignY=35" width="100%" alt="Origami">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30,25,20,15,10&height=180&section=header&text=Origami%20%C2%B7%20%E6%8A%98%E4%BD%A0%E6%89%80%E7%88%B1&fontSize=56&fontAlignY=35" width="100%" alt="Origami">
 </a>
 
 <p align="center">
@@ -10,7 +10,7 @@
   </a>
 </p>
 
-<img src="logo.png" alt="Origami" width="120">
+<img src="logo.png" alt="Origami" width="140">
 
 ![visitors](https://count.getloli.com/get/@origami?theme=booru-lewd)
 
