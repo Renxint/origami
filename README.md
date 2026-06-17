@@ -218,7 +218,7 @@ Origami/
 
 <p align="center">
   <a href="https://github.com/Renxint/origami">
-    <img src="https://github-readme-activity-graph.vercel.app/graph?username=Renxint&repo=origami&theme=react-dark&hide_border=true" alt="Activity Graph" width="100%">
+    <img src="https://github-readme-activity-graph.vercel.app/graph?username=Renxint&repo=origami&theme=tokyo-night&hide_border=true" alt="Activity Graph" width="100%">
   </a>
 </p>
 
