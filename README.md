@@ -25,7 +25,10 @@
   <img src="https://img.shields.io/github/downloads/Renxint/origami/total" alt="Downloads">
   <img src="https://img.shields.io/github/repo-size/Renxint/origami" alt="Repo Size">
   <img src="https://img.shields.io/github/last-commit/Renxint/origami" alt="Last Commit">
-  <img src="https://www.codefactor.io/repository/github/renxint/origami/badge" alt="CodeFactor">
+    <img src="https://www.codefactor.io/repository/github/renxint/origami/badge" alt="CodeFactor">
+  <img src="https://img.shields.io/tokei/lines/github/Renxint/origami" alt="Lines of Code">
+  <img src="https://img.shields.io/github/issues/Renxint/origami" alt="Issues">
+  <img src="https://img.shields.io/github/issues-closed/Renxint/origami" alt="Issues Closed">
 </p>
 
 <p align="center">
