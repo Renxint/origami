@@ -1658,8 +1658,11 @@ class BatchPage(QWidget):
         _batch_idx = [0]
         _batch_size = 12
 
+        _aborted = [False]  # Python 标志，避免访问已销毁的 C++ widget
+        dlg.finished.connect(lambda: _aborted.__setitem__(0, True))
+
         def _load_batch():
-            if not dlg.isVisible():  # 用户取消后跳过，防 C++ 层崩溃
+            if _aborted[0]:  # 弹窗关闭后立即停止，不碰 C++ 对象
                 return
             end = min(_batch_idx[0] + _batch_size, len(all_items))
             lst.setUpdatesEnabled(False)
