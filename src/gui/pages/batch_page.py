@@ -1659,6 +1659,8 @@ class BatchPage(QWidget):
         _batch_size = 12
 
         def _load_batch():
+            if not dlg.isVisible():  # 用户取消后跳过，防 C++ 层崩溃
+                return
             end = min(_batch_idx[0] + _batch_size, len(all_items))
             lst.setUpdatesEnabled(False)
             for i in range(_batch_idx[0], end):
