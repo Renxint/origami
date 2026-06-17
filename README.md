@@ -4,9 +4,15 @@
 
 # Origami · 折你所爱，存你所想
 
-**Windows 端多平台内容管理工具 · 插件式架构 · 纯本地运行**
+<p align="center">
+  <a href="https://github.com/Renxint/origami">
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=3000&pause=1000&color=E11D48&center=true&vCenter=true&width=500&lines=Windows+%E7%AB%AF%E5%A4%9A%E5%B9%B3%E5%8F%B0%E5%86%85%E5%AE%B9%E7%AE%A1%E7%90%86%E5%B7%A5%E5%85%B7;%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;PyQt6+%2B+Puppeteer+%2B+Node.js" alt="Typing SVG">
+  </a>
+</p>
 
 ![visitors](https://count.getloli.com/get/@origami?theme=booru-lewd)
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30,25,20,15,10&height=120&section=header&text=&fontSize=0" width="100%">
 
 </div>
 
@@ -237,6 +243,8 @@ MIT License — © 2026 Renxint
 ---
 
 <div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30,25,20,15,10&height=100&section=footer&text=&fontSize=0" width="100%">
 
 Made with ❤️ by [Renxint](https://github.com/Renxint)
 
