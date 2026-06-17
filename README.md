@@ -236,6 +236,14 @@ Origami/
 
 ---
 
+## 🐍 提交贪吃蛇
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Renxint/origami/snake/snake-dark.svg" alt="Snake Game" width="100%">
+</p>
+
+---
+
 ## ⭐ Star History
 
 <a href="https://www.star-history.com/#Renxint/origami&Date">
