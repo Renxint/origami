@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/Renxint/origami">
-    <img src="https://readme-typing-svg.demolab.com?font=Noto+Sans+SC&weight=600&size=22&duration=3500&pause=1000&color=30E0D0&center=true&vCenter=true&width=500&lines=%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;PyQt6+%2B+Puppeteer+%2B+Node.js;%E6%96%B0%E5%B9%B3%E5%8F%B0%E4%B8%89%E6%AD%A5%E5%85%A5%E9%A9%BB" alt="Typing SVG">
+    <img src="https://readme-typing-svg.demolab.com?font=Noto+Sans+SC&weight=600&size=22&duration=3500&pause=1000&color=20BDFF&center=true&vCenter=true&width=500&lines=%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;PyQt6+%2B+Puppeteer+%2B+Node.js;%E6%96%B0%E5%B9%B3%E5%8F%B0%E4%B8%89%E6%AD%A5%E5%85%A5%E9%A9%BB" alt="Typing SVG">
   </a>
 </p>
 
