@@ -230,7 +230,7 @@ Origami/
 
 <p align="center">
   <a href="https://github.com/Renxint/origami">
-    <img src="https://github-readme-stats.vercel.app/api/pin/?username=Renxint&repo=origami&theme=tokyo-night&hide_border=true&show_owner=true" alt="Repo Card">
+    <img src="https://gh-stats.com/api/pin/?username=Renxint&repo=origami&theme=tokyo-night&hide_border=true&show_owner=true" alt="Repo Card">
   </a>
 </p>
 
