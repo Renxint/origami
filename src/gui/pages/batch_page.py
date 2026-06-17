@@ -343,8 +343,7 @@ class BatchDownloadThread(QThread):
                             for j, img in enumerate(images):
                                 if img_filter is not None and j not in img_filter:
                                     continue
-                                _durls = img.get("download_url_list") or []
-                                urls = _durls if _durls else img.get("url_list", [])
+                                urls = img.get("url_list", [])
                                 img_url = urls[-1] if urls else ""
                                 if img_url:
                                     self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
@@ -361,8 +360,7 @@ class BatchDownloadThread(QThread):
                                 iv = img.get("video") or {}
                                 is_live_img = img.get("live_photo_type") == 1 and iv
                                 # 静态图（不用封面）
-                                _durls = img.get("download_url_list") or []
-                                urls = _durls if _durls else img.get("url_list", [])
+                                urls = img.get("url_list", [])
                                 img_url = urls[-1] if urls else ""
                                 if img_url:
                                     self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
@@ -393,9 +391,8 @@ class BatchDownloadThread(QThread):
                         for j, img in enumerate(images):
                             if img_filter is not None and j not in img_filter:
                                 continue
-                            # 静态图（download_url_list 无压缩参数，优先）
-                            _durls = img.get("download_url_list") or []
-                            urls = _durls if _durls else img.get("url_list", [])
+                            # 静态图（取url_list最后一张，最高画质）
+                            urls = img.get("url_list", [])
                             img_url = urls[-1] if urls else ""
                             if img_url:
                                 self._dl_or_batch(_batch_tasks, img_url, save_root / f"{pos}{j+1}.jpg")
