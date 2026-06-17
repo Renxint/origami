@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.12+-green?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-red" alt="License">
-  <img src="https://img.shields.io/badge/version-0.6.0-E11D48" alt="Version">
+  <img src="https://img.shields.io/github/v/release/Renxint/origami?color=E11D48" alt="Version">
   <img src="https://img.shields.io/github/stars/Renxint/origami?style=flat" alt="Stars">
   <img src="https://img.shields.io/github/downloads/Renxint/origami/total" alt="Downloads">
   <img src="https://img.shields.io/github/repo-size/Renxint/origami" alt="Repo Size">
