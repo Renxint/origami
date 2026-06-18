@@ -291,6 +291,8 @@ MIT License — © 2026 Renxint
 
 Made with ❤️ by [Renxint](https://github.com/Renxint)
 
+</div>
+
 ---
 
 > [!CAUTION]
@@ -299,5 +301,3 @@ Made with ❤️ by [Renxint](https://github.com/Renxint)
 > 请遵守各平台服务条款，在授权范围内使用。
 >
 > 使用者自行承担所有责任。
-
-</div>
