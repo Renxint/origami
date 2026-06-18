@@ -287,9 +287,7 @@ MIT License — © 2026 Renxint
 
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30&height=100&section=footer&text=&fontSize=0" width="100%">
-
-Made with ❤️ by [Renxint](https://github.com/Renxint)
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30&height=120&section=footer&text=Made%20with%20%E2%9D%A4%EF%B8%8F%20by%20Renxint&fontSize=16&fontAlignY=70" width="100%">
 
 </div>
 
