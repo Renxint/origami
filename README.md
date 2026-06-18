@@ -241,14 +241,6 @@ Origami/
 
 ---
 
-## ⚠️ 声明
-
-本项目为 Python 桌面应用开发与网络协议学习的**实践项目**，源代码仅用于个人研究。
-
-请遵守各平台服务条款，在授权范围内使用。使用者自行承担所有责任。
-
----
-
 ## 👥 贡献者
 
 <a href="https://github.com/Renxint/origami/graphs/contributors">
@@ -298,5 +290,15 @@ MIT License — © 2026 Renxint
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=30&height=100&section=footer&text=&fontSize=0" width="100%">
 
 Made with ❤️ by [Renxint](https://github.com/Renxint)
+
+---
+
+### ⚠️ 声明
+
+> **本项目为 Python 桌面应用开发与网络协议学习的实践项目**，源代码仅用于个人研究。
+>
+> 请遵守各平台服务条款，在授权范围内使用。
+>
+> 使用者自行承担所有责任。
 
 </div>
