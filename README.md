@@ -293,8 +293,7 @@ Made with ❤️ by [Renxint](https://github.com/Renxint)
 
 ---
 
-### ⚠️ 声明
-
+> [!CAUTION]
 > **本项目为 Python 桌面应用开发与网络协议学习的实践项目**，源代码仅用于个人研究。
 >
 > 请遵守各平台服务条款，在授权范围内使用。
