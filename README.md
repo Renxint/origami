@@ -62,20 +62,37 @@
 
 ## 🏗️ 技术架构
 
+```mermaid
+graph TB
+    A[🧩 Originami 入口] --> B[Platform Registry 注册表]
+    B --> C[DouyinAdapter]
+    B --> D[BilibiliAdapter 开发中]
+    B --> E[...更多平台]
+
+    C --> F[Sign Server<br/>Node.js 签名服务]
+    C --> G[Puppeteer Engine<br/>智能反爬引擎]
+
+    D --> G
+
+    F --> H[(本地输出)]
+    G --> H
+
+    subgraph GUI [PyQt6 原生桌面界面]
+        I[托盘运行]
+        J[快捷键]
+        K[深浅主题]
+    end
+
+    GUI -.-> A
 ```
-src/platforms/          ← 插件式平台适配器（策略模式 + 注册表）
-  ├── base.py           ← PlatformAdapter 抽象基类（接口契约）
-  ├── douyin.py         ← 平台适配器实现
-  └── __init__.py       ← 全局注册表，新平台一行 import 即可接入
 
-sign-server/            ← Node.js 签名与反爬服务（独立进程）
-src/gui/                ← PyQt6 原生桌面界面
-src/webview_api.py      ← Puppeteer 自动化引擎
-```
-
-**核心技术栈：** Python 3.12 · PyQt6 · Node.js · Puppeteer · requests
-
-**工程化：** Inno Setup 安装器 · SignPath 代码签名 · 单实例检测 · 自动更新
+| 层次 | 技术 |
+|------|------|
+| **语言** | Python 3.12 |
+| **桌面框架** | PyQt6 |
+| **反爬引擎** | Puppeteer + Node.js |
+| **HTTP** | requests |
+| **工程化** | Inno Setup · SignPath 签名 · 单实例检测 · 自动更新 |
 
 ---
 
