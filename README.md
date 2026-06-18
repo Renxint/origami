@@ -10,7 +10,7 @@
   </a>
 </p>
 
-<img src="logo.png" alt="Origami" width="140">
+<a href="https://github.com/Renxint/origami"><img src="logo.png" alt="Origami" width="140"></a>
 
 ![visitors](https://count.getloli.com/get/@origami?theme=booru-lewd)
 
@@ -96,12 +96,30 @@ graph TB
 
 ---
 
+## 🎯 平台支持
+
+| 平台 | 状态 | 能力 |
+|------|:---:|------|
+| 🎵 抖音 | ✅ 已支持 | 视频 · 图集 · 实况 · 主页批量 |
+| 📺 B站 | 🚧 开发中 | 基于 [Evil0ctal](https://github.com/Evil0ctal/Douyin_TikTok_Download_API) B站实现适配 |
+| 📝 微博 | 📋 计划 | PlatformAdapter 三步入驻 |
+| ▶️ YouTube | 📋 计划 | yt-dlp 集成方案 |
+
+> 🔌 新平台接入只需继承 `PlatformAdapter`，GUI 自动识别，无需改界面代码。
+
+---
+
 ## 📥 安装
 
-| 方式 | 链接 |
-|------|------|
-| **安装包（推荐）** | [📦 下载 Origami_v0.6.0_setup.exe](https://github.com/Renxint/origami/releases/latest) |
-| **免安装版** | [📁 下载便携版](https://github.com/Renxint/origami/releases) |
+<p align="center">
+  <a href="https://github.com/Renxint/origami/releases/latest">
+    <img src="https://img.shields.io/badge/下载-安装版_(推荐)-E11D48?style=for-the-badge&logo=windows&logoColor=white" alt="安装版">
+  </a>
+  &nbsp;
+  <a href="https://github.com/Renxint/origami/releases">
+    <img src="https://img.shields.io/badge/下载-免安装版-30E0D0?style=for-the-badge&logo=windows&logoColor=white" alt="免安装版">
+  </a>
+</p>
 
 ---
 
