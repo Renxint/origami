@@ -112,13 +112,9 @@ graph TB
 ## 📥 安装
 
 <p align="center">
-  <a href="https://github.com/Renxint/origami/releases/latest">
-    <img src="https://img.shields.io/badge/下载-安装版_(推荐)-E11D48?style=for-the-badge&logo=windows&logoColor=white" alt="安装版">
-  </a>
-  &nbsp;
-  <a href="https://github.com/Renxint/origami/releases">
-    <img src="https://img.shields.io/badge/下载-免安装版-30E0D0?style=for-the-badge&logo=windows&logoColor=white" alt="免安装版">
-  </a>
+  <a href="https://github.com/Renxint/origami/releases/latest">📦 安装版 (推荐)</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://github.com/Renxint/origami/releases">📁 免安装版</a>
 </p>
 
 ---
