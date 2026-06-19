@@ -15,7 +15,7 @@ import threading
 import time
 from pathlib import Path
 
-from src.environ import (NODE_CMD, BASE_DIR, CREATE_NO_WINDOW,
+from src.environ import (NODE_CMD, BASE_DIR, EXE_DIR, CREATE_NO_WINDOW,
                         COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_PORT)
 
 _API_SCRIPT = BASE_DIR / "sign-server" / "api-call.js"
@@ -141,7 +141,7 @@ def _kill_orphan_nodes():
 
 
 def start_server():
-    """启动常驻 Node 浏览器服务（线程安全，自动探可用端口）"""
+    """启动常驻 Node 浏览器服务（线程安全，自动探可用端口，失败重试）"""
     global _server_process, _active_port
 
     _kill_orphan_nodes()  # 清理上次强杀遗留的孤儿
@@ -160,12 +160,24 @@ def start_server():
         _kill_sign_port()  # 杀上次 os._exit 遗留的僵尸
         time.sleep(0.3)
 
-        _server_process = subprocess.Popen(
-            [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            creationflags=CREATE_NO_WINDOW,
-        )
-    return True
+        for attempt in (1, 2):
+            _err_log = EXE_DIR / "_sign_err.log"
+            with open(_err_log, "w", encoding="utf-8") as _err_f:
+                _server_process = subprocess.Popen(
+                    [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
+                    stdout=_err_f, stderr=_err_f,
+                    creationflags=CREATE_NO_WINDOW,
+                )
+            # 等 3s 检查进程是否存活
+            time.sleep(3)
+            if _server_process.poll() is None:
+                return True  # 进程还在，启动成功
+            # 进程已死 → 读取错误日志，重试
+            if attempt == 1:
+                time.sleep(2)
+                _kill_sign_port()
+                time.sleep(0.5)
+    return True  # 兜底：即使失败也返回，等 call_server 的等待机制处理
 
 
 def stop_server():
@@ -205,20 +217,27 @@ def call_server(endpoint, **params):
 
     url = f"{_get_sign_url()}/{endpoint}"
 
-    # 懒启动：如果服务器没在跑，自动拉起来
-    if not _is_server_ready():
-        start_server()
-        # 等待就绪（前 5s 每 0.5s 快检，后 10s 每秒，最多 15s）
-        for i in range(20):
-            if _is_server_ready():
-                break
-            time.sleep(0.5 if i < 10 else 1)
+    for attempt in (1, 2):
+        # 懒启动：如果服务器没在跑，自动拉起来
+        if not _is_server_ready():
+            start_server()
+            # 等待就绪（前 5s 每 0.5s 快检，后 10s 每秒，最多 15s）
+            for i in range(20):
+                if _is_server_ready():
+                    break
+                time.sleep(0.5 if i < 10 else 1)
 
-    try:
-        r = _r.post(url, params=params, timeout=60)
-        return r.json()
-    except Exception as e:
-        return {"_error": str(e)}
+        try:
+            r = _r.post(url, params=params, timeout=60)
+            return r.json()
+        except Exception as e:
+            err = str(e)
+            if "Connection refused" in err and attempt == 1:
+                stop_server()
+                time.sleep(0.5)
+                continue
+            return {"_error": err}
+    return {"_error": "sign-server 连接失败，已重试"}
 
 
 def get_user_posts(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
