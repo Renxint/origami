@@ -297,17 +297,26 @@ def call_server(endpoint, **params):
     url = f"{_get_sign_url()}/{endpoint}"
     _debug_log(f"call_server: {endpoint}")
 
-    for attempt in (1, 2):
+    for attempt in (1, 2, 3):
         if not _is_server_ready():
             _debug_log(f"attempt {attempt}: not ready, starting...")
             start_server()
-            for i in range(20):
+            # 冷启动最多等 60s（前 5s 每秒，后 55s 每 2s）
+            for i in range(33):
                 if _is_server_ready():
                     _debug_log(f"ready after {i+1} checks")
                     break
-                time.sleep(0.5 if i < 10 else 1)
+                time.sleep(1 if i < 5 else 2)
             else:
-                _debug_log("WARN: not ready after 20 checks")
+                _debug_log("WARN: not ready after 60s")
+                # 进程还活着？再延长等
+                global _server_process
+                if _server_process and _server_process.poll() is None:
+                    _debug_log("process alive, extend wait 20s...")
+                    for i in range(10):
+                        if _is_server_ready():
+                            break
+                        time.sleep(2)
 
         try:
             r = _r.post(url, params=params, timeout=60)
@@ -318,13 +327,13 @@ def call_server(endpoint, **params):
         except Exception as e:
             err = str(e)
             _debug_log(f"request failed: {err[:200]}")
-            if "Connection refused" in err and attempt == 1:
-                _debug_log("restarting and retry...")
+            if attempt < 3:
+                _debug_log(f"retry {attempt+1}/3...")
                 stop_server()
-                time.sleep(0.5)
+                time.sleep(1)
                 continue
             return {"_error": err}
-    return {"_error": "sign-server 连接失败，已重试"}
+    return {"_error": "sign-server 连接失败"}
 
 
 def get_user_posts(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
