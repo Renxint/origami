@@ -21,6 +21,8 @@ os.environ["REQUESTS_CA_BUNDLE"] = str(_cert_path)
 # ── Windows 进程标志 ──────────────────────────────────────
 CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 APP_SHUTTING_DOWN = False  # 退出时置 True，抑制后台线程 RuntimeError
+QT_BIN_PATH = ""            # main.py 设置，start_server 需要临时屏蔽
+_qt_dll_cookie = None        # os.add_dll_directory 返回的 cookie
 
 # ── 路径解析 ──────────────────────────────────────────────
 _FROZEN = getattr(sys, "frozen", False)

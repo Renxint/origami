@@ -20,6 +20,9 @@ if getattr(sys, "frozen", False):
     _qt_bin = _internal / "PyQt6" / "Qt6" / "bin"
     if _qt_bin.exists():
         _dll_cookie = os.add_dll_directory(str(_qt_bin))
+        import src.environ
+        src.environ.QT_BIN_PATH = str(_qt_bin)
+        src.environ._qt_dll_cookie = _dll_cookie
     # QtWebEngine 必须找到渲染进程
     _qt_wep = _qt_bin / "QtWebEngineProcess.exe"
     if _qt_wep.exists():
