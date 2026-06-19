@@ -1185,7 +1185,8 @@ class BatchPage(QWidget):
                 sec_uid = adapter.get_own_author_id(cookie)
                 if not sec_uid:
                     # 刚登录可能 session 未激活，2s 后重试一次
-                    self._own_log_msg("[重试] 2秒后重新获取...", "#F59E0B")
+                    self._ui_callback.emit(lambda: self._own_info.setText("⚠ 未获取到账号ID, 2秒后重试..."))
+                    self._own_log_msg("[重试] 2秒后重新获取sec_uid...", "#F59E0B")
                     self._own_detecting = False
                     QTimer.singleShot(2000, lambda: self._detect_own(force=True))
                     return
@@ -1197,8 +1198,13 @@ class BatchPage(QWidget):
                 try:
                     author = adapter.fetch_author(sec_uid, cookie)
                     profile = author.extra.get("profile", {})
+                    nickname = author.nickname or profile.get("nickname", "")
+                    if not nickname:
+                        self._ui_callback.emit(lambda: self._own_info.setText("⚠ 获取用户信息失败"))
+                        self._own_log_msg("[失败] fetch_author返回空昵称", "#EF4444")
+                        self._own_detecting = False
+                        return
                     likes_total = profile.get("favoriting_count", 0)
-                    nickname = author.nickname
                     post_count = author.post_count
                     follower_count = author.follower_count
                     avatar_url = _get_avatar(profile)
@@ -1234,19 +1240,17 @@ class BatchPage(QWidget):
                                 self._own_avatar.hide()
                     self._ui_callback.emit(_apply)
 
-                    # 预加载统计：先标记再启动，防止重复调用
+                    # 预加载统计
                     if not self._own_posts_loaded:
                         self._own_posts_loaded = True
                         self._count_own_items(sec_uid, 'posts')
                     if not self._own_likes_loaded:
                         self._own_likes_loaded = True
                         self._count_own_items(sec_uid, 'likes')
-                except Exception:
-                    self._ui_callback.emit(lambda: self._own_info.setText(
-                        f"已识别 (sec_uid: {sec_uid[:20]}...)"))
+                except Exception as e:
+                    self._ui_callback.emit(lambda: self._own_info.setText(f"⚠ 加载失败: {e}"))
             except Exception as e:
-                self._ui_callback.emit(lambda: self._own_info.setText(
-                    f"⚠ 获取失败: {e}"))
+                self._ui_callback.emit(lambda: self._own_info.setText(f"⚠ 获取sec_uid失败: {e}"))
             finally:
                 self._own_detecting = False
         threading.Thread(target=_fetch, daemon=True).start()
