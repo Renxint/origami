@@ -78,7 +78,7 @@ pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
-    name='Origami', debug=False,
+    name=f'Origami_v{VERSION}', debug=False,
     bootloader_ignore_signals=False, strip=False,
     upx=False,
     console=False, icon=['app.ico'],
@@ -86,5 +86,5 @@ exe = EXE(
 coll = COLLECT(
     exe, a.binaries, a.datas, strip=False,
     upx=False,
-    name='Origami',
+    name=f'Origami_v{VERSION}',
 )
