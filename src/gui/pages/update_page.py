@@ -168,6 +168,8 @@ class UpdatePage(QWidget):
             self.cancel_btn.setText("返回")
 
     def _do_restart(self):
+        from src.webview_api import stop_server
+        stop_server()
         exe = Path(sys.executable)
         subprocess.Popen(
             [str(exe)], cwd=str(exe.parent),

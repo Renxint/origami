@@ -128,9 +128,23 @@ def _is_server_ready():
         return False
 
 
+def _kill_orphan_nodes():
+    """启动时清理上一次强杀遗留的 sign-server 孤儿进程"""
+    try:
+        subprocess.run(
+            'wmic process where "name=\'node.exe\' and commandline like \'%sign-server%\'" call terminate 2>nul',
+            shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    except Exception:
+        pass
+
+
 def start_server():
     """启动常驻 Node 浏览器服务（线程安全，自动探可用端口）"""
     global _server_process, _active_port
+
+    _kill_orphan_nodes()  # 清理上次强杀遗留的孤儿
 
     # 快速路径：已经在跑，直接返回（无锁）
     if _server_process and _server_process.poll() is None and _is_server_ready():

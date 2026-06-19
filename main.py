@@ -84,6 +84,13 @@ def main():
     # 启动前：检测更新并替换
     _startup_overwrite_if_needed()
 
+    # 清理上次强杀遗留的 sign-server 孤儿
+    try:
+        from src.webview_api import _kill_orphan_nodes
+        _kill_orphan_nodes()
+    except Exception:
+        pass
+
     # QApplication
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -152,6 +159,7 @@ def main():
         from PyQt6.QtCore import QTimer
         from src.webview_api import start_server
         QTimer.singleShot(500, start_server)
+    app.aboutToQuit.connect(_cleanup_sign_server)
     sys.exit(app.exec())
 
 
