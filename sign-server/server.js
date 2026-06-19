@@ -3,7 +3,7 @@
  * 启动时初始化 SDK + Cookie，后续请求复用浏览器会话
  *
  * 用法: node server.js [port]
- * 默认端口: 9876
+ * 默认端口: 18765
  *
  * 端点:
  *   POST /video?aweme_id=xxx  → 获取视频详情（含水印链接）
@@ -28,7 +28,7 @@ function findBrowser() {
     return null;
 }
 
-const PORT = parseInt(process.argv[2]) || 9876;
+const PORT = parseInt(process.argv[2]) || 18765;
 const COOKIE_FILE = path.resolve(__dirname, '..', 'data', 'Cookie.txt');
 
 // 解码 base64 cookie
