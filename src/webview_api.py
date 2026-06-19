@@ -190,23 +190,22 @@ def start_server():
         _raw_path = os.environ.get("PATH", "")
         _debug_log(f"raw PATH (first 500): {_raw_path[:500]}")
 
-        # 构建清理后的环境：彻底删除 Qt bin，只保留浏览器目录
-        _clean_env = os.environ.copy()
-        _clean_path = _clean_env.get("PATH", "")
-        # 删掉所有出现的 Qt bin（可能重复多次）
-        _clean_path = _clean_path.replace(_qt_bin + ";", "").replace(_qt_bin, "")
-        _edge_dirs = [
-            r"C:\Program Files (x86)\Microsoft\Edge\Application",
-            r"C:\Program Files\Microsoft\Edge\Application",
-            r"C:\Program Files\Google\Chrome\Application",
-        ]
-        _found_edges = [d for d in _edge_dirs if os.path.isdir(d)]
-        _debug_log(f"found browser dirs: {_found_edges}")
-        _extra = ";".join(_found_edges)
-        if _extra:
-            _clean_path = _extra + ";" + _clean_path
-        _clean_env["PATH"] = _clean_path
-        _debug_log(f"cleaned PATH (first 300): {_clean_path[:300]}")
+        # 构建最简环境：只保留 SYSTEM32 + Edge 目录，彻底排除所有干扰
+        _clean_env = {}
+        # 只传必要变量
+        for _k in ("SYSTEMROOT", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA",
+                    "APPDATA", "HOMEDRIVE", "HOMEPATH", "COMPUTERNAME"):
+            if _k in os.environ:
+                _clean_env[_k] = os.environ[_k]
+        # PATH 只保留系统目录 + Edge
+        _min_path = (
+            r"C:\Program Files (x86)\Microsoft\Edge\Application;"
+            r"C:\Windows\System32;"
+            r"C:\Windows;"
+            r"C:\Windows\System32\Wbem"
+        )
+        _clean_env["PATH"] = _min_path
+        _debug_log(f"minimal PATH: {_min_path}")
 
         for attempt in (1, 2):
             _debug_log(f"--- attempt {attempt} ---")

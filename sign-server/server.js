@@ -79,8 +79,11 @@ async function ensureBrowser() {
             browser = await puppeteer.launch({
                 headless: 'new',
                 executablePath: exePath,
-                args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
+                args: ['--no-sandbox', '--disable-blink-features=AutomationControlled',
+                       '--enable-logging', '--v=1'],
                 timeout: 45000,
+                dumpio: true,
+                env: { PATH: process.env.PATH || '' },
             });
             break;
         } catch (e) {
