@@ -1,0 +1,14 @@
+{
+  "userIgnoreFilters": [
+    "node_modules/",
+    "data/",
+    "dist_out/",
+    "output/",
+    "build/",
+    ".git/",
+    ".github/",
+    ".gitee/"
+  ],
+  "attachmentFolderPath": "./",
+  "newLinkFormat": "shortest"
+}
