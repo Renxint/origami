@@ -16,7 +16,8 @@ import time
 from pathlib import Path
 
 from src.environ import (NODE_CMD, BASE_DIR, CREATE_NO_WINDOW,
-                        COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_URL)
+                        COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_URL,
+                        SIGN_SERVER_PORT)
 
 _API_SCRIPT = BASE_DIR / "sign-server" / "api-call.js"
 _SIGNED_SCRIPT = BASE_DIR / "sign-server" / "api-signed.js"
@@ -120,7 +121,7 @@ def start_server():
         if _server_process and _server_process.poll() is None and _is_server_ready():
             return True
 
-        _kill_port_9876()  # 杀上次 os._exit 遗留的僵尸
+        _kill_sign_port()  # 杀上次 os._exit 遗留的僵尸
         time.sleep(0.3)
 
         _server_process = subprocess.Popen(
@@ -143,14 +144,14 @@ def stop_server():
                 pass
             _server_process = None
     # 始终清端口（杀本 session 残留 + 上次 os._exit 遗留的僵尸）
-    _kill_port_9876()
+    _kill_sign_port()
 
 
-def _kill_port_9876():
-    """清理端口 9876 上的残留进程"""
+def _kill_sign_port():
+    """清理 sign-server 端口上的残留进程"""
     try:
         subprocess.run(
-            'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
+            f'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :{SIGN_SERVER_PORT}\') do taskkill /F /PID %a >nul 2>&1',
             shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2,
             creationflags=CREATE_NO_WINDOW,
         )

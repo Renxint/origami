@@ -54,7 +54,7 @@ BOOTSTRAP_JS    = BASE_DIR / "sign-server" / "bootstrap.js"
 SIGN_SERVER_JS  = BASE_DIR / "sign-server" / "server.js"
 NODE_EXE        = BASE_DIR / "node.exe"
 NODE_CMD        = str(NODE_EXE) if NODE_EXE.exists() else "node"
-SIGN_SERVER_PORT = 9876
+SIGN_SERVER_PORT = 18765  # 避开 Windows 端口排除范围 9823-9922
 SIGN_SERVER_URL  = f"http://localhost:{SIGN_SERVER_PORT}"
 
 # ── 窗口强置顶 ────────────────────────────────────────────
