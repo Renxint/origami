@@ -765,12 +765,13 @@ class BatchPage(QWidget):
         self._bg_info.connect(self._set_other_info)
         self._bg_reset_ui.connect(self._reset_other_ui)
         self._bg_author_loaded.connect(self._on_bg_author_loaded)
+        self._ui_callback.connect(lambda cb: cb())
+        self._build()
+        # 以下信号连接的 widget 在 _build() 中创建
         self._bg_own_info.connect(self._own_info.setText)
         self._bg_own_btn_text.connect(self._own_select_btn.setText)
         self._bg_own_avatar.connect(self._on_own_avatar)
         self._bg_own_likes_text.connect(self._sub_likes.setText)
-        self._ui_callback.connect(lambda cb: cb())
-        self._build()
 
     # ── 主体布局 ─────────────────────────────────────────
 
