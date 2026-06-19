@@ -24,9 +24,20 @@ function findBrowser() {
         'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
     ];
-    for (const p of candidates) if (fs.existsSync(p)) return p;
+    console.error('[srv] findBrowser: checking...');
+    for (const p of candidates) {
+        const ok = fs.existsSync(p);
+        console.error(`[srv]   ${ok ? 'FOUND' : 'miss'}  ${p}`);
+        if (ok) return p;
+    }
     return null;
 }
+
+// 启动时输出诊断信息
+console.error(`[srv] Node version: ${process.version}`);
+console.error(`[srv] cwd: ${process.cwd()}`);
+console.error(`[srv] __dirname: ${__dirname}`);
+console.error(`[srv] PATH first 300: ${(process.env.PATH || '').substring(0, 300)}`);
 
 const PORT = parseInt(process.argv[2]) || 18765;
 const COOKIE_FILE = path.resolve(__dirname, '..', 'data', 'Cookie.txt');

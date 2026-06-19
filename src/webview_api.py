@@ -141,56 +141,111 @@ def _kill_orphan_nodes():
         pass
 
 
+def _debug_log(msg: str):
+    """写调试日志到 _sign_debug.log"""
+    try:
+        _ts = time.strftime("%H:%M:%S")
+        with open(EXE_DIR / "_sign_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"[{_ts}] {msg}\n")
+    except Exception:
+        pass
+
+
 def start_server():
     """启动常驻 Node 浏览器服务（线程安全，自动探可用端口，失败重试）"""
     global _server_process, _active_port
 
-    _kill_orphan_nodes()  # 清理上次强杀遗留的孤儿
+    _debug_log("=== start_server() called ===")
+    _kill_orphan_nodes()
 
     # 快速路径：已经在跑，直接返回（无锁）
     if _server_process and _server_process.poll() is None and _is_server_ready():
+        _debug_log("fast path: server already running")
         return True
 
     with _server_lock:
-        # 二次确认（可能被其他线程抢先启动了）
         if _server_process and _server_process.poll() is None and _is_server_ready():
+            _debug_log("double-check: server already running")
             return True
 
-        # 自动探测可用端口（Windows 可能封了默认端口）
         _active_port = _find_available_port(SIGN_SERVER_PORT)
-        _kill_sign_port()  # 杀上次 os._exit 遗留的僵尸
+        _debug_log(f"using port: {_active_port}")
+        _kill_sign_port()
         time.sleep(0.3)
 
-        # 修复 DLL 污染：Edge/Chrome 优先加载自己的 DLL，非 Qt 的 ANGLE 库
+        # 环境变量诊断
+        _debug_log(f"NODE_CMD: {NODE_CMD}")
+        _debug_log(f"NODE_CMD exists: {os.path.exists(NODE_CMD)}")
+        _debug_log(f"SIGN_SERVER_JS: {SIGN_SERVER_JS}")
+        _debug_log(f"SIGN_SERVER_JS exists: {os.path.exists(SIGN_SERVER_JS)}")
+        _debug_log(f"BASE_DIR: {BASE_DIR}")
+        _debug_log(f"EXE_DIR: {EXE_DIR}")
+        _debug_log(f"frozen: {getattr(__import__('sys'), 'frozen', False)}")
+
+        # DLL 搜索路径诊断
+        _qt_bin = str(BASE_DIR / "PyQt6" / "Qt6" / "bin")
+        _debug_log(f"Qt bin exists: {os.path.isdir(_qt_bin)} -> {_qt_bin}")
+
+        # PATH 前 500 字符
+        _raw_path = os.environ.get("PATH", "")
+        _debug_log(f"raw PATH (first 500): {_raw_path[:500]}")
+
+        # 构建清理后的环境
         _clean_env = os.environ.copy()
         _edge_dirs = [
             r"C:\Program Files (x86)\Microsoft\Edge\Application",
             r"C:\Program Files\Microsoft\Edge\Application",
             r"C:\Program Files\Google\Chrome\Application",
         ]
-        _extra = ";".join(d for d in _edge_dirs if os.path.isdir(d))
+        _found_edges = [d for d in _edge_dirs if os.path.isdir(d)]
+        _debug_log(f"found browser dirs: {_found_edges}")
+        _extra = ";".join(_found_edges)
         if _extra:
             _clean_env["PATH"] = _extra + ";" + _clean_env.get("PATH", "")
+            _debug_log(f"prepended to PATH: {_extra[:200]}")
 
         for attempt in (1, 2):
+            _debug_log(f"--- attempt {attempt} ---")
             _err_log = EXE_DIR / "_sign_err.log"
-            with open(_err_log, "w", encoding="utf-8") as _err_f:
+            _debug_log(f"log file: {_err_log}")
+            try:
                 _server_process = subprocess.Popen(
                     [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
-                    stdout=_err_f, stderr=_err_f,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     env=_clean_env,
                     creationflags=CREATE_NO_WINDOW,
                 )
-            # 等 3s 检查进程是否存活
+                _debug_log(f"Popen ok, PID: {_server_process.pid}")
+            except Exception as e:
+                _debug_log(f"Popen FAILED: {e}")
+                if attempt == 1:
+                    time.sleep(2)
+                    continue
+                return False
+
             time.sleep(3)
-            if _server_process.poll() is None:
-                return True  # 进程还在，启动成功
-            # 进程已死 → 读取错误日志，重试
+            _rc = _server_process.poll()
+            _debug_log(f"after 3s, poll()={_rc}")
+            if _rc is None:
+                _debug_log("process alive, checking health...")
+                if _is_server_ready():
+                    _debug_log("health OK, start_server SUCCESS")
+                    return True
+                else:
+                    _debug_log("process alive but health check failed, will wait in call_server")
+                    return True
+            # 进程已死
+            _debug_log(f"process died (rc={_rc}), reading stderr...")
+            if _err_log.exists():
+                _stderr_tail = _err_log.read_text(encoding="utf-8")[-500:]
+                _debug_log(f"stderr tail: {_stderr_tail}")
             if attempt == 1:
+                _debug_log("retrying...")
                 time.sleep(2)
                 _kill_sign_port()
                 time.sleep(0.5)
-    return True  # 兜底：即使失败也返回，等 call_server 的等待机制处理
+    _debug_log("start_server: all attempts exhausted")
+    return True
 
 
 def stop_server():
@@ -229,23 +284,31 @@ def call_server(endpoint, **params):
     import requests as _r
 
     url = f"{_get_sign_url()}/{endpoint}"
+    _debug_log(f"call_server: {endpoint}")
 
     for attempt in (1, 2):
-        # 懒启动：如果服务器没在跑，自动拉起来
         if not _is_server_ready():
+            _debug_log(f"attempt {attempt}: not ready, starting...")
             start_server()
-            # 等待就绪（前 5s 每 0.5s 快检，后 10s 每秒，最多 15s）
             for i in range(20):
                 if _is_server_ready():
+                    _debug_log(f"ready after {i+1} checks")
                     break
                 time.sleep(0.5 if i < 10 else 1)
+            else:
+                _debug_log("WARN: not ready after 20 checks")
 
         try:
             r = _r.post(url, params=params, timeout=60)
-            return r.json()
+            result = r.json()
+            if "_error" in result:
+                _debug_log(f"server error: {result['_error'][:200]}")
+            return result
         except Exception as e:
             err = str(e)
+            _debug_log(f"request failed: {err[:200]}")
             if "Connection refused" in err and attempt == 1:
+                _debug_log("restarting and retry...")
                 stop_server()
                 time.sleep(0.5)
                 continue
