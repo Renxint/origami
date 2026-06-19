@@ -2105,11 +2105,15 @@ class BatchPage(QWidget):
 
     def _other_log_msg(self, msg: str, color: str = '#94A3B8'):
         """向他人主页日志区追加彩色消息"""
-        self._other_log.append(f'<span style="color:{color};">{msg}</span>')
+        import time
+        _ts = time.strftime("%H:%M:%S")
+        self._other_log.append(f'<span style="color:{color};">[{_ts}] {msg}</span>')
 
     def _own_log_msg(self, msg: str, color: str = '#94A3B8'):
         """向自己主页日志区追加彩色消息"""
-        self._own_log.append(f'<span style="color:{color};">{msg}</span>')
+        import time
+        _ts = time.strftime("%H:%M:%S")
+        self._own_log.append(f'<span style="color:{color};">[{_ts}] {msg}</span>')
 
     def _show_select_dialog(self):
         """弹出他人作品选择对话框（实时刷新）"""
