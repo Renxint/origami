@@ -768,10 +768,10 @@ class BatchPage(QWidget):
         self._ui_callback.connect(lambda cb: cb())
         self._build()
         # 以下信号连接的 widget 在 _build() 中创建
-        self._bg_own_info.connect(self._own_info.setText)
-        self._bg_own_btn_text.connect(self._own_select_btn.setText)
+        self._bg_own_info.connect(self._set_own_info_text)
+        self._bg_own_btn_text.connect(self._set_own_btn_text)
         self._bg_own_avatar.connect(self._on_own_avatar)
-        self._bg_own_likes_text.connect(self._sub_likes.setText)
+        self._bg_own_likes_text.connect(self._set_own_likes_text)
 
     # ── 主体布局 ─────────────────────────────────────────
 
@@ -1161,6 +1161,15 @@ class BatchPage(QWidget):
         self._own_info.setText("")
         self._own_avatar.hide()
         self._own_select_btn.setText("查看列表")
+
+    def _set_own_info_text(self, text: str):
+        self._own_info.setText(text)
+
+    def _set_own_btn_text(self, text: str):
+        self._own_select_btn.setText(text)
+
+    def _set_own_likes_text(self, text: str):
+        self._sub_likes.setText(text)
 
     def _on_own_avatar(self, avatar_data: bytes):
         """从后台信号接收头像数据并显示"""
