@@ -1169,6 +1169,7 @@ class BatchPage(QWidget):
         cookie = load_cookie()
         if not cookie or "sessionid=" not in cookie:
             self._own_info.setText("⚠ 未登录，请先在首页登录")
+            self._own_detecting = False
             return
         self._own_info.setText("正在获取账号信息...")
         import threading, requests as req
