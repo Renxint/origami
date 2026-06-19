@@ -209,13 +209,16 @@ def start_server():
             _err_log = EXE_DIR / "_sign_err.log"
             _debug_log(f"log file: {_err_log}")
             try:
+                _err_f = open(_err_log, "w", encoding="utf-8")
                 _server_process = subprocess.Popen(
                     [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    stdout=_err_f, stderr=_err_f,
                     env=_clean_env,
                     creationflags=CREATE_NO_WINDOW,
                 )
+                _err_f.close()
                 _debug_log(f"Popen ok, PID: {_server_process.pid}")
+                _debug_log(f"sign_err.log: {_err_log.read_text(encoding='utf-8')[:500]}")
             except Exception as e:
                 _debug_log(f"Popen FAILED: {e}")
                 if attempt == 1:
