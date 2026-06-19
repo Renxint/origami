@@ -153,12 +153,10 @@ def main():
 
     window = MainWindow()
     window.show()
-    # 仅在已登录时启动 sign-server
-    from src.cookie import load_cookie
-    if load_cookie():
-        from PyQt6.QtCore import QTimer
-        from src.webview_api import start_server
-        QTimer.singleShot(500, start_server)
+    # 启动时预热 sign-server（冷启动 Chrome），登录后自动刷新 cookie
+    from PyQt6.QtCore import QTimer
+    from src.webview_api import start_server
+    QTimer.singleShot(800, start_server)
     app.aboutToQuit.connect(_cleanup_sign_server)
     sys.exit(app.exec())
 
