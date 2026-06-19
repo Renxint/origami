@@ -9,6 +9,7 @@ Origami — 抖音 API 代理
 """
 
 import json
+import os
 import subprocess
 import tempfile
 import threading
@@ -160,12 +161,18 @@ def start_server():
         _kill_sign_port()  # 杀上次 os._exit 遗留的僵尸
         time.sleep(0.3)
 
+        # 清理 Qt bin 对 PATH 的污染，防止 Edge/Chrome 加载错误 DLL
+        _clean_env = os.environ.copy()
+        _qt_bin = str(BASE_DIR / "PyQt6" / "Qt6" / "bin")
+        _clean_env["PATH"] = _clean_env.get("PATH", "").replace(_qt_bin + ";", "").replace(_qt_bin, "")
+
         for attempt in (1, 2):
             _err_log = EXE_DIR / "_sign_err.log"
             with open(_err_log, "w", encoding="utf-8") as _err_f:
                 _server_process = subprocess.Popen(
                     [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
                     stdout=_err_f, stderr=_err_f,
+                    env=_clean_env,
                     creationflags=CREATE_NO_WINDOW,
                 )
             # 等 3s 检查进程是否存活
