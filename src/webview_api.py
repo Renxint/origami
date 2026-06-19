@@ -120,16 +120,8 @@ def start_server():
         if _server_process and _server_process.poll() is None and _is_server_ready():
             return True
 
-        # 清理上次残留的 sign-server（只杀端口 9876）
-        try:
-            subprocess.run(
-                'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
-                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
-                creationflags=CREATE_NO_WINDOW,
-            )
-            time.sleep(0.5)
-        except Exception:
-            pass
+        _kill_port_9876()  # 杀上次 os._exit 遗留的僵尸
+        time.sleep(0.3)
 
         _server_process = subprocess.Popen(
             [NODE_CMD, str(SIGN_SERVER_JS)],
@@ -140,24 +132,26 @@ def start_server():
 
 
 def stop_server():
-    """关闭常驻服务（快速杀，未启动则秒退）"""
+    """关闭常驻服务（杀进程 + 等退出 + 清端口残留）"""
     global _server_process
-    was_running = False
     with _server_lock:
         if _server_process:
             try:
                 _server_process.kill()
+                _server_process.wait(timeout=3)  # 等待进程彻底退出
             except Exception:
                 pass
             _server_process = None
-            was_running = True
-    if not was_running:
-        return  # 没启动过，跳过端口扫描
-    # 兜底：按端口杀残留（用 DEVNULL 免 capture_output 的线程在 atexit 卡死）
+    # 始终清端口（杀本 session 残留 + 上次 os._exit 遗留的僵尸）
+    _kill_port_9876()
+
+
+def _kill_port_9876():
+    """清理端口 9876 上的残留进程"""
     try:
         subprocess.run(
             'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :9876\') do taskkill /F /PID %a >nul 2>&1',
-            shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3,
+            shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2,
             creationflags=CREATE_NO_WINDOW,
         )
     except Exception:
