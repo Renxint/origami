@@ -208,14 +208,6 @@ def start_server():
         _clean_env["PATH"] = _clean_path
         _debug_log(f"cleaned PATH (first 300): {_clean_path[:300]}")
 
-        # 关键修复：临时关闭 os.add_dll_directory(Qt bin)
-        from src.environ import _qt_dll_cookie as _cookie, QT_BIN_PATH as _qtp
-        if _cookie is not None:
-            _debug_log("closing AddDllDirectory cookie for sign-server spawn...")
-            _cookie.close()
-            src.environ._qt_dll_cookie = os.add_dll_directory(_qtp)
-            _debug_log("cookie restored for main process")
-
         for attempt in (1, 2):
             _debug_log(f"--- attempt {attempt} ---")
             _err_log = EXE_DIR / "_sign_err.log"
