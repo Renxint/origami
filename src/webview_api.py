@@ -125,7 +125,7 @@ def start_server():
         time.sleep(0.3)
 
         _server_process = subprocess.Popen(
-            [NODE_CMD, str(SIGN_SERVER_JS)],
+            [NODE_CMD, str(SIGN_SERVER_JS), str(SIGN_SERVER_PORT)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             creationflags=CREATE_NO_WINDOW,
         )
