@@ -137,11 +137,11 @@ class SingleDownloadThread(QThread):
             if self.preview_mode:
                 self.cache_aweme.emit(aweme)
 
-            # 图集/note：只要有图片就弹选择框
+            # 图集/note：已选过则跳过弹窗，否则弹出选择框
             images = aweme.get("images") or []
             video = aweme.get("video")
-            selected_indices = None
-            if images:
+            selected_indices = getattr(self, '_selected_img_indices', None)
+            if images and selected_indices is None:
                 self._is_gallery = True
                 evt = threading.Event()
                 img_list = []
@@ -151,14 +151,14 @@ class SingleDownloadThread(QThread):
                     img_list.append({
                         "index": j, "url": img_url or "",
                         "live": img.get("live_photo_type", 0) == 1,
-                        "thumb": None,  # 缩略图由 UI 异步加载
+                        "thumb": None,
                     })
                 self._is_gallery = True
                 self.gallery_signal.emit(img_list, evt)
                 evt.wait(120)
                 selected_indices = getattr(self, '_selected_img_indices', None)
 
-            elif self.preview_mode and video:
+            elif self.preview_mode and video and selected_indices is None:
                 evt = threading.Event()
                 self._is_gallery = False
                 cover = ""
