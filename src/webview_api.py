@@ -259,18 +259,20 @@ def start_server():
 
 
 def stop_server():
-    """关闭常驻服务（杀进程 + 等退出 + 清端口残留）"""
+    """关闭常驻服务（未启动则秒退）"""
     global _server_process
+    was_running = False
     with _server_lock:
         if _server_process:
             try:
                 _server_process.kill()
-                _server_process.wait(timeout=3)  # 等待进程彻底退出
+                _server_process.wait(timeout=3)
             except Exception:
                 pass
             _server_process = None
-    # 始终清端口（杀本 session 残留 + 上次 os._exit 遗留的僵尸）
-    _kill_sign_port()
+            was_running = True
+    if was_running:
+        _kill_sign_port()  # 只当确实跑过才清端口（netstat 耗时 2s）
 
 
 def _kill_sign_port():

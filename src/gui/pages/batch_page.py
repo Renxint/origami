@@ -1221,7 +1221,8 @@ class BatchPage(QWidget):
                 sec_uid = adapter.get_own_author_id(cookie)
                 if not sec_uid:
                     # 刚登录可能 session 未激活，2s 后重试一次
-                    self._bg_own_info.emit("⚠ 未获取到账号ID, 2秒后重试...")
+                    from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+                    QMetaObject.invokeMethod(self._own_info, "setText", Qt.ConnectionType.QueuedConnection, Q_ARG(str, "⚠ 未获取到账号ID, 2秒后重试..."))
                     self._own_log_msg("[重试] 2秒后重新获取sec_uid...", "#F59E0B")
                     self._own_detecting = False
                     QTimer.singleShot(2000, lambda: self._detect_own(force=True))
@@ -1236,7 +1237,8 @@ class BatchPage(QWidget):
                     profile = author.extra.get("profile", {})
                     nickname = author.nickname or profile.get("nickname", "")
                     if not nickname:
-                        self._bg_own_info.emit("⚠ 获取用户信息失败")
+                        from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+                        QMetaObject.invokeMethod(self._own_info, "setText", Qt.ConnectionType.QueuedConnection, Q_ARG(str, "⚠ 获取用户信息失败"))
                         self._own_log_msg("[失败] fetch_author返回空昵称", "#EF4444")
                         self._own_detecting = False
                         return
@@ -1252,12 +1254,18 @@ class BatchPage(QWidget):
                         except Exception:
                             pass
 
-                    # 回主线程更新 UI（全部用专用信号，不走闭包序列化）
-                    self._bg_own_info.emit(
-                        f"{nickname}  |  作品: {post_count}  |  "
-                        f"粉丝: {follower_count}  |  喜欢: {likes_total}")
-                    self._bg_own_btn_text.emit(f"作品 ({post_count})")
-                    self._bg_own_likes_text.emit(f"喜欢 ({likes_total})")
+                    # 跨线程 UI 更新：invokeMethod 比 pyqtSignal 更可靠
+                    from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+                    _info = f"{nickname}  |  作品: {post_count}  |  粉丝: {follower_count}  |  喜欢: {likes_total}"
+                    QMetaObject.invokeMethod(
+                        self._own_info, "setText", Qt.ConnectionType.QueuedConnection,
+                        Q_ARG(str, _info))
+                    QMetaObject.invokeMethod(
+                        self._own_select_btn, "setText", Qt.ConnectionType.QueuedConnection,
+                        Q_ARG(str, f"作品 ({post_count})"))
+                    QMetaObject.invokeMethod(
+                        self._sub_likes, "setText", Qt.ConnectionType.QueuedConnection,
+                        Q_ARG(str, f"喜欢 ({likes_total})"))
                     if avatar_data:
                         self._bg_own_avatar.emit(avatar_data)
 
@@ -1269,9 +1277,11 @@ class BatchPage(QWidget):
                         self._own_likes_loaded = True
                         self._count_own_items(sec_uid, 'likes')
                 except Exception as e:
-                    self._bg_own_info.emit(f"⚠ 加载失败: {e}")
+                    from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+                    QMetaObject.invokeMethod(self._own_info, "setText", Qt.ConnectionType.QueuedConnection, Q_ARG(str, f"⚠ 加载失败: {e}"))
             except Exception as e:
-                self._bg_own_info.emit(f"⚠ 获取sec_uid失败: {e}")
+                from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+                QMetaObject.invokeMethod(self._own_info, "setText", Qt.ConnectionType.QueuedConnection, Q_ARG(str, f"⚠ 获取sec_uid失败: {e}"))
             finally:
                 self._own_detecting = False
         threading.Thread(target=_fetch, daemon=True).start()
