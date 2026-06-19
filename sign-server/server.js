@@ -62,11 +62,22 @@ async function ensureBrowser() {
     const exePath = findBrowser();
     if (!exePath) throw new Error('No browser found');
 
-    browser = await puppeteer.launch({
-        headless: 'new',
-        executablePath: exePath,
-        args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
-    });
+    // .exe 首次启动时 Defender 扫描可能拖慢 Chrome，加重试
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            browser = await puppeteer.launch({
+                headless: 'new',
+                executablePath: exePath,
+                args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
+                timeout: 45000,
+            });
+            break;
+        } catch (e) {
+            console.error(`[srv] launch attempt ${attempt} failed: ${e.message}`);
+            if (attempt === 3) throw e;
+            await new Promise(r => setTimeout(r, 3000));
+        }
+    }
     page = await browser.newPage();
     await page.evaluateOnNewDocument(() => {
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
