@@ -706,7 +706,11 @@ class BatchPage(QWidget):
     _bg_info = pyqtSignal(str)                # status text
     _bg_reset_ui = pyqtSignal()               # 重置上次下载的 UI 状态
     _bg_author_loaded = pyqtSignal(object, object, object, str)  # (author, profile, avatar_data, sec_uid)
-    _ui_callback = pyqtSignal(object)  # 后台线程→主线程执行回调（替代 QTimer.singleShot(0)）
+    _bg_own_info = pyqtSignal(str)      # 后台→主线程更新自己的信息栏
+    _bg_own_btn_text = pyqtSignal(str)  # 后台→主线程更新查看列表按钮
+    _bg_own_avatar = pyqtSignal(bytes)  # 后台→主线程更新头像
+    _bg_own_likes_text = pyqtSignal(str)  # 喜欢按钮文案
+    _ui_callback = pyqtSignal(object)   # 通用回调
 
     @staticmethod
     def _circle_pixmap(pix: "QPixmap", size: int) -> "QPixmap":
@@ -761,7 +765,11 @@ class BatchPage(QWidget):
         self._bg_info.connect(self._set_other_info)
         self._bg_reset_ui.connect(self._reset_other_ui)
         self._bg_author_loaded.connect(self._on_bg_author_loaded)
-        self._ui_callback.connect(lambda cb: cb())  # 在线程→主线程桥接
+        self._bg_own_info.connect(self._own_info.setText)
+        self._bg_own_btn_text.connect(self._own_select_btn.setText)
+        self._bg_own_avatar.connect(self._on_own_avatar)
+        self._bg_own_likes_text.connect(self._sub_likes.setText)
+        self._ui_callback.connect(lambda cb: cb())
         self._build()
 
     # ── 主体布局 ─────────────────────────────────────────
@@ -1153,6 +1161,20 @@ class BatchPage(QWidget):
         self._own_avatar.hide()
         self._own_select_btn.setText("查看列表")
 
+    def _on_own_avatar(self, avatar_data: bytes):
+        """从后台信号接收头像数据并显示"""
+        try:
+            from PyQt6.QtGui import QPixmap
+            av_sz = self._own_avatar.width() or 56
+            cache_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "own_avatar.jpg"
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_bytes(avatar_data)
+            pix = QPixmap(str(cache_path))
+            self._own_avatar.setPixmap(self._circle_pixmap(pix, av_sz))
+            self._own_avatar.show()
+        except Exception:
+            self._own_avatar.hide()
+
     def refresh_own_if_active(self):
         """登录后回调：立即加载自己主页"""
         cookie = load_cookie()
@@ -1189,7 +1211,7 @@ class BatchPage(QWidget):
                 sec_uid = adapter.get_own_author_id(cookie)
                 if not sec_uid:
                     # 刚登录可能 session 未激活，2s 后重试一次
-                    self._ui_callback.emit(lambda: self._own_info.setText("⚠ 未获取到账号ID, 2秒后重试..."))
+                    self._bg_own_info.emit("⚠ 未获取到账号ID, 2秒后重试...")
                     self._own_log_msg("[重试] 2秒后重新获取sec_uid...", "#F59E0B")
                     self._own_detecting = False
                     QTimer.singleShot(2000, lambda: self._detect_own(force=True))
@@ -1204,7 +1226,7 @@ class BatchPage(QWidget):
                     profile = author.extra.get("profile", {})
                     nickname = author.nickname or profile.get("nickname", "")
                     if not nickname:
-                        self._ui_callback.emit(lambda: self._own_info.setText("⚠ 获取用户信息失败"))
+                        self._bg_own_info.emit("⚠ 获取用户信息失败")
                         self._own_log_msg("[失败] fetch_author返回空昵称", "#EF4444")
                         self._own_detecting = False
                         return
@@ -1220,29 +1242,14 @@ class BatchPage(QWidget):
                         except Exception:
                             pass
 
-                    # 回主线程更新 UI
-                    def _apply():
-                        self._own_info.setText(
-                            f"{nickname}  |  "
-                            f"作品: {post_count}  |  "
-                            f"粉丝: {follower_count}  |  "
-                            f"喜欢: {likes_total}"
-                        )
-                        self._sub_posts.setText(f"作品 ({post_count})")
-                        self._sub_likes.setText(f"喜欢 ({likes_total})")
-                        if avatar_data:
-                            try:
-                                av_sz = self._own_avatar.width() or 56
-                                cache_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "own_avatar.jpg"
-                                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                                cache_path.write_bytes(avatar_data)
-                                pix = QPixmap(str(cache_path))
-                                self._own_avatar.setPixmap(
-                                    self._circle_pixmap(pix, av_sz))
-                                self._own_avatar.show()
-                            except Exception:
-                                self._own_avatar.hide()
-                    self._ui_callback.emit(_apply)
+                    # 回主线程更新 UI（全部用专用信号，不走闭包序列化）
+                    self._bg_own_info.emit(
+                        f"{nickname}  |  作品: {post_count}  |  "
+                        f"粉丝: {follower_count}  |  喜欢: {likes_total}")
+                    self._bg_own_btn_text.emit(f"作品 ({post_count})")
+                    self._bg_own_likes_text.emit(f"喜欢 ({likes_total})")
+                    if avatar_data:
+                        self._bg_own_avatar.emit(avatar_data)
 
                     # 预加载统计
                     if not self._own_posts_loaded:
@@ -1252,9 +1259,9 @@ class BatchPage(QWidget):
                         self._own_likes_loaded = True
                         self._count_own_items(sec_uid, 'likes')
                 except Exception as e:
-                    self._ui_callback.emit(lambda: self._own_info.setText(f"⚠ 加载失败: {e}"))
+                    self._bg_own_info.emit(f"⚠ 加载失败: {e}")
             except Exception as e:
-                self._ui_callback.emit(lambda: self._own_info.setText(f"⚠ 获取sec_uid失败: {e}"))
+                self._bg_own_info.emit(f"⚠ 获取sec_uid失败: {e}")
             finally:
                 self._own_detecting = False
         threading.Thread(target=_fetch, daemon=True).start()
