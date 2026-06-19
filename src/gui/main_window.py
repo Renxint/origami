@@ -413,10 +413,10 @@ class MainWindow(QMainWindow):
         self.batch_page.reset_own_cache()
         # 登录后如果正在看"自己"标签，自动刷新
         self.batch_page.refresh_own_if_active()
-        # 重启 sign-server 以加载新 cookie（浏览器已预热，重启秒级）
+        # 延迟重启 sign-server（等 WebView 完全释放，避免双 Chromium 抢 DLL）
         from src.webview_api import stop_server, start_server
         stop_server()
-        QTimer.singleShot(300, start_server)
+        QTimer.singleShot(5000, start_server)
 
     # ── 字体/主题 ──
 

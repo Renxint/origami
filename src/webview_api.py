@@ -190,8 +190,11 @@ def start_server():
         _raw_path = os.environ.get("PATH", "")
         _debug_log(f"raw PATH (first 500): {_raw_path[:500]}")
 
-        # 构建清理后的环境
+        # 构建清理后的环境：彻底删除 Qt bin，只保留浏览器目录
         _clean_env = os.environ.copy()
+        _clean_path = _clean_env.get("PATH", "")
+        # 删掉所有出现的 Qt bin（可能重复多次）
+        _clean_path = _clean_path.replace(_qt_bin + ";", "").replace(_qt_bin, "")
         _edge_dirs = [
             r"C:\Program Files (x86)\Microsoft\Edge\Application",
             r"C:\Program Files\Microsoft\Edge\Application",
@@ -201,8 +204,9 @@ def start_server():
         _debug_log(f"found browser dirs: {_found_edges}")
         _extra = ";".join(_found_edges)
         if _extra:
-            _clean_env["PATH"] = _extra + ";" + _clean_env.get("PATH", "")
-            _debug_log(f"prepended to PATH: {_extra[:200]}")
+            _clean_path = _extra + ";" + _clean_path
+        _clean_env["PATH"] = _clean_path
+        _debug_log(f"cleaned PATH (first 300): {_clean_path[:300]}")
 
         for attempt in (1, 2):
             _debug_log(f"--- attempt {attempt} ---")
