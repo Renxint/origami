@@ -161,10 +161,16 @@ def start_server():
         _kill_sign_port()  # 杀上次 os._exit 遗留的僵尸
         time.sleep(0.3)
 
-        # 清理 Qt bin 对 PATH 的污染（路径分隔符统一后再替换）
+        # 修复 DLL 污染：Edge/Chrome 优先加载自己的 DLL，非 Qt 的 ANGLE 库
         _clean_env = os.environ.copy()
-        _qt_bin = str(BASE_DIR / "PyQt6" / "Qt6" / "bin").replace("/", os.sep)
-        _clean_env["PATH"] = _clean_env.get("PATH", "").replace(_qt_bin + ";", "").replace(_qt_bin, "")
+        _edge_dirs = [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application",
+            r"C:\Program Files\Microsoft\Edge\Application",
+            r"C:\Program Files\Google\Chrome\Application",
+        ]
+        _extra = ";".join(d for d in _edge_dirs if os.path.isdir(d))
+        if _extra:
+            _clean_env["PATH"] = _extra + ";" + _clean_env.get("PATH", "")
 
         for attempt in (1, 2):
             _err_log = EXE_DIR / "_sign_err.log"
