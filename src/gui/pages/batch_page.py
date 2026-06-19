@@ -751,6 +751,7 @@ class BatchPage(QWidget):
         self._own_posts_loading = False
         self._own_likes_loading = False
         self._own_fav_loading = False
+        self._own_result = None     # 后台线程存结果
         self._url_debounce = QTimer()
         self._url_debounce.setSingleShot(True)
         self._url_debounce.setInterval(800)
@@ -1165,6 +1166,7 @@ class BatchPage(QWidget):
     @pyqtSlot(str)
     def _set_own_info_text(self, text: str):
         self._own_info.setText(text)
+        self._own_info.repaint()
 
     @pyqtSlot(str)
     def _set_own_btn_text(self, text: str):
@@ -1224,7 +1226,7 @@ class BatchPage(QWidget):
                 sec_uid = adapter.get_own_author_id(cookie)
                 if not sec_uid:
                     # 刚登录可能 session 未激活，2s 后重试一次
-                    self._bg_own_info.emit("⚠ 未获取到账号ID, 2秒后重试...")
+                    self._own_result = ("⚠ 未获取到账号ID, 2秒后重试...", 0, 0, 0, None)
                     self._own_log_msg("[重试] 2秒后重新获取sec_uid...", "#F59E0B")
                     self._own_detecting = False
                     QTimer.singleShot(2000, lambda: self._detect_own(force=True))
@@ -1239,7 +1241,7 @@ class BatchPage(QWidget):
                     profile = author.extra.get("profile", {})
                     nickname = author.nickname or profile.get("nickname", "")
                     if not nickname:
-                        self._bg_own_info.emit("⚠ 获取用户信息失败")
+                        self._own_result = ("⚠ 获取用户信息失败", 0, 0, 0, None)
                         self._own_log_msg("[失败] fetch_author返回空昵称", "#EF4444")
                         self._own_detecting = False
                         return
@@ -1255,14 +1257,9 @@ class BatchPage(QWidget):
                         except Exception:
                             pass
 
-                    # 跨线程 UI 更新（@pyqtSlot 确保 Qt 正确路由）
-                    self._bg_own_info.emit(
-                        f"{nickname}  |  作品: {post_count}  |  "
-                        f"粉丝: {follower_count}  |  喜欢: {likes_total}")
-                    self._bg_own_btn_text.emit(f"作品 ({post_count})")
-                    self._bg_own_likes_text.emit(f"喜欢 ({likes_total})")
-                    if avatar_data:
-                        self._bg_own_avatar.emit(avatar_data)
+                    # 存结果，主线程 _auto_refresh 轮询检查并刷新 UI
+                    self._own_result = (nickname, post_count, follower_count,
+                                       likes_total, avatar_data)
 
                     # 预加载统计
                     if not self._own_posts_loaded:
@@ -1272,9 +1269,9 @@ class BatchPage(QWidget):
                         self._own_likes_loaded = True
                         self._count_own_items(sec_uid, 'likes')
                 except Exception as e:
-                    self._bg_own_info.emit(f"⚠ 加载失败: {e}")
+                    self._own_result = (f"⚠ 加载失败: {e}", 0, 0, 0, None)
             except Exception as e:
-                self._bg_own_info.emit(f"⚠ 获取sec_uid失败: {e}")
+                self._own_result = (f"⚠ 获取sec_uid失败: {e}", 0, 0, 0, None)
             finally:
                 self._own_detecting = False
         threading.Thread(target=_fetch, daemon=True).start()
@@ -2459,7 +2456,25 @@ class BatchPage(QWidget):
         menu.exec(lst.mapToGlobal(pos))
 
     def _auto_refresh(self):
-        """定时自动刷新两个列表"""
+        """定时自动刷新两个列表 + 检查后台线程结果"""
+        # 后台线程通过 _own_result 传数据到主线程
+        if self._own_result is not None:
+            try:
+                r = self._own_result
+                self._own_result = None
+                nickname, posts, followers, likes, avatar = r
+                if "⚠" in str(nickname):
+                    self._own_info.setText(nickname)
+                else:
+                    self._own_info.setText(
+                        f"{nickname}  |  作品: {posts}  |  "
+                        f"粉丝: {followers}  |  喜欢: {likes}")
+                    self._own_select_btn.setText(f"作品 ({posts})")
+                    self._sub_likes.setText(f"喜欢 ({likes})")
+                    if avatar:
+                        self._on_own_avatar(avatar)
+            except Exception:
+                pass
         try:
             self._refresh_other_list()
         except Exception:
