@@ -16,8 +16,7 @@ import time
 from pathlib import Path
 
 from src.environ import (NODE_CMD, BASE_DIR, CREATE_NO_WINDOW,
-                        COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_URL,
-                        SIGN_SERVER_PORT)
+                        COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_PORT)
 
 _API_SCRIPT = BASE_DIR / "sign-server" / "api-call.js"
 _SIGNED_SCRIPT = BASE_DIR / "sign-server" / "api-signed.js"
@@ -96,21 +95,42 @@ def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
 # ── 常驻浏览器服务 ──
 _server_process = None
 _server_lock = threading.Lock()
+_active_port = SIGN_SERVER_PORT  # 运行时端口，启动时自动探测可用端口
+
+
+def _get_sign_url():
+    """返回当前 sign-server URL（端口可能不同于默认值）"""
+    return f"http://localhost:{_active_port}"
+
+
+def _find_available_port(start: int, max_tries: int = 50) -> int:
+    """从 start 开始扫描，返回第一个可绑定端口"""
+    import socket
+    for port in range(start, start + max_tries):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(('127.0.0.1', port))
+            s.close()
+            return port
+        except OSError:
+            s.close()
+            continue
+    return start  # 全部失败则返回默认值兜底
 
 
 def _is_server_ready():
     """检查 sign-server 健康状态（快速探测，不阻塞）"""
     import requests as _r
     try:
-        r = _r.get(f"{SIGN_SERVER_URL}/health", timeout=1)
+        r = _r.get(f"{_get_sign_url()}/health", timeout=1)
         return r.json().get('sdkReady', False)
     except Exception:
         return False
 
 
 def start_server():
-    """启动常驻 Node 浏览器服务（线程安全，可重复调用）"""
-    global _server_process
+    """启动常驻 Node 浏览器服务（线程安全，自动探可用端口）"""
+    global _server_process, _active_port
 
     # 快速路径：已经在跑，直接返回（无锁）
     if _server_process and _server_process.poll() is None and _is_server_ready():
@@ -121,11 +141,13 @@ def start_server():
         if _server_process and _server_process.poll() is None and _is_server_ready():
             return True
 
+        # 自动探测可用端口（Windows 可能封了默认端口）
+        _active_port = _find_available_port(SIGN_SERVER_PORT)
         _kill_sign_port()  # 杀上次 os._exit 遗留的僵尸
         time.sleep(0.3)
 
         _server_process = subprocess.Popen(
-            [NODE_CMD, str(SIGN_SERVER_JS), str(SIGN_SERVER_PORT)],
+            [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             creationflags=CREATE_NO_WINDOW,
         )
@@ -151,7 +173,7 @@ def _kill_sign_port():
     """清理 sign-server 端口上的残留进程"""
     try:
         subprocess.run(
-            f'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :{SIGN_SERVER_PORT}\') do taskkill /F /PID %a >nul 2>&1',
+            f'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :{_active_port}\') do taskkill /F /PID %a >nul 2>&1',
             shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2,
             creationflags=CREATE_NO_WINDOW,
         )
@@ -167,7 +189,7 @@ def call_server(endpoint, **params):
     """
     import requests as _r
 
-    url = f"{SIGN_SERVER_URL}/{endpoint}"
+    url = f"{_get_sign_url()}/{endpoint}"
 
     # 懒启动：如果服务器没在跑，自动拉起来
     if not _is_server_ready():
