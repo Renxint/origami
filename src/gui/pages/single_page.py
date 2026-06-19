@@ -518,6 +518,15 @@ class SinglePage(QWidget):
         self.dl_btn.setMinimumWidth(font_scale(100))
         self.dl_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         url_row.addWidget(self.dl_btn)
+
+        self._cancel_btn = QPushButton("取消")
+        self._cancel_btn.setObjectName("secondaryBtn")
+        self._cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._cancel_btn.setMinimumHeight(font_scale(42))
+        self._cancel_btn.setMinimumWidth(font_scale(80))
+        self._cancel_btn.clicked.connect(self._cancel_download)
+        self._cancel_btn.hide()
+        url_row.addWidget(self._cancel_btn)
         # BGM 移到画廊弹窗内选择
 
         self._comment_btn = QPushButton("💬 评论")
@@ -991,6 +1000,8 @@ class SinglePage(QWidget):
         self.status.setText("")
         self.dl_btn.setEnabled(False)
         self.dl_btn.setText("查看列表")
+        self.dl_btn.show()
+        self._cancel_btn.hide()
         self.progress.setVisible(False)
 
     def _show_author(self, info: dict):
@@ -1685,10 +1696,29 @@ class SinglePage(QWidget):
         QTimer.singleShot(50, _p)
         dlg.exec()
 
+    def _cancel_download(self):
+        """取消当前下载或预览"""
+        if self.thread and self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait(2000)
+        self._cached_img_list = None
+        self._cached_aweme = None
+        self._set_downloading(False)
+        self.dl_btn.setEnabled(True)
+        self.dl_btn.setText("查看列表")
+        self.dl_btn.show()
+        self._cancel_btn.hide()
+        self.status.setText("已取消")
+        self.progress.setVisible(False)
+
     def _set_downloading(self, active: bool):
         w = self.window()
         if hasattr(w, 'set_download_active'):
             w.set_download_active(active)
+        if active:
+            self._cancel_btn.show()
+        else:
+            self._cancel_btn.hide()
 
     def _done(self, ok: bool, msg: str):
         self._set_downloading(False)
