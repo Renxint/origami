@@ -836,6 +836,10 @@ class BatchPage(QWidget):
         self._style_tabs()
         self._content.setCurrentIndex(idx)
         if idx == 1:
+            # 信息栏还是加载中？可能上次回调丢失，强制重刷
+            _cur = self._own_info.text()
+            if "正在获取" in _cur or "⚠" in _cur or not _cur:
+                self._own_sec_uid = ""
             self._detect_own()
 
     # ══════════════════════════════════════════
