@@ -1184,8 +1184,10 @@ class BatchPage(QWidget):
                 adapter = DouyinAdapter()
                 sec_uid = adapter.get_own_author_id(cookie)
                 if not sec_uid:
-                    self._ui_callback.emit(lambda: self._own_info.setText(
-                        "⚠ 无法获取账号信息，请检查登录状态"))
+                    # 刚登录可能 session 未激活，2s 后重试一次
+                    self._own_log_msg("[重试] 2秒后重新获取...", "#F59E0B")
+                    self._own_detecting = False
+                    QTimer.singleShot(2000, lambda: self._detect_own(force=True))
                     return
 
                 def _save_sec():
