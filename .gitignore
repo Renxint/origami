@@ -13,6 +13,8 @@ _update/
 _crash.log
 _debug.log
 _instance.log
+_sign_err.log
+_test_sign.log
 _first.lock
 _install.bat
 node_modules/
