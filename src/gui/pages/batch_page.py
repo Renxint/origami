@@ -35,6 +35,7 @@ from src.gui.fonts import font_scale, scaled_font
 from src.environ import OUTPUT_OWN, OUTPUT_OTHER, USER_AGENT
 from src.utils import clean_name, pick_best_video_url, parse_sec_user_id
 from src.cookie import load_cookie, save_cookie
+from src.settings.store import load as load_settings
 from src.gui.dialogs.cookie_dialog import show_login_dialog
 
 # ═══════════════════════════════════════════════════════════
@@ -845,6 +846,11 @@ class BatchPage(QWidget):
         self._tab_own.setChecked(idx == 1)
         self._style_tabs()
         self._content.setCurrentIndex(idx)
+        # 每次切换同步 settings 中的路径到输入框
+        _sp = load_settings().get("download_paths", {}).get("homepage", "")
+        if _sp:
+            self._other_path.setText(_sp)
+            self._own_path.setText(_sp)
         if idx == 1:
             # 信息栏还是加载中？可能上次回调丢失，强制重刷
             _cur = self._own_info.text()
@@ -958,7 +964,8 @@ class BatchPage(QWidget):
         lb.setStyleSheet("background: transparent; border: none;")
         ctrl_row.addWidget(lb)
         self._other_path = QLineEdit()
-        self._other_path.setText(str(OUTPUT_OTHER))
+        _sp = load_settings().get("download_paths", {}).get("homepage", "") or str(OUTPUT_OTHER)
+        self._other_path.setText(_sp)
         self._other_path.setMinimumHeight(font_scale(30))
         ctrl_row.addWidget(self._other_path, 1)
         browse = QPushButton("浏览")
@@ -1077,7 +1084,8 @@ class BatchPage(QWidget):
         lb.setStyleSheet("background: transparent; border: none;")
         path_row.addWidget(lb)
         self._own_path = QLineEdit()
-        self._own_path.setText(str(OUTPUT_OWN))
+        _sp = load_settings().get("download_paths", {}).get("homepage", "") or str(OUTPUT_OWN)
+        self._own_path.setText(_sp)
         self._own_path.setMinimumHeight(font_scale(30))
         path_row.addWidget(self._own_path, 1)
         browse = QPushButton("浏览")
