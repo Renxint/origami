@@ -30,30 +30,94 @@ jobs:
         shell: powershell
         run: choco install innosetup -y
 
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          $ver = (Get-Content version.json | ConvertFrom-Json).version
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+
       - name: Build installer
         shell: cmd
         run: python build.py --installer
 
-      - name: Upload unsigned artifact
-        id: upload-unsigned
-        uses: actions/upload-artifact@v4
-        with:
-          name: Origami-unsigned
-          path: dist_out/Origami_v*_setup.exe
-          if-no-files-found: error
+      - name: Submit to SignPath via REST API
+        id: signpath
+        shell: pwsh
+        env:
+          SIGNPATH_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORG_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $orgId = $env:SIGNPATH_ORG_ID
+          $token = $env:SIGNPATH_TOKEN
+          $version = $env:VERSION
+          $file = Get-Item dist_out/Origami_v*_setup.exe | Select-Object -First 1
 
-      - name: Submit to SignPath
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
-          project-slug: 'origami'
-          signing-policy-slug: 'test-signing'
-          artifact-configuration-slug: 'default'
-          github-artifact-id: '${{ steps.upload-unsigned.outputs.artifact-id }}'
-          wait-for-completion: true
-          wait-for-completion-timeout-in-seconds: 600
-          output-artifact-directory: './signed'
+          Write-Host "Submitting $($file.Name) to SignPath REST API..."
+
+          $submitUri = "https://app.signpath.io/API/v1/$orgId/SigningRequests/SubmitWithArtifact"
+          $form = @{
+            ProjectSlug = 'origami'
+            SigningPolicySlug = 'release-signing'
+            Artifact = $file
+            Description = "Origami v$version"
+          }
+
+          try {
+            $submitResp = Invoke-RestMethod -Uri $submitUri `
+              -Method Post `
+              -Headers @{ Authorization = "Bearer $token" } `
+              -Form $form `
+              -ResponseHeadersVariable respHeaders `
+              -StatusCodeVariable statusCode
+          } catch {
+            Write-Host "Submit failed: $($_.Exception.Message)"
+            if ($_.Exception.Response) {
+              $body = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd()
+              Write-Host "Response body: $body"
+            }
+            throw
+          }
+
+          if ($statusCode -ne 201) {
+            Write-Error "Expected 201 Created, got $statusCode"
+            exit 1
+          }
+
+          $requestUrl = $respHeaders['Location'][0]
+          Write-Host "Signing request created: $requestUrl"
+
+          # Poll for completion
+          $maxWait = 600
+          $elapsed = 0
+          $pollInterval = 10
+          do {
+            Start-Sleep -Seconds $pollInterval
+            $elapsed += $pollInterval
+            $statusResp = Invoke-RestMethod -Uri $requestUrl -Headers @{ Authorization = "Bearer $token" }
+            $statusVal = $statusResp.status
+            Write-Host "[${elapsed}s] Status: $statusVal"
+            if ($statusVal -eq 'Failed' -or $statusVal -eq 'Canceled') {
+              Write-Error "Signing ended with status: $statusVal"
+              exit 1
+            }
+          } while ($statusVal -ne 'Completed' -and $elapsed -lt $maxWait)
+
+          if ($statusVal -ne 'Completed') {
+            Write-Error "Signing timed out after ${maxWait}s"
+            exit 1
+          }
+
+          # Download signed artifact
+          New-Item -ItemType Directory -Force -Path ./signed | Out-Null
+          $signedPath = "./signed/$($file.Name)"
+          Invoke-RestMethod -Uri "$requestUrl/SignedArtifact" `
+            -Headers @{ Authorization = "Bearer $token" } `
+            -OutFile $signedPath
+
+          Write-Host "Signed artifact saved: $signedPath"
 
       - name: Upload signed artifact
         uses: actions/upload-artifact@v4
@@ -61,3 +125,13 @@ jobs:
           name: Origami-signed
           path: ./signed/
           if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Origami v${{ steps.version.outputs.VERSION }}
+          body: "自动构建 + SignPath 代码签名。详见 [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)"
+          files: ./signed/Origami_v${{ steps.version.outputs.VERSION }}_setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
