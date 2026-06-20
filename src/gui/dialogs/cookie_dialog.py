@@ -29,7 +29,6 @@ def show_login_dialog(parent) -> str | None:
         cookie = login.run(parent)
         if cookie:
             save_cookie(cookie)
-            QMessageBox.information(parent, "登录成功", "抖音登录成功，可以开始下载了！")
             return cookie
     except RuntimeError as e:
         QMessageBox.warning(parent, "组件缺失", str(e))
