@@ -456,7 +456,7 @@ class SettingsPage(QWidget):
 
         # 右侧开关
         cb = QCheckBox()
-        cb.setChecked(checked)
+        cb.setChecked(bool(checked))
         cb.setCursor(Qt.CursorShape.PointingHandCursor)
         cb.stateChanged.connect(
             lambda s: callback(s == Qt.CheckState.Checked.value)

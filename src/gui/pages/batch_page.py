@@ -702,6 +702,16 @@ class BatchPage(QWidget):
     """批量作品下载页：他人主页 / 自己主页"""
 
     back_clicked = pyqtSignal()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        from src.settings.store import load as load_settings
+        sp = load_settings().get("download_paths", {}).get("homepage", "")
+        if sp:
+            self._other_path.setText(sp)
+            if hasattr(self, '_own_path'):
+                self._own_path.setText(sp)
+
     # 后台线程 → 主线程通信（pyqtSignal 跨线程自动 QueuedConnection）
     _bg_log = pyqtSignal(str, str)            # (msg, color) 他人日志
     _bg_own_log = pyqtSignal(str, str)        # (msg, color) 自己日志

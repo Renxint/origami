@@ -30,6 +30,7 @@ QMainWindow, QWidget {{
     color: #F1F5F9;
     font-size: {s}pt;
 }}
+QPushButton QLabel {{ background: transparent; }}
 
 /* ── 输入框 ── */
 QLineEdit {{

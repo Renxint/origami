@@ -435,6 +435,10 @@ class SinglePage(QWidget):
         self._dl_log_signal.connect(lambda msg: self.log_view.append(msg))
         self.thread = None
         self._auto_timer = QTimer(self)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._sync_path_from_settings()
         self._auto_timer.setSingleShot(True)
         self._auto_timer.timeout.connect(self._auto_parse)
         self._refresh_timer = QTimer(self)
