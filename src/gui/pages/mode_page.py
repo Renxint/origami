@@ -376,7 +376,7 @@ class ModePage(QWidget):
                 if _fp.exists():
                     _content = _fp.read_text(encoding="utf-8", errors="replace").strip()
                     if _content:
-                        _logs += f"\n\n=== {_fn} ===\n{_content[-2000:]}"  # 最多 2000 字符
+                        _logs += f"\n\n--- {_fn} ---\n{_content[-500:]}"  # 取尾部最新
             _info = f"Win{pf.release()} v{VERSION} | {_ts}"
             _full = f"[Origami] {_info}\n\n> 用户反馈：{text.strip()}{_logs}"
             # 钉钉单条消息最多约 20000 字符
