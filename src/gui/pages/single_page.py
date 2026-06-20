@@ -970,7 +970,14 @@ class SinglePage(QWidget):
             self.thread._selected_img_indices = set()
         evt.set()
 
+    def _sync_path_from_settings(self):
+        """从 settings 同步下载路径到输入框"""
+        saved = load_settings().get("download_paths", {}).get("single", "")
+        if saved:
+            self.path_input.setText(saved)
+
     def _do_cached_download(self):
+        self._sync_path_from_settings()
         save_dir = self.path_input.text().strip() or str(OUTPUT_SINGLE)
         thread = SingleDownloadThread("", save_dir, False, preview_mode=False)
         thread._cached_aweme = self._cached_aweme
@@ -1063,6 +1070,8 @@ class SinglePage(QWidget):
         if not text: return
         cookie = ensure_cookie(self)
         if not cookie: self.status.setText("已取消 - Cookie 未设置"); return
+        # 每次下载时从 settings 同步最新路径
+        self._sync_path_from_settings()
         save_dir = self.path_input.text().strip() or str(OUTPUT_SINGLE)
         if hasattr(self, '_cached_img_list') and self._cached_img_list:
             evt = threading.Event()

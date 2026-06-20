@@ -2270,7 +2270,11 @@ class BatchPage(QWidget):
         import re
         m = re.search(r'https?://[^\s]+', raw)
         url = m.group(0).rstrip('.,;:!?）」)】') if m else raw
-        save_dir = self._other_path.text().strip() or str(OUTPUT_OTHER)
+        # 同步设置中的路径
+        _from_settings = load_settings().get("download_paths", {}).get("homepage", "")
+        if _from_settings:
+            self._other_path.setText(_from_settings)
+        save_dir = _from_settings or self._other_path.text().strip() or str(OUTPUT_OTHER)
 
         self._other_pause_btn.setEnabled(True)
         self._other_cancel_btn.setEnabled(True)
@@ -2355,7 +2359,10 @@ class BatchPage(QWidget):
         else:
             mode = 'favs'
             pre = self._own_fav_items or None
-        save_dir = self._own_path.text().strip() or str(OUTPUT_OWN)
+        _from_settings = load_settings().get("download_paths", {}).get("homepage", "")
+        if _from_settings:
+            self._own_path.setText(_from_settings)
+        save_dir = _from_settings or self._own_path.text().strip() or str(OUTPUT_OWN)
 
         self._own_pause_btn.setEnabled(True)
         self._own_cancel_btn.setEnabled(True)
