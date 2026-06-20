@@ -33,6 +33,7 @@ PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardSizePercent=120,100
 WizardResizable=no
+DisableProgramGroupPage=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
