@@ -703,7 +703,8 @@ class BatchPage(QWidget):
 
     back_clicked = pyqtSignal()
     # 后台线程 → 主线程通信（pyqtSignal 跨线程自动 QueuedConnection）
-    _bg_log = pyqtSignal(str, str)            # (msg, color)
+    _bg_log = pyqtSignal(str, str)            # (msg, color) 他人日志
+    _bg_own_log = pyqtSignal(str, str)        # (msg, color) 自己日志
     _bg_info = pyqtSignal(str)                # status text
     _bg_reset_ui = pyqtSignal()               # 重置上次下载的 UI 状态
     _bg_author_loaded = pyqtSignal(object, object, object, str)  # (author, profile, avatar_data, sec_uid)
@@ -764,6 +765,7 @@ class BatchPage(QWidget):
         self._refresh_timer.start()
         # 连接后台线程→主线程信号
         self._bg_log.connect(self._other_log_msg)
+        self._bg_own_log.connect(self._own_log_msg)
         self._bg_info.connect(self._set_other_info)
         self._bg_reset_ui.connect(self._reset_other_ui)
         self._bg_author_loaded.connect(self._on_bg_author_loaded)
@@ -1235,7 +1237,7 @@ class BatchPage(QWidget):
                 if not sec_uid:
                     # 刚登录可能 session 未激活，2s 后重试一次
                     self._own_result = ("⚠ 未获取到账号ID, 2秒后重试...", 0, 0, 0, None)
-                    self._own_log_msg("[重试] 2秒后重新获取sec_uid...", "#F59E0B")
+                    self._bg_own_log.emit("[重试] 2秒后重新获取sec_uid...", "#F59E0B")
                     self._own_detecting = False
                     QTimer.singleShot(2000, lambda: self._detect_own(force=True))
                     return
@@ -1250,7 +1252,7 @@ class BatchPage(QWidget):
                     nickname = author.nickname or profile.get("nickname", "")
                     if not nickname:
                         self._own_result = ("⚠ 获取用户信息失败", 0, 0, 0, None)
-                        self._own_log_msg("[失败] fetch_author返回空昵称", "#EF4444")
+                        self._bg_own_log.emit("[失败] fetch_author返回空昵称", "#EF4444")
                         self._own_detecting = False
                         return
                     likes_total = profile.get("favoriting_count", 0)
@@ -1324,7 +1326,7 @@ class BatchPage(QWidget):
         self._own_selected_ids = set()
 
         tag = {'posts': '作品', 'likes': '喜欢', 'favs': '收藏'}[mode]
-        self._own_log_msg(f'[统计] 正在统计{tag}...', '#F59E0B')
+        self._bg_own_log.emit(f'[统计] 正在统计{tag}...', '#F59E0B')
 
         cookie = load_cookie()
 
@@ -1343,7 +1345,7 @@ class BatchPage(QWidget):
                     self._own_log_msg(f'[收藏] {err}', '#EF4444')
 
                 if not items and _page[0] == 0:
-                    self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
+                    self._bg_own_log.emit(f'[统计] 暂无{tag}', '#94A3B8')
                     self._own_fav_loading = False
                     self._own_fav_loaded = True
                     return
@@ -1391,17 +1393,17 @@ class BatchPage(QWidget):
                             data["has_more"] = result.get("has_more", 0)
                             data["max_cursor"] = result.get("next_cursor", 0)
                     except Exception as e:
-                        self._own_log_msg(f'[统计] 中断: {e}', '#EF4444')
+                        self._bg_own_log.emit(f'[统计] 中断: {e}', '#EF4444')
                         return
 
                     if not items:
                         if page == 0:
-                            self._own_log_msg(f'[统计] 暂无{tag}', '#94A3B8')
+                            self._bg_own_log.emit(f'[统计] 暂无{tag}', '#94A3B8')
                             cm = 'posts' if self._sub_posts.isChecked() else 'likes'
                             if cm == mode:
                                 self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 (0)"))
                         else:
-                            self._own_log_msg(f'[统计] {tag} 翻页结束 (共{total})', '#22C55E')
+                            self._bg_own_log.emit(f'[统计] {tag} 翻页结束 (共{total})', '#22C55E')
                         return
 
                     store.extend(items)
@@ -1411,7 +1413,7 @@ class BatchPage(QWidget):
                     cursor = (data.get("max_cursor", 0)
                               or data.get("cursor", 0))
                     if page == 1:
-                        self._own_log_msg(
+                        self._bg_own_log.emit(
                             f'[统计] 已加载 {total} 个{tag}...', '#64748B')
                     if not has_more:
                         break
@@ -1419,7 +1421,7 @@ class BatchPage(QWidget):
                         break
                     time.sleep(0.3)
 
-                self._own_log_msg(f'[统计] 共 {total} 个自己的{tag}', '#22C55E')
+                self._bg_own_log.emit(f'[统计] 共 {total} 个自己的{tag}', '#22C55E')
                 cur_mode = 'posts' if self._sub_posts.isChecked() else 'likes'
                 if cur_mode == mode:
                     self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 ({total})"))

@@ -76,3 +76,22 @@
 [00:52:29] process alive, checking health...
 [00:52:29] process alive but health check failed, will wait in call_server
 [00:53:29] call_server: video
+[00:56:18] === start_server() called ===
+[00:56:19] using port: 18765
+[00:56:19] NODE_CMD: node
+[00:56:19] NODE_CMD exists: False
+[00:56:19] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[00:56:19] SIGN_SERVER_JS exists: True
+[00:56:19] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:56:19] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:56:19] frozen: False
+[00:56:19] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[00:56:19] raw PATH (first 500): D:\Pycharm环境\Claude\.venv\Lib\site-packages\PyQt6\Qt6\bin;D:\Pycharm环境\Claude\.venv\Scripts;C:\Program Files\Python38\Scripts\;C:\Program Files\Python38\;C:\Program Files (x86)\STMicroelectronics\stlink_server;C:\ST\STM32CubeCLT_1.18.0;C:\ST\STM32CubeCLT_1.18.0\CMake\bin;C:\ST\STM32CubeCLT_1.18.0\Ninja\bin;C:\ST\STM32CubeCLT_1.18.0\GNU-tools-for-STM32\bin;C:\ST\STM32CubeCLT_1.18.0\STLink-gdb-server\bin;C:\ST\STM32CubeCLT_1.18.0\STM32CubeProgrammer\bin;E:\VMware\bin\;C:\Program Files\Microsoft\jd
+[00:56:19] minimal PATH: C:\Program Files (x86)\Microsoft\Edge\Application;C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem
+[00:56:19] --- attempt 1 ---
+[00:56:19] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[00:56:19] Popen ok, PID: 57636
+[00:56:19] sign_err.log: 
+[00:56:22] after 3s, poll()=None
+[00:56:22] process alive, checking health...
+[00:56:22] process alive but health check failed, will wait in call_server
