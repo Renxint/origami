@@ -186,11 +186,7 @@ def start_server():
         _qt_bin = str(BASE_DIR / "PyQt6" / "Qt6" / "bin")
         _debug_log(f"Qt bin exists: {os.path.isdir(_qt_bin)} -> {_qt_bin}")
 
-        # PATH 前 500 字符
-        _raw_path = os.environ.get("PATH", "")
-        _debug_log(f"raw PATH (first 500): {_raw_path[:500]}")
-
-        # 构建最简环境：只保留 SYSTEM32 + Edge 目录，彻底排除所有干扰
+        # 构建最简环境：只保留 System32，浏览器目录由 Node 端动态添加
         _clean_env = {}
         # 只传必要变量
         for _k in ("SYSTEMROOT", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA",
