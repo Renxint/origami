@@ -55,8 +55,8 @@
 
 | 🧩 插件式架构 | 🎨 原生桌面体验 | 🛡️ 纯本地 · 无数据收集 |
 |:---:|:---:|:---:|
-| PlatformAdapter 设计模式 | PyQt6 深色/亮色主题 | 所有数据留在你的电脑上 |
-| 新平台三步入驻 | 托盘运行 · 快捷键 · 单实例 | SignPath 代码签名 · MIT 开源 |
+| PlatformAdapter 设计模式 | PyQt6 原生桌面 | 所有数据留在你的电脑上 |
+| 新平台三步入驻 | 托盘运行 · 快捷键 · 单实例 | SignPath 签名 · CI/CD 构建 · MIT |
 
 </div>
 
@@ -68,7 +68,7 @@
 
 ```mermaid
 graph TB
-    A[🧩 Originami 入口] --> B[Platform Registry 注册表]
+    A[🧩 Origami 入口] --> B[Platform Registry 注册表]
     B --> C[DouyinAdapter]
     B --> D[BilibiliAdapter 开发中]
     B --> E[...更多平台]
@@ -127,7 +127,7 @@ graph TB
 
 ### 安装
 
-1. 下载 `Origami_v0.6.0_setup.exe`，双击安装
+1. 下载最新 `Origami_v*_setup.exe`，双击安装
 2. 或在 [Releases](https://github.com/Renxint/origami/releases) 下载免安装版
 
 ### 登录
