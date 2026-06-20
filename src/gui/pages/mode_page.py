@@ -15,6 +15,7 @@ from pathlib import Path
 
 from src.gui.fonts import font_scale
 from src.config import VERSION, DINGTALK_WEBHOOK
+from src.environ import EXE_DIR
 from src.cookie import get_cookie_status
 from src.gui.dialogs.cookie_dialog import show_login_dialog
 
@@ -359,22 +360,30 @@ class ModePage(QWidget):
 
     def _send_feedback(self):
         text, ok = QInputDialog.getMultiLineText(
-            self, "反馈建议", "请描述问题或建议（含 Origami 或 折纸）：", ""
+            self, "反馈建议", "请描述你遇到的问题或建议：", ""
         )
         if not ok or not text.strip():
-            return
-        if "Origami" not in text and "折纸" not in text:
-            QMessageBox.warning(self, "发送失败", "请包含关键词：Origami 或 折纸")
             return
         try:
             import requests as req
             import platform as pf
-            payload = {"msgtype": "text", "text": {
-                "content": f"[Origami]\nWin{pf.release()} v{VERSION}\n{text.strip()}"
-            }}
-            r = req.post(DINGTALK_WEBHOOK, json=payload, timeout=10)
+            # 拼接诊断信息
+            import time, re
+            _ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            _logs = ""
+            for _fn in ["_sign_err.log", "_sign_debug.log", "_instance.log"]:
+                _fp = EXE_DIR / _fn
+                if _fp.exists():
+                    _content = _fp.read_text(encoding="utf-8", errors="replace").strip()
+                    if _content:
+                        _logs += f"\n\n=== {_fn} ===\n{_content[-2000:]}"  # 最多 2000 字符
+            _info = f"Win{pf.release()} v{VERSION} | {_ts}"
+            _full = f"[Origami] {_info}\n\n> 用户反馈：{text.strip()}{_logs}"
+            # 钉钉单条消息最多约 20000 字符
+            payload = {"msgtype": "text", "text": {"content": _full[:18000]}}
+            r = req.post(DINGTALK_WEBHOOK, json=payload, timeout=15)
             if r.json().get("errcode") == 0:
-                QMessageBox.information(self, "发送成功", "感谢反馈!")
+                QMessageBox.information(self, "发送成功", "感谢反馈！")
             else:
                 QMessageBox.warning(self, "发送失败", f"服务器异常\n({r.text[:200]})")
         except Exception as e:
