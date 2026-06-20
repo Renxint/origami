@@ -40,6 +40,9 @@ from PyQt6.QtGui import QPalette, QColor, QFont
 
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
+# 静默 libpng iCCP 警告（Qt 自带图标的色域警告，不影响功能）
+os.environ["QT_LOGGING_RULES"] = "libpng.warning=false"
+
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.settings.store import load as load_settings
 
