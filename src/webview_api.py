@@ -197,18 +197,11 @@ def start_server():
                     "APPDATA", "HOMEDRIVE", "HOMEPATH", "COMPUTERNAME"):
             if _k in os.environ:
                 _clean_env[_k] = os.environ[_k]
-        # PATH 只保留系统目录 + 浏览器目录（findBrowser 可能找到 Chrome 或 Edge）
-        _browser_dirs = [
-            r"C:\Program Files\Google\Chrome\Application",
-            r"C:\Program Files (x86)\Google\Chrome\Application",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application",
-            r"C:\Program Files\Microsoft\Edge\Application",
-        ]
-        _sys_dirs = r"C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem"
-        _found = [d for d in _browser_dirs if os.path.isdir(d)]
-        _min_path = ";".join(_found + [_sys_dirs])
-        _clean_env["PATH"] = _min_path
-        _debug_log(f"minimal PATH: {_min_path[:300]}")
+        # PATH 清掉 Qt bin 即可，浏览器目录由 Node 端 findBrowser() 动态添加
+        _clean_env["PATH"] = (
+            r"C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem"
+        )
+        _debug_log(f"clean PATH: System32 only")
 
         for attempt in (1, 2):
             _debug_log(f"--- attempt {attempt} ---")
