@@ -31,10 +31,15 @@ ISCC_PATHS = [
 
 
 def clean():
-    """清理构建产物"""
-    for d in [DIST_DIR, PROJECT_DIR / "build", PROJECT_DIR / "__pycache__"]:
+    """清理构建产物（保留旧版 setup.exe）"""
+    # 只删编译缓存和源代码目录，不删 setup.exe
+    for d in [PROJECT_DIR / "build", PROJECT_DIR / "__pycache__"]:
         if d.exists():
             shutil.rmtree(d, ignore_errors=True)
+    # 只删 dist_out 里的 Origami 目录（不含 setup.exe）
+    _build_dir = DIST_DIR / "Origami"
+    if _build_dir.exists():
+        shutil.rmtree(_build_dir, ignore_errors=True)
 
 
 def build():
