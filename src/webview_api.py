@@ -229,17 +229,13 @@ def start_server():
                     continue
                 return False
 
-            time.sleep(3)
+            # 只等 0.3s 验证进程没立即崩，详细等待由 call_server 负责
+            time.sleep(0.3)
             _rc = _server_process.poll()
-            _debug_log(f"after 3s, poll()={_rc}")
+            _debug_log(f"after 0.3s, poll()={_rc}")
             if _rc is None:
-                _debug_log("process alive, checking health...")
-                if _is_server_ready():
-                    _debug_log("health OK, start_server SUCCESS")
-                    return True
-                else:
-                    _debug_log("process alive but health check failed, will wait in call_server")
-                    return True
+                _debug_log("process alive, deferring health check to call_server")
+                return True
             # 进程已死
             _debug_log(f"process died (rc={_rc}), reading stderr...")
             if _err_log.exists():
