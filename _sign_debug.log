@@ -150,3 +150,21 @@
 [02:20:04] sign_err.log: 
 [02:20:05] after 0.3s, poll()=None
 [02:20:05] process alive, deferring health check to call_server
+[02:21:15] === start_server() called ===
+[02:21:16] using port: 18765
+[02:21:16] NODE_CMD: node
+[02:21:16] NODE_CMD exists: False
+[02:21:16] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[02:21:16] SIGN_SERVER_JS exists: True
+[02:21:16] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[02:21:16] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[02:21:16] frozen: False
+[02:21:16] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[02:21:16] raw PATH (first 500): D:\Pycharm环境\Claude\.venv\Lib\site-packages\PyQt6\Qt6\bin;D:\Pycharm环境\Claude\.venv\Scripts;C:\Program Files\Python38\Scripts\;C:\Program Files\Python38\;C:\Program Files (x86)\STMicroelectronics\stlink_server;C:\ST\STM32CubeCLT_1.18.0;C:\ST\STM32CubeCLT_1.18.0\CMake\bin;C:\ST\STM32CubeCLT_1.18.0\Ninja\bin;C:\ST\STM32CubeCLT_1.18.0\GNU-tools-for-STM32\bin;C:\ST\STM32CubeCLT_1.18.0\STLink-gdb-server\bin;C:\ST\STM32CubeCLT_1.18.0\STM32CubeProgrammer\bin;E:\VMware\bin\;C:\Program Files\Microsoft\jd
+[02:21:16] clean PATH: System32 only
+[02:21:16] --- attempt 1 ---
+[02:21:16] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[02:21:16] Popen ok, PID: 54900
+[02:21:16] sign_err.log: 
+[02:21:16] after 0.3s, poll()=None
+[02:21:16] process alive, deferring health check to call_server
