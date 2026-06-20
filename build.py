@@ -55,8 +55,8 @@ def build():
         print("[ERROR] 打包失败！")
         sys.exit(1)
 
-    build_dir = DIST_DIR / f"Origami_v{VERSION}"
-    exe = build_dir / f"Origami_v{VERSION}.exe"
+    build_dir = DIST_DIR / "Origami"
+    exe = build_dir / "Origami.exe"
     if exe.exists():
         size_mb = exe.stat().st_size / (1024 * 1024)
         print(f"[OK] 打包完成 ({size_mb:.1f}MB)")
