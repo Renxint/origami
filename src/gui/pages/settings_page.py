@@ -24,6 +24,7 @@ from PyQt6.QtGui import QKeySequence
 from PyQt6.QtGui import QFont
 
 from src.gui.fonts import font_scale, scaled_font
+from src.environ import OUTPUT_SINGLE, OUTPUT_BATCH
 from src.config import VERSION
 from src.cookie import get_cookie_status, load_cookie, save_cookie
 from src.settings.store import load as load_settings, save as save_settings, set as store_set
@@ -484,9 +485,9 @@ class SettingsPage(QWidget):
 
         self._section_title(panel, "保存路径")
         saved = load_settings()
-        for label, key in [
-            ("单视频", "single"),
-            ("主页下载", "homepage"),
+        for label, key, default_path in [
+            ("单视频", "single", str(OUTPUT_SINGLE)),
+            ("主页下载", "homepage", str(OUTPUT_BATCH)),
         ]:
             row = QHBoxLayout()
             row.setSpacing(12)
@@ -495,7 +496,7 @@ class SettingsPage(QWidget):
             row.addWidget(lb)
 
             current_path = saved.get("download_paths", {}).get(key, "")
-            pl = QLabel(current_path or "(output/ 目录)")
+            pl = QLabel(current_path or "(默认目录)")
             pl.setStyleSheet(ROW_VALUE_STYLE)
             pl.setWordWrap(True)
             row.addWidget(pl, 1)
@@ -506,6 +507,14 @@ class SettingsPage(QWidget):
             btn.setFixedWidth(font_scale(64))
             btn.clicked.connect(lambda checked, k=key, lbl=pl: self._change_path(k, lbl))
             row.addWidget(btn)
+
+            rst = QPushButton("重置")
+            rst.setObjectName("ghostBtn")
+            rst.setCursor(Qt.CursorShape.PointingHandCursor)
+            rst.setFixedWidth(font_scale(56))
+            rst.clicked.connect(lambda checked, k=key, lbl=pl, dp=default_path:
+                                self._reset_path(k, lbl, dp))
+            row.addWidget(rst)
 
             panel.content.addLayout(row)
 
@@ -1053,6 +1062,15 @@ class SettingsPage(QWidget):
             settings["download_paths"] = paths
             save_settings(settings)
             label.setText(folder)
+
+    def _reset_path(self, key: str, label: QLabel, default_path: str):
+        """恢复默认路径"""
+        settings = load_settings()
+        paths = settings.get("download_paths", {})
+        paths.pop(key, None)
+        settings["download_paths"] = paths
+        save_settings(settings)
+        label.setText("(默认目录)")
 
     def _on_login_btn_clicked(self):
         """登录/退出/重新登录"""

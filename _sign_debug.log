@@ -1,0 +1,58 @@
+[00:46:32] === start_server() called ===
+[00:46:32] using port: 18765
+[00:46:33] NODE_CMD: node
+[00:46:33] NODE_CMD exists: False
+[00:46:33] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[00:46:33] SIGN_SERVER_JS exists: True
+[00:46:33] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:46:33] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:46:33] frozen: False
+[00:46:33] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[00:46:33] raw PATH (first 500): D:\Pycharm环境\Claude\.venv\Lib\site-packages\PyQt6\Qt6\bin;D:\Pycharm环境\Claude\.venv\Scripts;C:\Program Files\Python38\Scripts\;C:\Program Files\Python38\;C:\Program Files (x86)\STMicroelectronics\stlink_server;C:\ST\STM32CubeCLT_1.18.0;C:\ST\STM32CubeCLT_1.18.0\CMake\bin;C:\ST\STM32CubeCLT_1.18.0\Ninja\bin;C:\ST\STM32CubeCLT_1.18.0\GNU-tools-for-STM32\bin;C:\ST\STM32CubeCLT_1.18.0\STLink-gdb-server\bin;C:\ST\STM32CubeCLT_1.18.0\STM32CubeProgrammer\bin;E:\VMware\bin\;C:\Program Files\Microsoft\jd
+[00:46:33] minimal PATH: C:\Program Files (x86)\Microsoft\Edge\Application;C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem
+[00:46:33] --- attempt 1 ---
+[00:46:33] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[00:46:33] Popen ok, PID: 57140
+[00:46:33] sign_err.log: 
+[00:46:36] after 3s, poll()=None
+[00:46:36] process alive, checking health...
+[00:46:36] process alive but health check failed, will wait in call_server
+[00:46:54] === start_server() called ===
+[00:46:55] using port: 18765
+[00:46:55] NODE_CMD: node
+[00:46:55] NODE_CMD exists: False
+[00:46:55] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[00:46:55] SIGN_SERVER_JS exists: True
+[00:46:55] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:46:55] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:46:55] frozen: False
+[00:46:55] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[00:46:55] raw PATH (first 500): D:\Pycharm环境\Claude\.venv\Lib\site-packages\PyQt6\Qt6\bin;D:\Pycharm环境\Claude\.venv\Scripts;C:\Program Files\Python38\Scripts\;C:\Program Files\Python38\;C:\Program Files (x86)\STMicroelectronics\stlink_server;C:\ST\STM32CubeCLT_1.18.0;C:\ST\STM32CubeCLT_1.18.0\CMake\bin;C:\ST\STM32CubeCLT_1.18.0\Ninja\bin;C:\ST\STM32CubeCLT_1.18.0\GNU-tools-for-STM32\bin;C:\ST\STM32CubeCLT_1.18.0\STLink-gdb-server\bin;C:\ST\STM32CubeCLT_1.18.0\STM32CubeProgrammer\bin;E:\VMware\bin\;C:\Program Files\Microsoft\jd
+[00:46:55] minimal PATH: C:\Program Files (x86)\Microsoft\Edge\Application;C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem
+[00:46:55] --- attempt 1 ---
+[00:46:55] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[00:46:55] Popen ok, PID: 17712
+[00:46:55] sign_err.log: 
+[00:46:58] after 3s, poll()=None
+[00:46:58] process alive, checking health...
+[00:46:59] process alive but health check failed, will wait in call_server
+[00:47:26] === start_server() called ===
+[00:47:27] using port: 18765
+[00:47:28] NODE_CMD: node
+[00:47:28] NODE_CMD exists: False
+[00:47:28] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[00:47:28] SIGN_SERVER_JS exists: True
+[00:47:28] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:47:28] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[00:47:28] frozen: False
+[00:47:28] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[00:47:28] raw PATH (first 500): D:\Pycharm环境\Claude\.venv\Lib\site-packages\PyQt6\Qt6\bin;D:\Pycharm环境\Claude\.venv\Scripts;C:\Program Files\Python38\Scripts\;C:\Program Files\Python38\;C:\Program Files (x86)\STMicroelectronics\stlink_server;C:\ST\STM32CubeCLT_1.18.0;C:\ST\STM32CubeCLT_1.18.0\CMake\bin;C:\ST\STM32CubeCLT_1.18.0\Ninja\bin;C:\ST\STM32CubeCLT_1.18.0\GNU-tools-for-STM32\bin;C:\ST\STM32CubeCLT_1.18.0\STLink-gdb-server\bin;C:\ST\STM32CubeCLT_1.18.0\STM32CubeProgrammer\bin;E:\VMware\bin\;C:\Program Files\Microsoft\jd
+[00:47:28] minimal PATH: C:\Program Files (x86)\Microsoft\Edge\Application;C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem
+[00:47:28] --- attempt 1 ---
+[00:47:28] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[00:47:28] Popen ok, PID: 38656
+[00:47:28] sign_err.log: 
+[00:47:31] after 3s, poll()=None
+[00:47:31] process alive, checking health...
+[00:47:31] process alive but health check failed, will wait in call_server
+[00:47:58] call_server: video
