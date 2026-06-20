@@ -59,11 +59,36 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "立即启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; 运行时生成的日志/临时文件（卸载时清理）
+; 运行时日志/临时文件，卸载时清理
 Type: files; Name: "{app}\_*.log"
 Type: files; Name: "{app}\_*.txt"
 Type: files; Name: "{app}\_*.png"
 Type: files; Name: "{app}\_*.json"
 Type: files; Name: "{app}\qt.conf"
 Type: filesandordirs; Name: "{app}\_update"
-; 保留: settings.json, output/ — 用户数据不删
+
+[Code]
+// 卸载时询问：是否保留用户数据
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    if MsgBox(
+      '是否保留你的个人数据？' + #13#10#13#10 +
+      '保留的数据：' + #13#10 +
+      '  • 软件设置 (settings.json)' + #13#10 +
+      '  • 下载的作品 (output\ 目录)' + #13#10#13#10 +
+      '点击"是"保留这些数据（重装后可继续使用）' + #13#10 +
+      '点击"否"全部删除（彻底清理）',
+      mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      // 保留: 不删 settings.json 和 output/
+    end
+    else
+    begin
+      // 全部删除: 删 settings.json 和 output/
+      DeleteFile(ExpandConstant('{app}\settings.json'));
+      DelTree(ExpandConstant('{app}\output'), True, True, True);
+    end;
+  end;
+end;
