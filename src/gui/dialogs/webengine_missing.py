@@ -20,12 +20,15 @@ from PyQt6.QtGui import QFont
 
 from src.gui.fonts import scaled_font
 from src.environ import BASE_DIR
+from src.config import VERSION
 
-# ── 下载配置 ────────────────────────────────────────────
-WEBENGINE_DOWNLOAD_URL = (
-    "https://github.com/Renxint/origami/releases/latest/download/webengine.zip"
-)
-WEBENGINE_SHA256_URL = WEBENGINE_DOWNLOAD_URL + ".sha256"
+# ── 下载配置（版本号动态拼接）───────────────────────────
+def _webengine_urls():
+    ver = VERSION
+    return [
+        f"https://github.com/Renxint/origami/releases/download/v{ver}/webengine.zip",
+        f"https://github.com/Renxint/origami/releases/latest/download/webengine.zip",
+    ]
 
 # 目标目录：frozen 时在 _internal/PyQt6/Qt6/bin，开发时搜 site-packages
 if getattr(sys, "frozen", False):
@@ -44,6 +47,28 @@ if _WEBENGINE_DIR is None:
     _WEBENGINE_DIR = Path(sys.prefix) / "Lib" / "site-packages" / "PyQt6" / "Qt6" / "bin"
 
 _WEBENGINE_MARKER = _WEBENGINE_DIR / "Qt6WebEngineCore.dll" if _WEBENGINE_DIR else None
+
+
+def _install_from_file(parent=None):
+    """用户手动选择 zip 文件安装"""
+    from PyQt6.QtWidgets import QFileDialog
+    path, _ = QFileDialog.getOpenFileName(
+        parent, "选择 webengine.zip", "", "ZIP 文件 (*.zip)"
+    )
+    if not path:
+        return
+    try:
+        import zipfile
+        _WEBENGINE_DIR.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(path, "r") as zf:
+            zf.extractall(_WEBENGINE_DIR)
+        QMessageBox.information(
+            parent, "安装完成",
+            f"组件已安装到：\n{_WEBENGINE_DIR}\n\n请重启软件以启用扫码登录。"
+        )
+        parent.accept()
+    except Exception as e:
+        QMessageBox.warning(parent, "安装失败", str(e))
 
 
 def webengine_available() -> bool:
@@ -71,48 +96,62 @@ def _verify_sha256(filepath: Path, expected: str) -> bool:
 
 
 def _download_worker(zip_path: Path, signals: _DownloadSignals):
-    """后台线程：下载 + 校验 + 解压"""
+    """后台线程：多 URL 尝试下载 + 校验 + 解压"""
     try:
-        # 1. 获取 SHA256
-        expected_sha = ""
-        try:
-            r = requests.get(WEBENGINE_SHA256_URL, timeout=10)
-            expected_sha = r.text.strip().split()[0]
-        except Exception:
-            pass
+        urls = _webengine_urls()
+        last_error = ""
 
-        # 2. 下载
-        resp = requests.get(WEBENGINE_DOWNLOAD_URL, stream=True, timeout=30)
-        total = int(resp.headers.get("content-length", 0))
-        downloaded = 0
-        with open(zip_path, "wb") as f:
-            for chunk in resp.iter_content(8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total:
-                        signals.progress.emit(int(downloaded / total * 90))
-                    if downloaded > 1024 * 1024:
-                        signals.speed.emit(f"{downloaded / 1024 / 1024:.1f} MB / {total / 1024 / 1024:.1f} MB")
+        for url in urls:
+            try:
+                # 1. 下载
+                resp = requests.get(url, stream=True, timeout=30,
+                                    headers={"User-Agent": "Origami/1.0"})
+                if resp.status_code != 200:
+                    last_error = f"HTTP {resp.status_code}"
+                    continue
 
-        signals.progress.emit(92)
+                total = int(resp.headers.get("content-length", 0))
+                downloaded = 0
+                with open(zip_path, "wb") as f:
+                    for chunk in resp.iter_content(8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total:
+                                signals.progress.emit(int(downloaded / total * 90))
+                            if downloaded > 1024 * 1024:
+                                signals.speed.emit(
+                                    f"{downloaded / 1024 / 1024:.1f} MB / {total / 1024 / 1024:.1f} MB")
 
-        # 3. 校验
-        if expected_sha and not _verify_sha256(zip_path, expected_sha):
-            signals.finished.emit(False, "SHA256 校验失败，文件可能损坏")
-            return
+                signals.progress.emit(92)
 
-        signals.progress.emit(95)
+                # 2. 校验 SHA256（可选）
+                try:
+                    r_sha = requests.get(url + ".sha256", timeout=10)
+                    expected_sha = r_sha.text.strip().split()[0]
+                    if expected_sha and not _verify_sha256(zip_path, expected_sha):
+                        signals.finished.emit(False, "SHA256 校验失败，请重试")
+                        return
+                except Exception:
+                    pass  # SHA256 不可用，跳过校验
 
-        # 4. 解压到目标目录
-        import zipfile
-        _WEBENGINE_DIR.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(_WEBENGINE_DIR)
+                signals.progress.emit(95)
 
-        zip_path.unlink(missing_ok=True)
-        signals.progress.emit(100)
-        signals.finished.emit(True, "组件安装完成，请重启软件以启用扫码登录")
+                # 3. 解压
+                import zipfile
+                _WEBENGINE_DIR.mkdir(parents=True, exist_ok=True)
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    zf.extractall(_WEBENGINE_DIR)
+
+                zip_path.unlink(missing_ok=True)
+                signals.progress.emit(100)
+                signals.finished.emit(True, "安装完成，请重启软件")
+                return
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        signals.finished.emit(False, f"下载失败: {last_error or '所有源不可用'}")
     except Exception as e:
         signals.finished.emit(False, f"下载失败: {e}")
 
@@ -153,9 +192,10 @@ def show_webengine_missing_dialog(parent=None) -> bool:
 
     # 描述
     desc = QLabel(
-        "扫码登录功能需要大约 100MB 的浏览器组件。\n"
-        "点击下载将自动获取并安装，完成后需重启软件。\n\n"
-        "你也可以从 Release 页面手动下载完整版（已内置组件）。"
+        "扫码登录功能需要浏览器组件（~80MB）。\n\n"
+        "自动下载：点击下方按钮，自动获取并安装。\n"
+        "手动下载：从 Release 页面下载 webengine.zip，\n"
+        f"解压到：\n{str(_WEBENGINE_DIR)}"
     )
     desc.setWordWrap(True)
     desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -200,10 +240,18 @@ def show_webengine_missing_dialog(parent=None) -> bool:
     page_btn = QPushButton("打开下载页面")
     page_btn.setObjectName("secondaryBtn")
     page_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    ver = VERSION
     page_btn.clicked.connect(lambda: (
-        __import__("webbrowser").open("https://github.com/Renxint/origami/releases")
+        __import__("webbrowser").open(
+            f"https://github.com/Renxint/origami/releases/tag/v{ver}")
     ))
     bottom_row.addWidget(page_btn)
+
+    pick_btn = QPushButton("选择zip")
+    pick_btn.setObjectName("secondaryBtn")
+    pick_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    pick_btn.clicked.connect(lambda: _install_from_file(dlg))
+    bottom_row.addWidget(pick_btn)
 
     bottom_row.addStretch()
 
@@ -217,11 +265,17 @@ def show_webengine_missing_dialog(parent=None) -> bool:
 
     # ── 下载逻辑 ──
     result = {"ok": False}
+    _downloading = False
 
     def start_download():
+        nonlocal _downloading
+        if _downloading:
+            return
+        _downloading = True
         dl_btn.setEnabled(False)
         dl_btn.setText("下载中...")
         page_btn.setEnabled(False)
+        later_btn.setEnabled(False)
         progress.setVisible(True)
         speed_label.setVisible(True)
 
@@ -232,12 +286,13 @@ def show_webengine_missing_dialog(parent=None) -> bool:
 
         def on_progress(pct):
             progress.setValue(pct)
-            speed_label.setText(f"已下载 {pct}%")
 
         def on_speed(text):
             speed_label.setText(text)
 
         def on_finished(ok, msg):
+            nonlocal _downloading
+            _downloading = False
             progress.setVisible(False)
             speed_label.setVisible(False)
             if ok:
@@ -249,8 +304,9 @@ def show_webengine_missing_dialog(parent=None) -> bool:
                 dlg.accept()
             else:
                 dl_btn.setEnabled(True)
-                dl_btn.setText("重试")
+                dl_btn.setText("下载（推荐）")
                 page_btn.setEnabled(True)
+                later_btn.setEnabled(True)
                 speed_label.setText(msg)
 
         signals.progress.connect(on_progress)
