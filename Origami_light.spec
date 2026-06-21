@@ -90,5 +90,5 @@ exe = EXE(
 coll = COLLECT(
     exe, a.binaries, a.datas, strip=False,
     upx=False,
-    name='Origami',
+    name='Origami_light',
 )

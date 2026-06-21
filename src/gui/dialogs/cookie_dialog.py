@@ -24,6 +24,11 @@ def show_login_dialog(parent) -> str | None:
         登录成功返回 Cookie 字符串，取消返回 None
     """
     from src.gui.dialogs.webview_login import WebViewLogin
+    from src.gui.dialogs.webengine_missing import webengine_available
+    if not webengine_available():
+        from src.gui.dialogs.webengine_missing import show_webengine_missing_dialog
+        show_webengine_missing_dialog(parent)
+        return None
     try:
         login = WebViewLogin()
         cookie = login.run(parent)
@@ -31,5 +36,6 @@ def show_login_dialog(parent) -> str | None:
             save_cookie(cookie)
             return cookie
     except RuntimeError as e:
-        QMessageBox.warning(parent, "组件缺失", str(e))
+        from src.gui.dialogs.webengine_missing import show_webengine_missing_dialog
+        show_webengine_missing_dialog(parent)
     return None
