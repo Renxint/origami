@@ -61,8 +61,9 @@ excludes = [
     'PyQt6.QtHelp','PyQt6.QtMultimedia','PyQt6.QtMultimediaWidgets',
     'PyQt6.QtNfc','PyQt6.QtOpenGLWidgets','PyQt6.QtPdfWidgets',
     # 'PyQt6.QtPrintSupport',  # WebEngine 依赖，不能排除
-    'PyQt6.QtQml','PyQt6.QtQuick','PyQt6.QtQuick3D',
-    'PyQt6.QtQuickWidgets','PyQt6.QtRemoteObjects','PyQt6.QtSensors',
+    # QtWebEngine 依赖 QtQml/QtQuick/QtQuickWidgets — 不能排除
+    'PyQt6.QtQuick3D',
+    'PyQt6.QtRemoteObjects','PyQt6.QtSensors',
     'PyQt6.QtSerialPort','PyQt6.QtSql','PyQt6.QtSvg','PyQt6.QtSvgWidgets',
     'PyQt6.QtTest','PyQt6.QtTextToSpeech',
     # 'PyQt6.QtWebChannel',  # WebEngine 依赖，不能排除

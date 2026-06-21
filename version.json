@@ -1,5 +1,5 @@
 {
-  "version": "0.6.2",
-  "note": "v0.6.2: 反馈附诊断日志 + 浏览器动态发现 + UI流畅度 + 多项体验优化",
-  "url": "https://github.com/Renxint/origami/releases/download/v0.6.2/Origami_v0.6.2_setup.exe"
+  "version": "0.6.3",
+  "note": "v0.6.3: 修复WebView登录组件缺失 + 下载路径同步 + 卡片透明背景 + 剪贴板检测优化",
+  "url": "https://github.com/Renxint/origami/releases/download/v0.6.3/Origami_v0.6.3_setup.exe"
 }
