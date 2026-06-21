@@ -23,7 +23,7 @@ from PyQt6.QtGui import QIcon, QFont, QAction, QShortcut, QKeySequence, QPalette
 
 from src.gui.fonts import font_scale, scaled_font
 from src.stylesheet import build_stylesheet
-from src.config import VERSION, VERSION_URL
+from src.config import VERSION, VERSION_URLS
 from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.utils import compare_versions
 from src.settings.store import load as load_settings, save as save_settings
@@ -539,20 +539,27 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _check_version(self):
-        """后台线程检查版本，不阻塞 UI"""
+        """后台线程检查版本，GitHub 优先，Gitee 兜底"""
         import threading
 
         def _fetch():
-            try:
-                r = requests.get(VERSION_URL, timeout=5)
-                self._version_signal.emit(r.json())
-            except Exception:
-                pass
+            for url in VERSION_URLS:
+                try:
+                    r = requests.get(url, timeout=8, headers={"User-Agent": "Origami-Update"})
+                    r.raise_for_status()
+                    self._version_signal.emit(r.json())
+                    return
+                except Exception:
+                    continue
+            self._version_signal.emit({"_error": "all URLs failed"})
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _on_version_result(self, data: dict):
         """主线程接收版本信息，弹窗提示更新"""
         try:
+            if "_error" in data:
+                print(f"[Update] check failed: {data['_error']}")
+                return
             remote = data.get("version", "")
             if compare_versions(remote, VERSION) > 0:
                 note = data.get("note", "")

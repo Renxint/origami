@@ -186,3 +186,73 @@
 [02:24:02] sign_err.log: 
 [02:24:02] after 0.3s, poll()=None
 [02:24:02] process alive, deferring health check to call_server
+[06:23:14] === start_server() called ===
+[06:23:14] using port: 18765
+[06:23:15] NODE_CMD: node
+[06:23:15] NODE_CMD exists: False
+[06:23:15] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[06:23:15] SIGN_SERVER_JS exists: True
+[06:23:15] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[06:23:15] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[06:23:15] frozen: False
+[06:23:15] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[06:23:15] clean PATH: System32 only
+[06:23:15] --- attempt 1 ---
+[06:23:15] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[06:23:15] Popen ok, PID: 39044
+[06:23:15] sign_err.log: 
+[06:23:15] after 0.3s, poll()=None
+[06:23:15] process alive, deferring health check to call_server
+[06:24:26] === start_server() called ===
+[06:24:27] using port: 18765
+[06:24:27] NODE_CMD: node
+[06:24:27] NODE_CMD exists: False
+[06:24:27] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[06:24:27] SIGN_SERVER_JS exists: True
+[06:24:27] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[06:24:27] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[06:24:27] frozen: False
+[06:24:27] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[06:24:27] clean PATH: System32 only
+[06:24:27] --- attempt 1 ---
+[06:24:27] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[06:24:27] Popen ok, PID: 67548
+[06:24:27] sign_err.log: 
+[06:24:28] after 0.3s, poll()=None
+[06:24:28] process alive, deferring health check to call_server
+[06:25:02] call_server: video
+[06:27:37] === start_server() called ===
+[06:27:37] using port: 18765
+[06:27:38] NODE_CMD: node
+[06:27:38] NODE_CMD exists: False
+[06:27:38] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[06:27:38] SIGN_SERVER_JS exists: True
+[06:27:38] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[06:27:38] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[06:27:38] frozen: False
+[06:27:38] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[06:27:38] clean PATH: System32 only
+[06:27:38] --- attempt 1 ---
+[06:27:38] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[06:27:38] Popen ok, PID: 37944
+[06:27:38] sign_err.log: 
+[06:27:38] after 0.3s, poll()=None
+[06:27:38] process alive, deferring health check to call_server
+[06:28:00] call_server: video
+[01:10:59] === start_server() called ===
+[01:10:59] using port: 18765
+[01:11:00] NODE_CMD: node
+[01:11:00] NODE_CMD exists: False
+[01:11:00] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[01:11:00] SIGN_SERVER_JS exists: True
+[01:11:00] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[01:11:00] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[01:11:00] frozen: False
+[01:11:00] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[01:11:00] clean PATH: System32 only
+[01:11:00] --- attempt 1 ---
+[01:11:00] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[01:11:00] Popen ok, PID: 46128
+[01:11:00] sign_err.log: 
+[01:11:00] after 0.3s, poll()=None
+[01:11:00] process alive, deferring health check to call_server

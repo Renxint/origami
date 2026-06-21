@@ -17,7 +17,10 @@ if _VERSION_FILE.exists():
     VERSION = _ver_data.get("version", "0.0.0")
 else:
     VERSION = "0.0.0"
-VERSION_URL = "https://github.com/Renxint/origami/raw/main/version.json"
+VERSION_URLS = [
+    "https://github.com/Renxint/origami/raw/main/version.json",
+    "https://gitee.com/Renxint/origami/raw/main/version.json",
+]
 
 # ── 钉钉反馈 webhook ─────────────────────────────────────
 _CONFIG_PATH = EXE_DIR / "data" / "config.json"
