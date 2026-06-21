@@ -132,22 +132,14 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Origami v${{ steps.version.outputs.VERSION }}
-          body: |
-            轻量版（签名，推荐）：需首次启动时下载浏览器组件
-            完整版（未签名）及组件包请见下方附件
+          body: "轻量版（签名）需首次启动下载浏览器组件。完整版及组件包见附件。"
+          files: ./signed/Origami_v*.exe
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
-          files: |
-            ./signed/Origami_v${{ steps.version.outputs.VERSION }}_setup.exe
-            dist_out/webengine.zip
-            dist_out/Origami_v${{ steps.version.outputs.VERSION }}_setup.exe
+      - name: Upload webengine.zip to Release
+        shell: bash
+        run: gh release upload v${{ steps.version.outputs.VERSION }} dist_out/webengine.zip --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload webengine.zip as fallback
-        if: failure()
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          files: dist_out/webengine.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
