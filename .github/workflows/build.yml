@@ -127,28 +127,15 @@ jobs:
           path: ./signed/
           if-no-files-found: ignore
 
-      - name: Prepare release assets
-        shell: pwsh
-        run: |
-          if (Test-Path ./signed/Origami_v*.exe) {
-            Copy-Item ./signed/Origami_v*.exe ./release_assets/
-          } else {
-            Copy-Item dist_out/Origami_v*_setup.exe ./release_assets/
-          }
-          New-Item -ItemType Directory -Force -Path ./release_assets | Out-Null
-          Copy-Item dist_out/webengine.zip ./release_assets/ -ErrorAction SilentlyContinue
-          Copy-Item ./signed/Origami_v*.exe ./release_assets/ -ErrorAction SilentlyContinue
-          if (-not (Get-ChildItem ./release_assets/signed* -ErrorAction SilentlyContinue)) {
-            Copy-Item dist_out/Origami_v*_setup.exe ./release_assets/
-          }
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Origami v${{ steps.version.outputs.VERSION }}
-          body: "轻量版（推荐）：需首次启动下载浏览器组件。组件包 webengine.zip 见附件。"
-          files: ./release_assets/*
+          body: "轻量版需首次启动下载浏览器组件。组件包 webengine.zip 见附件。"
+          files: |
+            dist_out/Origami_v*_setup.exe
+            dist_out/webengine.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
