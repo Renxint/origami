@@ -37,9 +37,9 @@ jobs:
           $ver = (Get-Content version.json | ConvertFrom-Json).version
           echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
 
-      - name: Build installer
+      - name: Build installer + webengine.zip
         shell: cmd
-        run: python build.py --installer
+        run: python build.py --installer --zip
 
       - name: Submit to SignPath
         id: signpath
@@ -132,8 +132,10 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Origami v${{ steps.version.outputs.VERSION }}
-          body: "未签名版本。CHANGELOG: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md"
-          files: dist_out/Origami_v*_setup.exe
+          body: "未签名版本。组件包 webengine.zip 供后续签名版使用。CHANGELOG: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md"
+          files: |
+            dist_out/Origami_v*_setup.exe
+            dist_out/webengine.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
