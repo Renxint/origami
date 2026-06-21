@@ -34,6 +34,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 WizardSizePercent=120,100
 WizardResizable=no
 DisableProgramGroupPage=yes
+CloseApplications=yes
+CloseApplicationsFilter=*.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -69,6 +71,19 @@ Type: files; Name: "{app}\qt.conf"
 Type: filesandordirs; Name: "{app}\_update"
 
 [Code]
+// 卸载前关闭正在运行的 Origami
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+  // Try graceful close via taskkill
+  if Exec('taskkill', '/F /IM Origami.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    // Process killed or not running
+  end;
+end;
+
 // 卸载时询问：是否保留用户数据
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
