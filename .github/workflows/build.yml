@@ -37,11 +37,12 @@ jobs:
           $ver = (Get-Content version.json | ConvertFrom-Json).version
           echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
 
-      - name: Build installer
+      - name: Build installers (light + webengine.zip)
         shell: cmd
-        run: python build.py --installer
+        run: python build.py --installer --light
 
-      - name: Submit to SignPath via REST API
+      - name: Submit light installer to SignPath
+        id: signpath
         id: signpath
         shell: pwsh
         env:
@@ -131,7 +132,22 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Origami v${{ steps.version.outputs.VERSION }}
-          body: "自动构建 + SignPath 代码签名。详见 [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)"
-          files: ./signed/Origami_v${{ steps.version.outputs.VERSION }}_setup.exe
+          body: |
+            轻量版（签名，推荐）：需首次启动时下载浏览器组件
+            完整版（未签名）及组件包请见下方附件
+
+            [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          files: |
+            ./signed/Origami_v${{ steps.version.outputs.VERSION }}_setup.exe
+            dist_out/webengine.zip
+            dist_out/Origami_v${{ steps.version.outputs.VERSION }}_setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload webengine.zip as fallback
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          files: dist_out/webengine.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
