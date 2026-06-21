@@ -2,17 +2,21 @@
 """
 Origami — 全局配置常量
 
-版本号、API 端点、反馈 webhook 等集中管理。
-路径相关常量统一走 src/environ.py。
+版本号从 version.json 读取（唯一源头），路径走 src/environ.py。
 """
 
 import json
 from pathlib import Path
 
-from src.environ import EXE_DIR
+from src.environ import BASE_DIR, EXE_DIR
 
-# ── 版本 ─────────────────────────────────────────────────
-VERSION = "0.6.2"
+# ── 版本（version.json 是唯一源头）──────────────────────
+_VERSION_FILE = BASE_DIR / "version.json"
+if _VERSION_FILE.exists():
+    _ver_data = json.loads(_VERSION_FILE.read_text(encoding="utf-8"))
+    VERSION = _ver_data.get("version", "0.0.0")
+else:
+    VERSION = "0.0.0"
 VERSION_URL = "https://github.com/Renxint/origami/raw/main/version.json"
 
 # ── 钉钉反馈 webhook ─────────────────────────────────────

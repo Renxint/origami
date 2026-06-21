@@ -10,6 +10,7 @@ from src.config import VERSION
 datas = [
     ('sign-server', 'sign-server'),
     ('app.ico', '.'),
+    ('version.json', '.'),
     ('translations', 'translations'),
     ('src/gui/assets', 'src/gui/assets'),
 ]
