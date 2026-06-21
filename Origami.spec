@@ -68,7 +68,8 @@ excludes = [
     'PyQt6.QtSerialPort','PyQt6.QtSql','PyQt6.QtSvg','PyQt6.QtSvgWidgets',
     'PyQt6.QtTest','PyQt6.QtTextToSpeech',
     # 'PyQt6.QtWebChannel',  # WebEngine 依赖，不能排除
-    'PyQt6.QtWebEngineQuick','PyQt6.QtXml',
+    # 'PyQt6.QtWebEngineQuick',  # WebEngine 间接依赖，不排除
+    'PyQt6.QtXml',
 ]
 
 a = Analysis(
