@@ -1,5 +1,5 @@
 {
-  "version": "0.6.3",
-  "note": "v0.6.3: 修复WebView登录组件缺失 + 下载路径同步 + 卡片透明背景 + 剪贴板检测优化",
-  "url": "https://github.com/Renxint/origami/releases/download/v0.6.3/Origami_v0.6.3_setup.exe"
+  "version": "0.6.4",
+  "note": "v0.6.4: 修复WebView登录 + 卸载杀进程 + 版本号统一源头 + 路径同步 + 卡片透明",
+  "url": "https://github.com/Renxint/origami/releases/download/v0.6.4/Origami_v0.6.4_setup.exe"
 }
