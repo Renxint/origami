@@ -54,6 +54,15 @@ for _pkg in ('PyQt6', 'PyQt6-Qt6', 'PyQt6-WebEngine', 'PyQt6-WebEngine-Qt6'):
     tmp = collect_all(_pkg)
     datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
 
+# Qt6WebEngine DLLs are in PyQt6/Qt6/bin — ensure they're collected
+import site
+_qt6_bin = Path(site.getsitepackages()[0]) / 'PyQt6' / 'Qt6' / 'bin'
+if _qt6_bin.exists():
+    for _dll in _qt6_bin.glob('Qt6WebEngine*.dll'):
+        binaries.append((str(_dll), 'PyQt6/Qt6/bin'))
+    for _dll in _qt6_bin.glob('Qt6WebChannel*.dll'):
+        binaries.append((str(_dll), 'PyQt6/Qt6/bin'))
+
 # ── 排除 ──
 excludes = [
     'numpy','pandas','matplotlib','PIL','lxml','scipy','pillow',
