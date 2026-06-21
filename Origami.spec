@@ -3,7 +3,6 @@
 Origami — PyInstaller 打包配置 v3 (collect-all PyQt6)
 """
 import sys, os, glob
-from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(SPECPATH)))
 from src.config import VERSION
 
@@ -50,24 +49,10 @@ from PyInstaller.utils.hooks import collect_all
 tmp = collect_all('certifi')
 datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
 
-# collect-all PyQt6: 原样收集所有 PyQt6 文件（解决 CArchive 中.pyd加载失败）
+# collect-all PyQt6: 原样收集所有 PyQt6 文件
 for _pkg in ('PyQt6', 'PyQt6-Qt6', 'PyQt6-WebEngine', 'PyQt6-WebEngine-Qt6'):
     tmp = collect_all(_pkg)
     datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
-
-# Qt6WebEngine DLLs — ensure collected regardless of package structure
-_qt6_root = None
-for _p in [Path('D:/a/origami/origami/.venv'), Path(sys.prefix)]:
-    for _sub in ('Lib/site-packages', 'lib/site-packages'):
-        _cand = _p / _sub / 'PyQt6' / 'Qt6' / 'bin'
-        if _cand.exists():
-            _qt6_root = _cand
-            break
-if _qt6_root:
-    for _dll in _qt6_root.glob('Qt6WebEngine*.dll'):
-        binaries.append((str(_dll), 'PyQt6/Qt6/bin'))
-    for _dll in _qt6_root.glob('Qt6WebChannel*.dll'):
-        binaries.append((str(_dll), 'PyQt6/Qt6/bin'))
 
 # ── 排除 ──
 excludes = [
