@@ -510,7 +510,12 @@ def create_app() -> web.Application:
     app.router.add_post("/api/open-folder",   api_open_folder)
     app.router.add_get("/ws/events",         ws_events)
 
-    # ── 静态文件：ui/ → /（必须在 API 路由之后）──
+    # ── 首页重定向 ──
+    async def index_redirect(request):
+        raise web.HTTPFound("/pages/home.html")
+    app.router.add_get("/", index_redirect)
+
+    # ── 静态文件：ui/ → / ──
     ui_dir = BASE_DIR / "ui"
     if ui_dir.exists():
         app.router.add_static("/", ui_dir, show_index=True)
