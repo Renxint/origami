@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/Renxint/origami">
-    <img src="https://readme-typing-svg.demolab.com?font=Noto+Sans+SC&weight=600&size=22&duration=3500&pause=1000&color=20BDFF&center=true&vCenter=true&width=500&lines=%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;PyQt6+%2B+Puppeteer+%2B+Node.js;%E6%96%B0%E5%B9%B3%E5%8F%B0%E4%B8%89%E6%AD%A5%E5%85%A5%E9%A9%BB" alt="Typing SVG">
+    <img src="https://readme-typing-svg.demolab.com?font=Noto+Sans+SC&weight=600&size=22&duration=3500&pause=1000&color=20BDFF&center=true&vCenter=true&width=500&lines=%E6%8F%92%E4%BB%B6%E5%BC%8F%E6%9E%B6%E6%9E%84+%C2%B7+%E7%BA%AF%E6%9C%AC%E5%9C%B0%E8%BF%90%E8%A1%8C;Playwright+%2B+aiohttp+%2B+Web;%E6%96%B0%E5%B9%B3%E5%8F%B0%E4%B8%89%E6%AD%A5%E5%85%A5%E9%A9%BB" alt="Typing SVG">
   </a>
 </p>
 
@@ -66,37 +66,38 @@
 
 ## 🏗️ 技术架构
 
+### v2 (当前开发分支)
+
 ```mermaid
 graph TB
-    A[🧩 Origami 入口] --> B[Platform Registry 注册表]
+    A[Origami] --> B[Platform Registry]
     B --> C[DouyinAdapter]
-    B --> D[BilibiliAdapter 开发中]
-    B --> E[...更多平台]
+    B --> D[Future: Bilibili, Weibo...]
 
-    C --> F[Sign Server<br/>Node.js 签名服务]
-    C --> G[Puppeteer Engine<br/>智能反爬引擎]
+    C --> E[Playwright Engine<br/>系统 Chrome/Edge]
+    C --> F[HTTP Direct<br/>Cookie + 设备指纹]
 
-    D --> G
+    E --> G[(本地输出)]
+    F --> G
 
-    F --> H[(本地输出)]
-    G --> H
-
-    subgraph GUI [PyQt6 原生桌面界面]
-        I[托盘运行]
-        J[快捷键]
-        K[深浅主题]
+    subgraph GUI [Web 前端 + pywebview]
+        I[系统 Edge WebView2]
+        J[7 套主题]
+        K[托盘运行]
     end
 
     GUI -.-> A
 ```
 
-| 层次 | 技术 |
-|------|------|
-| **语言** | Python 3.12 |
-| **桌面框架** | PyQt6 |
-| **反爬引擎** | Puppeteer + Node.js |
-| **HTTP** | requests |
-| **工程化** | Inno Setup · SignPath 签名 · 单实例检测 · 自动更新 |
+| 层次 | v2 | v0.6.x |
+|------|-----|--------|
+| **语言** | Python 3.12 | Python 3.12 |
+| **桌面框架** | pywebview + WebView2 | PyQt6 |
+| **反爬引擎** | Playwright (Python) | Puppeteer + Node.js |
+| **HTTP** | requests | requests |
+| **API 服务** | aiohttp | - |
+| **体积** | ~20MB | 132MB |
+| **工程化** | Inno Setup · 单实例 · 自动更新 | 同左 |
 
 ---
 
@@ -173,24 +174,36 @@ graph TB
 
 ## 🛠️ 从源码运行
 
-### 环境要求
-
-- Python 3.12+
-- Node.js（用于签名服务）
-
-### 启动
+### v2 (当前开发)
 
 ```bash
 git clone https://github.com/Renxint/origami.git
 cd origami
+git checkout v2
 
-# 安装 Python 依赖
 pip install -r requirements.txt
 
-# 安装 Node.js 依赖
-cd sign-server && npm install && cd ..
+# 扫码登录（首次使用）
+python -m src.main login
 
-# 启动
+# 桌面版
+python src/desktop.py
+
+# 或 Web 模式
+python -m src.main server
+# 浏览器打开 http://localhost:8765
+
+# CLI 模式
+python -m src.main cli single "https://v.douyin.com/xxxxx/"
+python -m src.main cli batch "https://v.douyin.com/xxxxx/" --count 10
+```
+
+### v0.6.x (稳定版)
+
+```bash
+git checkout main
+pip install -r requirements.txt
+cd sign-server && npm install && cd ..
 python main.py
 ```
 
