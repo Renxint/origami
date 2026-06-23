@@ -153,10 +153,10 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
     from src.utils import clean_name
-    from src.environ import OUTPUT_BATCH, USER_AGENT
+    from src.environ import OUTPUT_OTHER, USER_AGENT
     import time, re, requests as _r
 
-    out = Path(save_dir) if save_dir else OUTPUT_BATCH
+    out = Path(save_dir) if save_dir else OUTPUT_OTHER
     out.mkdir(parents=True, exist_ok=True)
 
     adapter = DouyinAdapter()
