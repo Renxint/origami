@@ -50,12 +50,21 @@ OUTPUT_OWN      = OUTPUT_BATCH / "用户目录"     # 自己主页
 OUTPUT_OTHER    = OUTPUT_BATCH / "他人目录"     # 别人主页
 OUTPUT_HOMEPAGE = OUTPUT_OTHER                 # 向后兼容
 
-# Sign server
+# API Server
+API_PORT = 8765
+API_URL  = f"http://localhost:{API_PORT}"
+
+# Playwright — 缓存的浏览器路径，首次调用时由 signer.BrowserFinder 填充
+CHROME_PATH = ""
+
+# ── 向后兼容别名（M2 重写后删除）───────────────────────────
+# 旧 sign-server (Node.js) 的常量，douyin.py / webview_api.py / single_page.py 仍引用。
+# M2 会用 playwright signer 重写这些文件，届时一并清理。
 BOOTSTRAP_JS    = BASE_DIR / "sign-server" / "bootstrap.js"
 SIGN_SERVER_JS  = BASE_DIR / "sign-server" / "server.js"
 NODE_EXE        = BASE_DIR / "node.exe"
 NODE_CMD        = str(NODE_EXE) if NODE_EXE.exists() else "node"
-SIGN_SERVER_PORT = 18765  # 避开 Windows 端口排除范围 9823-9922
+SIGN_SERVER_PORT = 18765
 SIGN_SERVER_URL  = f"http://localhost:{SIGN_SERVER_PORT}"
 
 # ── 窗口强置顶 ────────────────────────────────────────────

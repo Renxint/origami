@@ -11,17 +11,13 @@ Origami — 抖音平台适配器
 
 import re
 import json
-import subprocess
 import time
 from pathlib import Path
 
 import requests
 
 from src.platforms.base import PlatformAdapter, MediaItem, AuthorInfo, register_platform
-from src.environ import (
-    USER_AGENT, BOOTSTRAP_JS, NODE_CMD,
-    CREATE_NO_WINDOW,
-)
+from src.environ import USER_AGENT
 from src.utils import clean_name, pick_best_video_url
 from src.cookie import load_cookie
 
@@ -253,55 +249,21 @@ class DouyinAdapter(PlatformAdapter):
         return load_cookie()
 
     def _call_sign_server(self, aweme_id: str, cookie: str) -> dict:
-        """启动 Node.js sign-server 获取视频签名数据"""
-        import tempfile
-        tmp_dir = Path(tempfile.mkdtemp())
-        log_file = tmp_dir / "_bootstrap.json"
-        err_file = tmp_dir / "_bootstrap_err.log"
-        cookie_file = tmp_dir / "_cookie_tmp.txt"
-        cookie_file.write_text(cookie, encoding="utf-8")
+        """通过 Playwright 常驻浏览器获取视频签名数据（替代旧 Node.js bootstrap.js）"""
+        from src.webview_api import call_server
 
-        last_error = None
-        try:
-            for attempt in (1, 2):
-                try:
-                    with open(log_file, "w", encoding="utf-8") as out, \
-                         open(err_file, "w", encoding="utf-8") as err:
-                        subprocess.run(
-                            [NODE_CMD, str(BOOTSTRAP_JS), aweme_id, str(cookie_file)],
-                            stdout=out, stderr=err,
-                            timeout=120, cwd=str(BOOTSTRAP_JS.parent),
-                            creationflags=CREATE_NO_WINDOW,
-                        )
-                    raw_text = log_file.read_text(encoding="utf-8").strip()
-                    if not raw_text:
-                        err_text = err_file.read_text(encoding="utf-8") if err_file.exists() else ""
-                        last_error = RuntimeError(f"bootstrap 无输出\nstderr: {err_text[:500]}")
-                        if attempt == 1:
-                            time.sleep(5)
-                            continue
-                        raise last_error
-                    data = json.loads(raw_text)
-                    if "_error" in data:
-                        err = data["_error"]
-                        if "browser" in err.lower() and attempt == 1:
-                            time.sleep(5)
-                            continue
-                        raise RuntimeError(err)
-                    return data.get("aweme_detail", {})
-                except subprocess.TimeoutExpired:
-                    if attempt == 1:
-                        time.sleep(5)
-                        continue
-                    raise
-            raise last_error or RuntimeError("获取视频数据失败")
-        finally:
-            for f in (log_file, err_file, cookie_file):
-                f.unlink(missing_ok=True)
-            try:
-                tmp_dir.rmdir()
-            except Exception:
-                pass
+        for attempt in (1, 2):
+            data = call_server("video", aweme_id=aweme_id)
+            if "_error" not in data:
+                return data.get("aweme_detail", {})
+
+            err = data.get("_error", "")
+            if "browser" in err.lower() and attempt == 1:
+                time.sleep(5)
+                continue
+            raise RuntimeError(err or "获取视频数据失败")
+
+        raise RuntimeError("获取视频数据失败")
 
 
 # 注册

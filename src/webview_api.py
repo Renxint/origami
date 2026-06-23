@@ -1,329 +1,138 @@
 # -*- coding: utf-8 -*-
 """
-Origami — 抖音 API 代理
+Origami v2 — 抖音 API 代理
 
-通过 Node.js Puppeteer（真实 Chrome）调用抖音 API，
-自动携带 a_bogus / msToken 等浏览器签名。
-
-每次调用启动独立进程，用完即退，无生命周期问题。
+通过 Playwright（真实 Chrome/Edge）调用抖音 API，替代 Node.js sign-server。
+所有接口保持旧签名不变，上层调用方无需修改。
 """
 
 import json
-import os
-import subprocess
-import tempfile
-import threading
 import time
 from pathlib import Path
 
-from src.environ import (NODE_CMD, BASE_DIR, EXE_DIR, CREATE_NO_WINDOW,
-                        COOKIE_FILE, SIGN_SERVER_JS, SIGN_SERVER_PORT)
+from src.environ import COOKIE_FILE, EXE_DIR, CREATE_NO_WINDOW
+from src.signer import (
+    get_signer, one_shot_fetch,
+    BrowserFinder, _load_cookie_raw,
+    _debug_log,
+)
 
-_API_SCRIPT = BASE_DIR / "sign-server" / "api-call.js"
-_SIGNED_SCRIPT = BASE_DIR / "sign-server" / "api-signed.js"
-
+# ═══════════════════════════════════════════════════════════
+# 内部工具
+# ═══════════════════════════════════════════════════════════
 
 def _call_api(url: str, timeout: float = 20) -> dict:
-    """通过 Puppeteer 调用 API，返回 JSON dict"""
+    """通过 Playwright 浏览器调用 API（替代旧 Node.js api-call.js）"""
     if not COOKIE_FILE.exists():
         return {"_error": "not_logged_in"}
 
-    from src.cookie import load_cookie
-
-    # 写一份明文 Cookie 供 Node.js 读取
-    plain_cookie = load_cookie()
-    if not plain_cookie:
-        return {"_error": "no_cookie"}
-
-    # 过滤空 name 的 Cookie
-    clean = "; ".join(c for c in plain_cookie.split("; ") if "=" in c and c.split("=", 1)[0])
-
-    import tempfile
-    tmp = Path(tempfile.mktemp(suffix=".txt"))
-    tmp.write_text(clean, encoding="utf-8")
-
-    try:
-        result = subprocess.run(
-            [NODE_CMD, str(_API_SCRIPT), str(tmp), url],
-            capture_output=True, text=True, encoding='utf-8', timeout=timeout,
-            creationflags=CREATE_NO_WINDOW,
-        )
-        stdout = (result.stdout or "").strip()
-        if result.returncode != 0 or not stdout:
-            return {"_error": f"exit={result.returncode} err={result.stderr[:100]}"}
-        return json.loads(stdout)
-    except subprocess.TimeoutExpired:
-        return {"_error": "timeout"}
-    except Exception as e:
-        return {"_error": str(e)}
-    finally:
-        tmp.unlink(missing_ok=True)
+    signer = get_signer()
+    result = signer.call("call", url=url)
+    if "_error" in result and "unavailable" in str(result.get("_error", "")):
+        # 回退到 one-shot
+        cookie = _load_cookie_raw()
+        if not cookie:
+            return {"_error": "no_cookie"}
+        browser_path = BrowserFinder.find()
+        if not browser_path:
+            return {"_error": "no_browser_found"}
+        from src.signer import StealthBrowser
+        browser = StealthBrowser(browser_path, headless=True)
+        try:
+            browser.start(cookie_str=cookie)
+            return browser.call_api(url)
+        except Exception as e:
+            return {"_error": str(e)}
+        finally:
+            browser.close()
+    return result
 
 
 def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
-    """收藏列表 API（POST，SDK 签名）"""
-    if not COOKIE_FILE.exists():
-        return {"_error": "not_logged_in"}
-
-    from src.cookie import load_cookie
-    plain_cookie = load_cookie()
-    if not plain_cookie:
-        return {"_error": "no_cookie"}
-    clean = "; ".join(c for c in plain_cookie.split("; ") if "=" in c and c.split("=", 1)[0])
-
-    import tempfile
-    tmp = Path(tempfile.mktemp(suffix=".txt"))
-    tmp.write_text(clean, encoding="utf-8")
-
-    try:
-        result = subprocess.run(
-            [NODE_CMD, str(_SIGNED_SCRIPT), str(tmp), str(cursor)],
-            capture_output=True, text=True, encoding='utf-8', timeout=timeout,
-            creationflags=CREATE_NO_WINDOW,
-        )
-        stdout = (result.stdout or "").strip()
-        if result.returncode != 0 or not stdout:
-            return {"_error": f"exit={result.returncode} err={(result.stderr or '')[:200]}"}
-        return json.loads(stdout)
-    except subprocess.TimeoutExpired:
-        return {"_error": "timeout"}
-    except Exception as e:
-        return {"_error": str(e)}
-    finally:
-        tmp.unlink(missing_ok=True)
+    """收藏列表 API（替代旧 Node.js api-signed.js）"""
+    signer = get_signer()
+    result = signer.call("call", url=(
+        f"https://www.douyin.com/aweme/v1/web/aweme/favorite/list/item/?"
+        f"cursor={cursor}&count=18"
+        f"&device_platform=webapp&aid=6383&version_code=290100"
+        f"&version_name=29.1.0&cookie_enabled=true"
+    ))
+    return result
 
 
-# ── 常驻浏览器服务 ──
-_server_process = None
-_server_lock = threading.Lock()
-_active_port = SIGN_SERVER_PORT  # 运行时端口，启动时自动探测可用端口
-
-
-def _get_sign_url():
-    """返回当前 sign-server URL（端口可能不同于默认值）"""
-    return f"http://localhost:{_active_port}"
-
-
-def _find_available_port(start: int, max_tries: int = 50) -> int:
-    """从 start 开始扫描，返回第一个可绑定端口"""
-    import socket
-    for port in range(start, start + max_tries):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            s.bind(('127.0.0.1', port))
-            s.close()
-            return port
-        except OSError:
-            s.close()
-            continue
-    return start  # 全部失败则返回默认值兜底
-
+# ═══════════════════════════════════════════════════════════
+# 常驻服务管理（线程安全）
+# ═══════════════════════════════════════════════════════════
 
 def _is_server_ready():
-    """检查 sign-server 健康状态（快速探测，不阻塞）"""
-    import requests as _r
-    try:
-        r = _r.get(f"{_get_sign_url()}/health", timeout=1)
-        return r.json().get('sdkReady', False)
-    except Exception:
-        return False
+    return get_signer().is_ready()
 
 
 def _kill_orphan_nodes():
-    """启动时清理上一次强杀遗留的 sign-server 孤儿进程"""
-    try:
-        subprocess.run(
-            'wmic process where "name=\'node.exe\' and commandline like \'%sign-server%\'" call terminate 2>nul',
-            shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3,
-            creationflags=CREATE_NO_WINDOW,
-        )
-    except Exception:
-        pass
-
-
-def _debug_log(msg: str):
-    """写调试日志到 _sign_debug.log"""
-    try:
-        _ts = time.strftime("%H:%M:%S")
-        with open(EXE_DIR / "_sign_debug.log", "a", encoding="utf-8") as f:
-            f.write(f"[{_ts}] {msg}\n")
-    except Exception:
-        pass
-
-
-def start_server():
-    """启动常驻 Node 浏览器服务（线程安全，自动探可用端口，失败重试）"""
-    global _server_process, _active_port
-
-    _debug_log("=== start_server() called ===")
-    _kill_orphan_nodes()
-
-    # 快速路径：已经在跑，直接返回（无锁）
-    if _server_process and _server_process.poll() is None and _is_server_ready():
-        _debug_log("fast path: server already running")
-        return True
-
-    with _server_lock:
-        if _server_process and _server_process.poll() is None and _is_server_ready():
-            _debug_log("double-check: server already running")
-            return True
-
-        _active_port = _find_available_port(SIGN_SERVER_PORT)
-        _debug_log(f"using port: {_active_port}")
-        _kill_sign_port()
-        time.sleep(0.3)
-
-        # 环境变量诊断
-        _debug_log(f"NODE_CMD: {NODE_CMD}")
-        _debug_log(f"NODE_CMD exists: {os.path.exists(NODE_CMD)}")
-        _debug_log(f"SIGN_SERVER_JS: {SIGN_SERVER_JS}")
-        _debug_log(f"SIGN_SERVER_JS exists: {os.path.exists(SIGN_SERVER_JS)}")
-        _debug_log(f"BASE_DIR: {BASE_DIR}")
-        _debug_log(f"EXE_DIR: {EXE_DIR}")
-        _debug_log(f"frozen: {getattr(__import__('sys'), 'frozen', False)}")
-
-        # DLL 搜索路径诊断
-        _qt_bin = str(BASE_DIR / "PyQt6" / "Qt6" / "bin")
-        _debug_log(f"Qt bin exists: {os.path.isdir(_qt_bin)} -> {_qt_bin}")
-
-        # 构建最简环境：只保留 System32，浏览器目录由 Node 端动态添加
-        _clean_env = {}
-        # 只传必要变量
-        for _k in ("SYSTEMROOT", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA",
-                    "APPDATA", "HOMEDRIVE", "HOMEPATH", "COMPUTERNAME"):
-            if _k in os.environ:
-                _clean_env[_k] = os.environ[_k]
-        # PATH 清掉 Qt bin 即可，浏览器目录由 Node 端 findBrowser() 动态添加
-        _clean_env["PATH"] = (
-            r"C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem"
-        )
-        _debug_log(f"clean PATH: System32 only")
-
-        for attempt in (1, 2):
-            _debug_log(f"--- attempt {attempt} ---")
-            _err_log = EXE_DIR / "_sign_err.log"
-            _debug_log(f"log file: {_err_log}")
-            try:
-                _err_f = open(_err_log, "w", encoding="utf-8")
-                _server_process = subprocess.Popen(
-                    [NODE_CMD, str(SIGN_SERVER_JS), str(_active_port)],
-                    stdout=_err_f, stderr=_err_f,
-                    env=_clean_env,
-                    creationflags=CREATE_NO_WINDOW,
-                )
-                _err_f.close()
-                _debug_log(f"Popen ok, PID: {_server_process.pid}")
-                _debug_log(f"sign_err.log: {_err_log.read_text(encoding='utf-8')[:500]}")
-            except Exception as e:
-                _debug_log(f"Popen FAILED: {e}")
-                if attempt == 1:
-                    time.sleep(2)
-                    continue
-                return False
-
-            # 只等 0.3s 验证进程没立即崩，详细等待由 call_server 负责
-            time.sleep(0.3)
-            _rc = _server_process.poll()
-            _debug_log(f"after 0.3s, poll()={_rc}")
-            if _rc is None:
-                _debug_log("process alive, deferring health check to call_server")
-                return True
-            # 进程已死
-            _debug_log(f"process died (rc={_rc}), reading stderr...")
-            if _err_log.exists():
-                _stderr_tail = _err_log.read_text(encoding="utf-8")[-500:]
-                _debug_log(f"stderr tail: {_stderr_tail}")
-            if attempt == 1:
-                _debug_log("retrying...")
-                time.sleep(2)
-                _kill_sign_port()
-                time.sleep(1)
-                # EADDRINUSE 时换端口
-                if "EADDRINUSE" in (_stderr_tail if '_stderr_tail' in dir() else ""):
-                    _active_port = _find_available_port(_active_port + 1)
-                    _debug_log(f"EADDRINUSE, new port: {_active_port}")
-    _debug_log("start_server: all attempts exhausted")
-    return True
-
-
-def stop_server():
-    """关闭常驻服务（未启动则秒退）"""
-    global _server_process
-    was_running = False
-    with _server_lock:
-        if _server_process:
-            try:
-                _server_process.kill()
-                _server_process.wait(timeout=3)
-            except Exception:
-                pass
-            _server_process = None
-            was_running = True
-    if was_running:
-        _kill_sign_port()  # 只当确实跑过才清端口（netstat 耗时 2s）
+    """启动时清理残留 Node 进程（v2: 无 Node，仅保留兼容接口）"""
+    pass
 
 
 def _kill_sign_port():
-    """清理 sign-server 端口上的残留进程"""
-    try:
-        subprocess.run(
-            f'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :{_active_port}\') do taskkill /F /PID %a >nul 2>&1',
-            shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2,
-            creationflags=CREATE_NO_WINDOW,
-        )
-    except Exception:
-        pass
+    """清理端口（v2: 无 Node 监听端口，仅保留兼容接口）"""
+    pass
 
 
-def call_server(endpoint, **params):
-    """调用常驻服务端点（自动启动 sign-server，线程安全）
+def start_server():
+    """启动常驻 Playwright 浏览器服务（对齐旧 start_server）"""
+    _debug_log("=== start_server() called (playwright) ===")
 
-    内置懒启动：如果 sign-server 没在跑，自动拉起并等待就绪。
-    调用方无需关心服务器状态。
-    """
-    import requests as _r
+    signer = get_signer()
+    if signer.is_ready():
+        _debug_log("fast path: signer already running")
+        return True
 
-    url = f"{_get_sign_url()}/{endpoint}"
-    _debug_log(f"call_server: {endpoint}")
+    cookie = _load_cookie_raw()
+    return signer.start(cookie_str=cookie)
+
+
+def stop_server():
+    """关闭常驻浏览器（对齐旧 stop_server）"""
+    get_signer().stop()
+
+
+def call_server(endpoint: str, **params) -> dict:
+    """调用常驻服务端点（对齐旧 call_server，内置懒启动）"""
+    signer = get_signer()
 
     for attempt in (1, 2, 3):
-        if not _is_server_ready():
+        if not signer.is_ready():
             _debug_log(f"attempt {attempt}: not ready, starting...")
-            start_server()
-            # 冷启动最多等 60s（前 5s 每秒，后 55s 每 2s）
+            cookie = _load_cookie_raw()
+            signer.start(cookie_str=cookie)
+            # 等浏览器就绪
             for i in range(33):
-                if _is_server_ready():
+                if signer.is_ready():
                     _debug_log(f"ready after {i+1} checks")
                     break
                 time.sleep(1 if i < 5 else 2)
             else:
-                _debug_log("WARN: not ready after 60s")
-                # 进程还活着？再延长等
-                global _server_process
-                if _server_process and _server_process.poll() is None:
-                    _debug_log("process alive, extend wait 20s...")
-                    for i in range(10):
-                        if _is_server_ready():
-                            break
-                        time.sleep(2)
+                _debug_log("WARN: signer not ready after 60s")
+                if attempt < 3:
+                    signer.stop()
+                    time.sleep(1)
+                    continue
 
-        try:
-            r = _r.post(url, params=params, timeout=60)
-            result = r.json()
-            if "_error" in result:
-                _debug_log(f"server error: {result['_error'][:200]}")
-            return result
-        except Exception as e:
-            err = str(e)
-            _debug_log(f"request failed: {err[:200]}")
+        result = signer.call(endpoint, **params)
+        if "_error" in result:
+            _debug_log(f"signer error: {result['_error'][:200]}")
             if attempt < 3:
                 _debug_log(f"retry {attempt+1}/3...")
-                stop_server()
                 time.sleep(1)
                 continue
-            return {"_error": err}
-    return {"_error": "sign-server 连接失败"}
+        return result
 
+    return {"_error": "sign_server_connection_failed"}
+
+
+# ═══════════════════════════════════════════════════════════
+# 公共 API（签名与旧接口完全一致）
+# ═══════════════════════════════════════════════════════════
 
 def get_user_posts(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
     params = (f"sec_user_id={sec_uid}&max_cursor={max_cursor}&count={count}"
@@ -333,7 +142,6 @@ def get_user_posts(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
 
 
 def get_user_profile(sec_uid: str) -> dict:
-    """获取用户信息，返回扁平化 dict"""
     raw = _call_api(
         f"https://www.douyin.com/aweme/v1/web/user/profile/other/"
         f"?sec_user_id={sec_uid}&device_platform=webapp&aid=6383"
@@ -382,13 +190,16 @@ def get_user_likes(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
 
 
 def get_favorite_collections(cursor: int = 0) -> dict:
-    """获取收藏→视频列表（导航 WebView + 拦截网络响应）"""
-    from src.gui.dialogs.webview_login import WebViewLogin
-    return WebViewLogin.api_call(cursor=cursor, timeout=30)
+    """获取收藏夹列表（v2: 通过 playwright 浏览器）"""
+    return _call_api(
+        f"https://www.douyin.com/aweme/v1/web/favorite/list/?"
+        f"cursor={cursor}&count=20"
+        f"&device_platform=webapp&aid=6383&version_code=290100"
+        f"&version_name=29.1.0&cookie_enabled=true"
+    )
 
 
 def get_favorite_videos(max_cursor: int = 0, count: int = 18) -> dict:
-    """获取收藏的视频列表（翻页，Puppeteer）"""
     params = (f"max_cursor={max_cursor}&count={count}"
               f"&aid=6383&device_platform=webapp&version_code=290100"
               f"&version_name=29.1.0&cookie_enabled=true"
@@ -400,7 +211,6 @@ def get_favorite_videos(max_cursor: int = 0, count: int = 18) -> dict:
 
 def get_favorite_items(fav_id: str, max_cursor: int = 0,
                        count: int = 18) -> dict:
-    """获取指定收藏夹的作品列表（Puppeteer）"""
     params = (f"favorite_id={fav_id}&max_cursor={max_cursor}&count={count}"
               f"&aid=6383&device_platform=webapp&version_code=290100"
               f"&version_name=29.1.0&cookie_enabled=true")
