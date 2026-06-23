@@ -133,6 +133,38 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
     print(f"[DONE] 保存到: {post_dir}")
 
 
+def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_url):
+    """写 主页简介.md + 下载头像/封面（对齐 GUI）"""
+    import requests as _r
+    nickname = author.nickname
+    lines = [
+        f"# {nickname}", "",
+        "## 基本信息", "",
+        f"| 项目 | 内容 |",
+        f"|------|------|",
+        f"| 抖音号 | {profile.get('unique_id', 'N/A')} |",
+        f"| 作品 | {author.post_count} |",
+        f"| 粉丝 | {author.follower_count} |",
+        f"| 简介 | {profile.get('desc', 'N/A')} |",
+        "", "## 下载信息", "",
+        f"- 主页链接: {source_url}",
+        f"- 下载日期: {time.strftime('%Y-%m-%d %H:%M:%S')}",
+    ]
+    (data_dir / "主页简介.md").write_text("\n".join(lines), encoding="utf-8")
+    if avatar_url:
+        try:
+            r = _r.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+            (data_dir / "avatar.jpg").write_bytes(r.content)
+        except Exception:
+            pass
+    if cover_url:
+        try:
+            r = _r.get(cover_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+            (data_dir / "cover.jpg").write_bytes(r.content)
+        except Exception:
+            pass
+
+
 def _parse_image_range(spec: str) -> set:
     """解析 --images 参数: '1,3,5-8' → {0, 2, 4, 5, 6, 7}（转为 0-based）"""
     result = set()
@@ -198,6 +230,15 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
 
     author_dir = out / name
     author_dir.mkdir(parents=True, exist_ok=True)
+    data_dir = author_dir / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # 写主页简介 + 下载头像/封面
+    profile = author.extra.get("profile", {})
+    from src.api import _get_avatar
+    avatar_url = _get_avatar(profile)
+    cover_url = profile.get("cover_url", "")
+    _write_profile_md(data_dir, author, profile, avatar_url, cover_url, found)
 
     print("[*] 翻页获取作品列表...")
     all_items = []
