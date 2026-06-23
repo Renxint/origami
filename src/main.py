@@ -480,7 +480,7 @@ def cmd_login():
 
     window = webview.create_window(
         "Origami — 登录抖音", "https://www.douyin.com/",
-        width=420, height=620, on_top=True)
+        width=800, height=600, on_top=True)
     window.events.loaded += _on_loaded
 
     print("正在打开登录窗口...")

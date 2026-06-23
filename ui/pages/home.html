@@ -24,17 +24,17 @@
   .hero-title { font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
   .hero-sub { font-size:12px; color:var(--text-secondary); }
 
-  .cards { display:flex; gap:10px; justify-content:center; flex-shrink:0; padding:0 8px; }
+  .cards { display:flex; gap:14px; justify-content:center; flex-shrink:0; padding:0 12px; }
   .card {
-    width:80px; min-height:88px; border-radius:14px; border:2px solid var(--border-default);
+    flex:1; max-width:140px; aspect-ratio:0.82; border-radius:14px; border:2px solid var(--border-default);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:6px; padding:14px 6px; cursor:pointer;
-    transition:border-color .2s, background .2s, transform .15s;
+    gap:10px; padding:20px 10px; cursor:pointer;
+    transition:border-color .25s, background .25s, transform .2s;
     text-align:center; outline:none;
   }
-  .card .icon img { width:30px; height:30px; display:block; }
-  .card .name { font-size:12px; font-weight:700; }
-  .card .hint { font-size:9px; color:var(--text-disabled); }
+  .card .icon img { width:48px; height:48px; display:block; }
+  .card .name { font-size:14px; font-weight:600; }
+  .card .hint { font-size:10px; color:var(--text-disabled); }
   .card:hover { transform:translateY(-2px); }
 
   .card.on { background:var(--bg-hover); border-color:var(--accent); color:var(--accent); }
