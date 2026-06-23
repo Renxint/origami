@@ -62,13 +62,31 @@ def run():
             if (window.wsConnect) window.wsConnect();
         """)
 
-    # 窗口图标
-    ico_path = os.path.join(ROOT, "app.ico")
-
     window = webview.create_window(
         f"Origami", f"http://127.0.0.1:{port}/pages/home.html",
         width=420, height=560, min_size=(340, 420),
         on_top=False, confirm_close=False)
+
+    # 窗口图标（Win32 API）
+    import ctypes, ctypes.wintypes
+    ico_path = os.path.join(ROOT, "app.ico")
+    if sys.platform == "win32" and os.path.exists(ico_path):
+        def _set_icon():
+            try:
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Origami")
+                if hwnd:
+                    WM_SETICON = 0x0080
+                    ICON_BIG = 1
+                    ICON_SMALL = 0
+                    hicon = ctypes.windll.user32.LoadImageW(
+                        0, ico_path, 1, 0, 0, 0x00000010)
+                    if hicon:
+                        ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, hicon)
+                        ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, hicon)
+            except Exception:
+                pass
+        time.sleep(0.5)  # 等窗口创建
+        _set_icon()
 
     # 页面加载后注入 API 地址
     window.events.loaded += lambda: _inject_api_url(window)
