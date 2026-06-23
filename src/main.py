@@ -436,70 +436,47 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
 
 
 def cmd_login():
-    """扫码登录 — 在主进程启动 WebView 窗口"""
-    try:
-        import webview
-    except ImportError:
-        print("请先安装: pip install pywebview")
-        return
-
-    # Monkey-patch: pywebview 的 create_cookie 遇到空名 cookie 会崩
-    import webview.util as _wutil
-    _orig_create = _wutil.create_cookie
-    def _safe_create(input_):
-        if not input_.get("name", "").strip():
-            return None
-        try:
-            return _orig_create(input_)
-        except Exception:
-            return None
-    _wutil.create_cookie = _safe_create
-
-    # 同时修 _parse_cookies 过滤 None
-    import webview.platforms.edgechromium as _wec
-    _orig_parse = getattr(_wec, '_parse_cookies', None)
-    if _orig_parse:
-        def _safe_parse(cookies):
-            result = _orig_parse(cookies)
-            return [c for c in result if c is not None]
-        setattr(_wec, '_parse_cookies', _safe_parse)
-
-    from src.cookie import save_cookie
+    """扫码登录 — Playwright 有头浏览器，cookie 可靠读取"""
+    from src.cookie import save_cookie, load_cookie
+    from src.signer import BrowserFinder
+    from playwright.sync_api import sync_playwright
     import time
 
-    result = {"cookie": ""}
+    browser_path = BrowserFinder.find()
+    if not browser_path:
+        print("[!] 未找到可用浏览器，请安装 Chrome 或 Edge")
+        return
 
-    def _poll():
-        for _ in range(60):
-            time.sleep(2)
+    print("正在打开浏览器...")
+    print("请在浏览器中扫码登录抖音，成功后自动关闭")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            executable_path=browser_path,
+            headless=False,
+            args=["--no-sandbox"],
+        )
+        context = browser.contexts[0]
+        page = context.new_page()
+        page.goto("https://www.douyin.com/")
+
+        # 轮询 Cookie
+        for _ in range(120):
+            time.sleep(1)
             try:
-                cookies = window.get_cookies()
-                if cookies:
-                    parts = [f"{c['name']}={c['value']}" for c in cookies
-                             if c.get("name") and c.get("value")]
-                    cs = "; ".join(parts)
-                    if "sessionid=" in cs and "ttwid=" in cs:
-                        result["cookie"] = cs
-                        return
+                cookies = context.cookies()
+                parts = [f"{c['name']}={c['value']}" for c in cookies]
+                cs = "; ".join(parts)
+                if "sessionid=" in cs and "ttwid=" in cs:
+                    save_cookie(cs)
+                    print(f"[OK] 登录成功！Cookie 已保存 ({len(cs)} 字符)")
+                    break
             except Exception:
                 pass
+        else:
+            print("[!] 登录超时")
 
-    import threading
-    threading.Thread(target=_poll, daemon=True).start()
-
-    window = webview.create_window(
-        "Origami — 登录抖音", "https://www.douyin.com/",
-        width=800, height=600, on_top=True)
-
-    print("正在打开登录窗口...")
-    print("请在窗口中扫码登录，成功后窗口会自动关闭")
-    webview.start()
-
-    if result["cookie"]:
-        save_cookie(result["cookie"])
-        print(f"[OK] 登录成功！Cookie 已保存 ({len(result['cookie'])} 字符)")
-    else:
-        print("[!] 未检测到登录 Cookie，请重试")
+        browser.close()
 
 
 def cmd_dev(args: list[str]):
