@@ -446,41 +446,29 @@ def cmd_login():
     from src.cookie import save_cookie
     import time
 
-    result = {"cookie": ""}
-
-    def _on_loaded():
-        def _check():
-            import ctypes
-            for _ in range(60):
-                time.sleep(2)
-                try:
-                    # 绕过 pywebview get_cookies 的解析 bug，直接用 JS 读
-                    cs = window.evaluate_js("document.cookie")
-                    if cs and "sessionid=" in cs and "ttwid=" in cs:
-                        result["cookie"] = cs
-                        _hwnd = ctypes.windll.user32.FindWindowW(None, "Origami — 登录抖音")
-                        if _hwnd:
-                            ctypes.windll.user32.PostMessageW(_hwnd, 0x0010, 0, 0)
-                        return
-                except Exception:
-                    pass
-        import threading
-        threading.Thread(target=_check, daemon=True).start()
-
     window = webview.create_window(
         "Origami — 登录抖音", "https://www.douyin.com/",
         width=800, height=600, on_top=True)
-    window.events.loaded += _on_loaded
 
     print("正在打开登录窗口...")
-    print("请在窗口中扫码登录抖音")
+    print("请在窗口中扫码登录抖音，登录完成后关闭窗口")
     webview.start()
 
-    if result["cookie"]:
-        save_cookie(result["cookie"])
-        print(f"[OK] 登录成功！Cookie 已保存 ({len(result['cookie'])} 字符)")
+    # 窗口关闭后读 Cookie（get_cookies 在主线程，能拿到 HttpOnly cookie）
+    cookie_str = ""
+    try:
+        cookies = window.get_cookies()
+        parts = [f"{c['name']}={c['value']}" for c in cookies
+                 if c.get("name") and c.get("value")]
+        cookie_str = "; ".join(parts)
+    except Exception:
+        pass
+
+    if cookie_str and "sessionid=" in cookie_str and "ttwid=" in cookie_str:
+        save_cookie(cookie_str)
+        print(f"[OK] 登录成功！Cookie 已保存 ({len(cookie_str)} 字符)")
     else:
-        print("[!] 登录超时或已取消")
+        print("[!] 未检测到登录 Cookie，请重试")
 
 
 def cmd_dev(args: list[str]):
