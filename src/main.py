@@ -285,7 +285,19 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     profile = author.extra.get("profile", {})
     from src.api import _get_avatar
     avatar_url = _get_avatar(profile)
-    cover_url = profile.get("cover_url", "")
+    # cover_url 可能是 list[dict] → 需要提取实际 URL（对齐 GUI）
+    cover_url = ""
+    for _ck in ("cover_url", "white_cover_url"):
+        _cv = profile.get(_ck) or []
+        if isinstance(_cv, list) and _cv:
+            _cu = (_cv[0].get("url_list") or [""])[0] if isinstance(_cv[0], dict) else ""
+        elif isinstance(_cv, dict):
+            _cu = (_cv.get("url_list") or [""])[0]
+        else:
+            _cu = ""
+        if _cu:
+            cover_url = _cu
+            break
     _write_profile_md(data_dir, author, profile, avatar_url, cover_url, found)
 
     print("[*] 翻页获取作品列表...")
