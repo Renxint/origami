@@ -272,7 +272,11 @@ class BatchDownloadThread(QThread):
                     if "_error" not in fresh:
                         fresh_aweme = fresh.get("aweme_detail", {})
                         if fresh_aweme:
+                            # 保留 _img_filter（翻页时设置的图集筛选标记）
+                            _filter = aweme.get("_img_filter")
                             aweme = fresh_aweme
+                            if _filter is not None:
+                                aweme["_img_filter"] = _filter
                 except Exception:
                     pass
                 desc = clean_name(item.title or aweme_id)
