@@ -196,19 +196,31 @@ def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_u
     if avatar_url: lines.append(f"- 头像: {avatar_url}")
     if cover_url: lines.append(f"- 封面: {cover_url}")
 
+    # 下载头像/封面（需要 Cookie + Referer）
+    _dl_headers = {
+        "User-Agent": USER_AGENT,
+        "Referer": "https://www.douyin.com/",
+    }
+    from src.cookie import load_cookie
+    _ck = load_cookie()
+    if _ck:
+        _dl_headers["Cookie"] = _ck
+
     lines.append("")
     if avatar_url:
         try:
-            r = _r.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+            r = _r.get(avatar_url, headers=_dl_headers, timeout=15)
             (data_dir / "avatar.jpg").write_bytes(r.content)
             lines.append("*(头像已保存)*")
-        except Exception: pass
+        except Exception as e:
+            lines.append(f"*(头像下载失败: {e})*")
     if cover_url:
         try:
-            r = _r.get(cover_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+            r = _r.get(cover_url, headers=_dl_headers, timeout=15)
             (data_dir / "cover.jpg").write_bytes(r.content)
             lines.append("*(封面已保存)*")
-        except Exception: pass
+        except Exception as e:
+            lines.append(f"*(封面下载失败: {e})*")
 
     (data_dir / "主页简介.md").write_text("\n".join(lines), encoding="utf-8")
 
