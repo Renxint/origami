@@ -454,18 +454,14 @@ def cmd_login():
             for _ in range(60):
                 time.sleep(2)
                 try:
-                    cookies = window.get_cookies()
-                    if cookies:
-                        parts = [f"{c['name']}={c['value']}" for c in cookies
-                                 if c.get("name") and c.get("value")]
-                        cs = "; ".join(parts)
-                        if "sessionid=" in cs and "ttwid=" in cs:
-                            result["cookie"] = cs
-                            # Win32 WM_CLOSE — 任何线程都能发
-                            _hwnd = ctypes.windll.user32.FindWindowW(None, "Origami — 登录抖音")
-                            if _hwnd:
-                                ctypes.windll.user32.PostMessageW(_hwnd, 0x0010, 0, 0)
-                            return
+                    # 绕过 pywebview get_cookies 的解析 bug，直接用 JS 读
+                    cs = window.evaluate_js("document.cookie")
+                    if cs and "sessionid=" in cs and "ttwid=" in cs:
+                        result["cookie"] = cs
+                        _hwnd = ctypes.windll.user32.FindWindowW(None, "Origami — 登录抖音")
+                        if _hwnd:
+                            ctypes.windll.user32.PostMessageW(_hwnd, 0x0010, 0, 0)
+                        return
                 except Exception:
                     pass
         import threading
