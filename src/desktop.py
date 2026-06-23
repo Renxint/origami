@@ -106,7 +106,7 @@ def run():
         "Origami",
         f"http://127.0.0.1:{_port}/pages/home.html",
         js_api=api,
-        width=420, height=560, min_size=(340, 420),
+        width=800, height=600, min_size=(520, 420),
     )
 
     webview.start()
