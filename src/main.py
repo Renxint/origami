@@ -446,35 +446,28 @@ def cmd_login():
     from src.cookie import save_cookie
     import time
 
-    result = {"cookie": "", "done": False}
+    result = {"cookie": ""}
 
     def _on_loaded():
-        # 轮询检测 Cookie
         def _check():
+            import ctypes
             for _ in range(60):
                 time.sleep(2)
                 try:
                     cookies = window.get_cookies()
                     if cookies:
-                        parts = []
-                        for c in cookies:
-                            if c.get("name") and c.get("value"):
-                                parts.append(f"{c['name']}={c['value']}")
-                        cookie_str = "; ".join(parts)
-                        if "sessionid=" in cookie_str and "ttwid=" in cookie_str:
-                            result["cookie"] = cookie_str
-                            result["done"] = True
-                            window.destroy()
+                        parts = [f"{c['name']}={c['value']}" for c in cookies
+                                 if c.get("name") and c.get("value")]
+                        cs = "; ".join(parts)
+                        if "sessionid=" in cs and "ttwid=" in cs:
+                            result["cookie"] = cs
+                            # Win32 WM_CLOSE — 任何线程都能发
+                            _hwnd = ctypes.windll.user32.FindWindowW(None, "Origami — 登录抖音")
+                            if _hwnd:
+                                ctypes.windll.user32.PostMessageW(_hwnd, 0x0010, 0, 0)
                             return
                 except Exception:
                     pass
-            # 超时
-            result["done"] = True
-            try:
-                window.destroy()
-            except Exception:
-                pass
-
         import threading
         threading.Thread(target=_check, daemon=True).start()
 
