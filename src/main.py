@@ -108,17 +108,25 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
         selected = [(i, u) for i, u in selected if i in img_filter]
         print(f"     筛选: {len(selected)}/{len(media.media_urls)} 张")
 
+    # 建子目录（和 GUI 一致：作者（标题）/）
+    safe_author = clean_name(media.author, 20)
+    safe_title = clean_name(media.title or item_id, 40)
+    post_dir = out / f"{safe_author}（{safe_title}）"
+    post_dir.mkdir(parents=True, exist_ok=True)
+
     for idx, (i, murl) in enumerate(selected):
         ext = ".mp4" if media.item_type == "video" else ".jpg"
         label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
-        fname = f"{clean_name(media.title or item_id, 30)}_{label}{ext}"
-        fpath = out / fname
+        fname = f"{label}{ext}"
+        fpath = post_dir / fname
         print(f"[*] 下载 {idx+1}/{len(selected)}: {fname}...")
         ok = download_file(murl, fpath)
         tag = "OK" if ok else "FAIL"
         print(f"[{tag}] {fpath}")
 
-    print(f"[DONE] 保存到: {out}")
+    # 写描述文件
+    (post_dir / "desc.txt").write_text(media.title or item_id, encoding="utf-8")
+    print(f"[DONE] 保存到: {post_dir}")
 
 
 def _parse_image_range(spec: str) -> set:
