@@ -864,11 +864,9 @@ class BatchPage(QWidget):
             self._other_path.setText(_sp)
             self._own_path.setText(_sp)
         if idx == 1:
-            # 信息栏还是加载中？可能上次回调丢失，强制重刷
-            _cur = self._own_info.text()
-            if "正在获取" in _cur or "⚠" in _cur or not _cur:
-                self._own_sec_uid = ""
-            self._detect_own()
+            # 不再自动加载，用户点击"查看列表"时手动触发
+            if not self._own_sec_uid:
+                self._own_info.setText("点击下方「查看列表」加载账号数据")
 
     # ══════════════════════════════════════════
     # 面板 0：下载他人主页
@@ -1455,6 +1453,12 @@ class BatchPage(QWidget):
 
     def _show_own_select_dialog(self):
         """弹出自己的作品选择对话框（实时刷新，选完直接开始下载）"""
+        # 首次点击：触发加载
+        if not self._own_sec_uid:
+            self._detect_own(force=True)
+            self._own_info.setText("正在获取账号信息...")
+            return  # 等加载完成后用户再点一次
+
         # 按实际选中状态取对应列表
         if self._sub_posts.isChecked():
             cur = self._own_posts_items
