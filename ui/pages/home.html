@@ -26,18 +26,19 @@
   .hero-title { font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
   .hero-sub { font-size:12px; color:var(--text-secondary); }
 
-  /* ── 卡片: 紧凑方形 ── */
-  .cards { display:flex; gap:10px; justify-content:center; flex-shrink:0; padding:0 8px; }
+  /* ── 卡片 ── */
+  .cards { display:flex; gap:14px; justify-content:center; flex-shrink:0; padding:0 12px; }
   .card {
-    width:80px; min-height:85px; border-radius:14px; border:2px solid var(--border-default);
+    flex:1; max-width:120px; aspect-ratio:0.85; border-radius:14px; border:2px solid var(--border-default);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:8px; padding:14px 6px; cursor:pointer;
-    transition:border-color .2s, background .2s;
+    gap:10px; padding:20px 10px; cursor:pointer;
+    transition:border-color .2s, background .2s, transform .15s;
     text-align:center; outline:none;
   }
-  .card .icon { font-size:22px; line-height:1; }
-  .card .name { font-size:12px; font-weight:700; }
-  .card .hint { font-size:9px; color:var(--text-disabled); margin-top:2px; }
+  .card .icon img { width:40px; height:40px; display:block; }
+  .card .name { font-size:14px; font-weight:700; }
+  .card .hint { font-size:10px; color:var(--text-disabled); }
+  .card:hover { transform:translateY(-2px); }
 
   /* 可用 */
   .card.on {
@@ -95,15 +96,11 @@
   <!-- 平台卡片 -->
   <div class="cards">
     <button class="card on" onclick="selectPlatform('douyin')">
-      <span class="icon">
-        <img src="../assets/icons/douyin.png" width="26" height="26" alt="抖" style="display:block;">
-      </span>
+      <span class="icon"><img src="../assets/icons/douyin.png" alt="抖音"></span>
       <span class="name">抖音</span>
     </button>
     <button class="card off" disabled>
-      <span class="icon">
-        <img src="../assets/icons/bilibili.png" width="26" height="26" alt="B" style="display:block;opacity:.5;">
-      </span>
+      <span class="icon"><img src="../assets/icons/bilibili.png" alt="B站"></span>
       <span class="name">B站</span>
       <span class="hint">即将上线</span>
     </button>
