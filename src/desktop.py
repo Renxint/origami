@@ -107,7 +107,6 @@ def run():
         f"http://127.0.0.1:{_port}/pages/home.html",
         js_api=api,
         width=420, height=560, min_size=(340, 420),
-        on_top=False,
     )
 
     webview.start()
