@@ -147,18 +147,44 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     """CLI 批量下载"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
-    from src.downloader import download_file, download_batch
+    from src.downloader import download_file
     from src.utils import clean_name
     from src.environ import OUTPUT_BATCH, USER_AGENT
-    import time, hashlib
+    import time, re, requests as _r
 
     out = Path(save_dir) if save_dir else OUTPUT_BATCH
     out.mkdir(parents=True, exist_ok=True)
 
     adapter = DouyinAdapter()
 
+    # 从口令文本中提取链接并解析短链
     print(f"[*] 解析主页: {url[:60]}...")
-    sec_uid = adapter.resolve_user_url(url)
+    # 1. 提取短链或完整URL
+    short_patterns = [
+        r'https?://v\.douyin\.com/[A-Za-z0-9_\-/]+',
+        r'https?://(?:www\.)?douyin\.com/user/MS4wLjAB[A-Za-z0-9_\-]+',
+        r'https?://(?:www\.)?iesdouyin\.com/share/user/MS4wLjAB[A-Za-z0-9_\-]+',
+    ]
+    found = ""
+    for pat in short_patterns:
+        m = re.search(pat, url)
+        if m:
+            found = m.group(0)
+            break
+    if not found:
+        print("[ERROR] 未识别抖音主页链接")
+        return
+
+    # 2. 短链 → 302 解析
+    if "v.douyin.com" in found:
+        s = _r.Session()
+        s.headers.update({"User-Agent": USER_AGENT})
+        r = s.get(found, allow_redirects=True, timeout=15, stream=True)
+        r.close()
+        found = r.url
+        print(f"[*] 短链解析: {found[:60]}...")
+
+    sec_uid = adapter.resolve_user_url(found)
     print(f"[OK] sec_uid: {sec_uid[:30]}...")
 
     print("[*] 获取作者信息...")
