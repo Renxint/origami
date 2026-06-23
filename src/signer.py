@@ -486,7 +486,8 @@ class SignerDaemon:
         self._error: Optional[str] = None
         self._lock = threading.Lock()
 
-    def start(self, cookie_str: str = "") -> bool:
+    def start(self, cookie_str: str = "", block: bool = False) -> bool:
+        """启动 daemon。block=False 时立即返回（后台初始化）"""
         with self._lock:
             if self._running and self._browser and self._browser.is_ready():
                 return True
@@ -510,24 +511,26 @@ class SignerDaemon:
             self._port = actual_port
             self._ready.clear()
             self._error = None
+            self._running = True  # 先标记运行中，防止重复 start
 
-            # 启动 daemon 线程 — 浏览器创建全在内部完成
+            # 启动 daemon 线程
             self._thread = threading.Thread(
                 target=self._run, args=(cookie_str,),
                 daemon=True, name="signer-daemon")
             self._thread.start()
 
-            # 等就绪或报错（最多 90s）
-            if not self._ready.wait(timeout=90):
-                _debug_log("SignerDaemon: startup timeout")
-                return False
+            if block:
+                # 等就绪（最多 90s）
+                if not self._ready.wait(timeout=90):
+                    _debug_log("SignerDaemon: startup timeout")
+                    self._running = False
+                    return False
+                if self._error:
+                    _debug_log(f"SignerDaemon: startup error: {self._error}")
+                    self._running = False
+                    return False
 
-            if self._error:
-                _debug_log(f"SignerDaemon: startup error: {self._error}")
-                return False
-
-            self._running = True
-            _debug_log(f"SignerDaemon: listening on http://127.0.0.1:{self._port}")
+            _debug_log(f"SignerDaemon: starting on port {self._port} (block={block})")
             return True
 
     def _run(self, cookie_str: str):
@@ -564,6 +567,7 @@ class SignerDaemon:
 
     def is_ready(self) -> bool:
         return (self._running
+                and self._ready.is_set()
                 and self._browser is not None
                 and self._browser.is_ready())
 

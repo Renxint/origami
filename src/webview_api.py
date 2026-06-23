@@ -33,18 +33,15 @@ def _call_api(url: str, timeout: float = 20) -> dict:
 
     signer = get_signer()
 
-    # 自动启动 daemon
+    # 自动启动/等待 daemon（在后台线程里等，不阻塞 UI）
     if not signer.is_ready():
         _debug_log("_call_api: daemon not ready, starting...")
         cookie = _load_cookie_raw()
         if not cookie:
             return {"_error": "no_cookie"}
-        signer.start(cookie_str=cookie)
-        # 等就绪
-        for i in range(40):
-            if signer.is_ready():
-                break
-            time.sleep(1 if i < 5 else 2)
+        signer.start(cookie_str=cookie, block=True)  # block=True 因为已经在后台线程
+        if not signer.is_ready():
+            return {"_error": "signer_unavailable"}
 
     if signer.is_ready():
         try:
@@ -115,15 +112,9 @@ def call_server(endpoint: str, **params) -> dict:
         if not signer.is_ready():
             _debug_log(f"call_server attempt {attempt}: daemon not ready, starting...")
             cookie = _load_cookie_raw()
-            signer.start(cookie_str=cookie)
-            # 等 daemon 就绪
-            for i in range(40):
-                if signer.is_ready():
-                    _debug_log(f"daemon ready after {i+1} checks")
-                    break
-                time.sleep(1 if i < 5 else 2)
-            else:
-                _debug_log("WARN: daemon not ready after 60s")
+            signer.start(cookie_str=cookie, block=True)
+            if not signer.is_ready():
+                _debug_log("WARN: daemon did not become ready")
                 if attempt < 3:
                     signer.stop()
                     time.sleep(1)
