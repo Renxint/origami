@@ -236,8 +236,8 @@ class MainWindow(QMainWindow):
         self._nav_signal.connect(self._on_nav_signal)
         QTimer.singleShot(2000, self._check_version)
 
-        # 后台预加载暂时关闭（daemon 启动慢，用户体验差）
-        # QTimer.singleShot(2500, self._prefetch_own)
+        # 延迟预暖 daemon，避开 QtWebEngine 登录初始化的 Chromium 冲突
+        QTimer.singleShot(2000, self._prefetch_own)
 
     def _prefetch_own(self):
         """后台预加载：已登录则自动获取自己主页数据"""

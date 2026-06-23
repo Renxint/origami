@@ -256,3 +256,350 @@
 [01:11:00] sign_err.log: 
 [01:11:00] after 0.3s, poll()=None
 [01:11:00] process alive, deferring health check to call_server
+[01:38:40] === start_server() called ===
+[01:38:41] using port: 18765
+[01:38:41] NODE_CMD: node
+[01:38:41] NODE_CMD exists: False
+[01:38:41] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[01:38:41] SIGN_SERVER_JS exists: True
+[01:38:41] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[01:38:41] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[01:38:41] frozen: False
+[01:38:41] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[01:38:41] clean PATH: System32 only
+[01:38:41] --- attempt 1 ---
+[01:38:41] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[01:38:41] Popen ok, PID: 17072
+[01:38:41] sign_err.log: 
+[01:38:41] after 0.3s, poll()=None
+[01:38:41] process alive, deferring health check to call_server
+[02:51:40] === start_server() called ===
+[02:51:41] using port: 18765
+[02:51:41] NODE_CMD: node
+[02:51:41] NODE_CMD exists: False
+[02:51:41] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[02:51:41] SIGN_SERVER_JS exists: True
+[02:51:41] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[02:51:41] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[02:51:41] frozen: False
+[02:51:41] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[02:51:41] clean PATH: System32 only
+[02:51:41] --- attempt 1 ---
+[02:51:41] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[02:51:41] Popen ok, PID: 41836
+[02:51:41] sign_err.log: 
+[02:51:41] after 0.3s, poll()=None
+[02:51:41] process alive, deferring health check to call_server
+[02:52:27] === start_server() called ===
+[02:52:27] using port: 18765
+[02:52:27] NODE_CMD: node
+[02:52:27] NODE_CMD exists: False
+[02:52:27] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[02:52:27] SIGN_SERVER_JS exists: True
+[02:52:27] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[02:52:27] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[02:52:27] frozen: False
+[02:52:27] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[02:52:27] clean PATH: System32 only
+[02:52:27] --- attempt 1 ---
+[02:52:27] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[02:52:27] Popen ok, PID: 18472
+[02:52:27] sign_err.log: 
+[02:52:28] after 0.3s, poll()=None
+[02:52:28] process alive, deferring health check to call_server
+[01:19:03] === start_server() called ===
+[01:19:04] using port: 18766
+[01:19:04] NODE_CMD: node
+[01:19:04] NODE_CMD exists: False
+[01:19:04] SIGN_SERVER_JS: D:\Pycharm环境\Claude\projects\Origami\sign-server\server.js
+[01:19:04] SIGN_SERVER_JS exists: True
+[01:19:04] BASE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[01:19:04] EXE_DIR: D:\Pycharm环境\Claude\projects\Origami
+[01:19:04] frozen: False
+[01:19:04] Qt bin exists: False -> D:\Pycharm环境\Claude\projects\Origami\PyQt6\Qt6\bin
+[01:19:04] clean PATH: System32 only
+[01:19:04] --- attempt 1 ---
+[01:19:04] log file: D:\Pycharm环境\Claude\projects\Origami\_sign_err.log
+[01:19:04] Popen ok, PID: 49824
+[01:19:04] sign_err.log: 
+[01:19:05] after 0.3s, poll()=None
+[01:19:05] process alive, deferring health check to call_server
+[01:19:30] call_server: video
+[01:21:21] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:22:20] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:23:31] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:26:37] === start_server() called (playwright) ===
+[01:26:37] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:26:37] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:26:38] SignServer.start failed: module 'playwright_stealth' has no attribute 'inject'
+[01:32:56] === start_server() called (playwright daemon) ===
+[01:32:56] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:32:56] SignerDaemon: launching browser...
+[01:32:56] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:32:57] SignerDaemon: browser launch failed: module 'playwright_stealth' has no attribute 'inject'
+[01:32:57] daemon start: False
+[01:33:26] === start_server() called (playwright daemon) ===
+[01:33:26] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:33:26] SignerDaemon: launching browser...
+[01:33:26] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:33:27] Step 1: first nav + SDK init (no cookie)
+[01:33:29] SignerDaemon: browser launch failed: Page.wait_for_function: TypeError: Cannot read properties of null (reading 'boe')
+    at d (https://p-pc-weboff.byteimg.com/tos-cn-i-9r5gewecjs/bdms_1.0.1.19_fix.js:2:133191)
+    at X (https://p-pc-weboff.byteimg.com/tos-cn-i-9r5gewecjs/bdms_1.0.1.19_fix.js:2:131083)
+    at n (https://p-pc-weboff.byteimg.com/tos-cn-i-9r5gewecjs/bdms_1.0.1.19_fix.js:2:130952)
+    at predicate (eval at evaluate (:302:30), <anonymous>:13:29)
+    at next (eval at evaluate (:302:30), <anonymous>:29:33)
+    at eval (eval at evaluate (:302:30), <anonymous>:42:13)
+    at UtilityScript.evaluate (<anonymous>:304:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+[01:33:29] daemon start: False
+[01:34:11] === start_server() called (playwright daemon) ===
+[01:34:11] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:34:11] SignerDaemon: launching browser...
+[01:34:11] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:34:12] Step 1: first nav + SDK wait
+[01:34:17] Step 1: SDK init OK
+[01:34:17] Step 2: re-nav + inject cookie
+[01:34:18] Step 2: 42 cookies injected
+[01:34:19] Step 2: SDK re-init OK
+[01:34:19] Step 3: fingerprints injected
+[01:34:19] StealthBrowser: Ready (page=True)
+[01:34:19] SignerDaemon: listening on http://127.0.0.1:18765
+[01:34:19] daemon start: True
+[01:34:19] [daemon] GET /health HTTP/1.1
+[01:34:20] SignerDaemon: stopped
+[01:34:35] === start_server() called (playwright daemon) ===
+[01:34:35] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:34:35] SignerDaemon: launching browser...
+[01:34:35] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:34:36] Step 1: first nav + SDK wait
+[01:34:40] Step 1: SDK init OK
+[01:34:40] Step 2: re-nav + inject cookie
+[01:34:41] Step 2: 42 cookies injected
+[01:34:42] Step 2: SDK re-init OK
+[01:34:42] Step 3: fingerprints injected
+[01:34:42] StealthBrowser: Ready (page=True)
+[01:34:42] SignerDaemon: listening on http://127.0.0.1:18765
+[01:34:42] daemon start: True
+[01:34:42] call_api: https://www.douyin.com/aweme/v1/web/user/profile/self/?device_platform=webapp...
+[01:34:42] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/user/profile/self/?device_platform=webapp&aid=6383&version_code=290100&version_name=29.1.0 HTTP/1.1
+[01:34:43] SignerDaemon: stopped
+[01:35:28] === start_server() called (playwright daemon) ===
+[01:35:28] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:35:28] SignerDaemon: launching browser...
+[01:35:28] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:35:29] Step 1: first nav + SDK wait
+[01:35:33] Step 1: SDK init OK
+[01:35:33] Step 2: re-nav + inject cookie
+[01:35:34] Step 2: 42 cookies injected
+[01:35:35] Step 2: SDK re-init OK
+[01:35:35] Step 3: fingerprints injected
+[01:35:35] StealthBrowser: Ready (page=True)
+[01:35:35] SignerDaemon: listening on http://127.0.0.1:18765
+[01:35:35] daemon start: True
+[01:35:35] call_api: https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4...
+[01:35:35] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4bRSOuLQzHZ8GeCLThgIWkrEFrvDle0jMb3d30IgjDWn6nsBRIl7O6LpDfdTW&max_cursor=0&count=18&aid=6383&device_platform=webapp&version_code=290100&version_name=29.1.0&cookie_enabled=true HTTP/1.1
+[01:35:39] fetch_video: 765234734681...
+[01:35:39] [daemon] POST /video?aweme_id=7652347346814045455 HTTP/1.1
+[01:35:39] daemon error: Cannot switch to a different thread
+	Current:  <greenlet.greenlet object at 0x000001D81973EB00 (otid=0x000001D8620EDA60) current active started main>
+	Expected: <greenlet.greenlet object at 0x000001D8
+[01:36:16] SignerDaemon: stopped
+[01:36:48] === start_server() called (playwright daemon) ===
+[01:36:48] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:36:48] SignerDaemon: launching browser in daemon thread...
+[01:36:48] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:36:49] Step 1: first nav + SDK wait
+[01:36:53] Step 1: SDK init OK
+[01:36:53] Step 2: re-nav + inject cookie
+[01:36:54] Step 2: 42 cookies injected
+[01:36:55] Step 2: SDK re-init OK
+[01:36:55] Step 3: fingerprints injected
+[01:36:55] StealthBrowser: Ready (page=True)
+[01:36:55] SignerDaemon: serving on port 18765
+[01:36:55] SignerDaemon: listening on http://127.0.0.1:18765
+[01:36:55] daemon start: True
+[01:36:55] call_api: https://www.douyin.com/aweme/v1/web/user/profile/self/?device_platform=webapp...
+[01:36:56] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/user/profile/self/?device_platform=webapp&aid=6383&version_code=290100&version_name=29.1.0 HTTP/1.1
+[01:37:03] === start_server() called (playwright daemon) ===
+[01:37:03] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:37:03] SignerDaemon: launching browser in daemon thread...
+[01:37:03] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:37:04] Step 1: first nav + SDK wait
+[01:37:08] Step 1: SDK init OK
+[01:37:08] Step 2: re-nav + inject cookie
+[01:37:09] Step 2: 42 cookies injected
+[01:37:10] Step 2: SDK re-init OK
+[01:37:10] Step 3: fingerprints injected
+[01:37:10] StealthBrowser: Ready (page=True)
+[01:37:10] SignerDaemon: listening on http://127.0.0.1:18765
+[01:37:10] SignerDaemon: serving on port 18765
+[01:37:10] daemon start: True
+[01:37:10] [daemon] GET /health HTTP/1.1
+[01:37:10] call_api: https://www.douyin.com/aweme/v1/web/user/profile/self/?device_platform=webapp...
+[01:37:10] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/user/profile/self/?device_platform=webapp&aid=6383&version_code=290100&version_name=29.1.0 HTTP/1.1
+[01:37:11] SignerDaemon: stopped
+[01:37:31] === start_server() called (playwright daemon) ===
+[01:37:31] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:37:31] SignerDaemon: launching browser in daemon thread...
+[01:37:31] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:37:32] one_shot_fetch: ...
+[01:37:32] Step 1: first nav + SDK wait
+[01:37:32] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:37:32] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:37:33] Step 1: first nav + SDK wait
+[01:37:36] Step 1: SDK init OK
+[01:37:36] Step 2: re-nav + inject cookie
+[01:37:37] Step 2: 42 cookies injected
+[01:37:37] Step 1: SDK init OK
+[01:37:37] Step 2: re-nav + inject cookie
+[01:37:38] Step 2: 42 cookies injected
+[01:37:38] Step 2: SDK re-init OK
+[01:37:38] Step 3: fingerprints injected
+[01:37:38] StealthBrowser: Ready (page=True)
+[01:37:38] SignerDaemon: serving on port 18765
+[01:37:38] SignerDaemon: listening on http://127.0.0.1:18765
+[01:37:38] daemon start: True
+[01:37:39] Step 2: SDK re-init OK
+[01:37:39] Step 3: fingerprints injected
+[01:37:39] StealthBrowser: Ready (page=True)
+[01:37:39] fetch_video: ...
+[01:37:42] fetch_video: 765234734681...
+[01:37:43] [daemon] POST /video?aweme_id=7652347346814045455 HTTP/1.1
+[01:44:57] === start_server() called (playwright daemon) ===
+[01:44:57] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:44:57] SignerDaemon: launching browser in daemon thread...
+[01:44:57] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:44:58] Step 1: first nav + SDK wait
+[01:44:58] one_shot_fetch: ...
+[01:44:58] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:44:58] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:44:59] Step 1: first nav + SDK wait
+[01:45:02] Step 1: SDK init OK
+[01:45:02] Step 2: re-nav + inject cookie
+[01:45:03] Step 2: 42 cookies injected
+[01:45:04] Step 2: SDK re-init OK
+[01:45:04] Step 3: fingerprints injected
+[01:45:04] StealthBrowser: Ready (page=True)
+[01:45:04] SignerDaemon: listening on http://127.0.0.1:18765
+[01:45:04] daemon start: True
+[01:45:05] Step 1: SDK init OK
+[01:45:05] Step 2: re-nav + inject cookie
+[01:45:06] Step 2: 42 cookies injected
+[01:45:07] Step 2: SDK re-init OK
+[01:45:07] Step 3: fingerprints injected
+[01:45:07] StealthBrowser: Ready (page=True)
+[01:45:07] fetch_video: ...
+[01:45:09] fetch_video: 765413832009...
+[01:45:10] [daemon] POST /video?aweme_id=7654138320092348992 HTTP/1.1
+[01:45:50] fetch_video: 765451240309...
+[01:45:51] [daemon] POST /video?aweme_id=7654512403095072499 HTTP/1.1
+[01:46:04] fetch_video: 765333958780...
+[01:46:04] [daemon] POST /video?aweme_id=7653339587809249457 HTTP/1.1
+[01:46:07] SignerDaemon: stopped
+[01:46:35] === start_server() called (playwright daemon) ===
+[01:46:35] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:46:35] SignerDaemon: launching browser in daemon thread...
+[01:46:35] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:46:36] one_shot_fetch: ...
+[01:46:36] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:46:36] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:46:36] Step 1: first nav + SDK wait
+[01:46:37] Step 1: first nav + SDK wait
+[01:46:40] Step 1: SDK init OK
+[01:46:40] Step 2: re-nav + inject cookie
+[01:46:41] Step 1: SDK init OK
+[01:46:41] Step 2: re-nav + inject cookie
+[01:46:41] Step 2: 42 cookies injected
+[01:46:41] Step 2: 42 cookies injected
+[01:46:42] Step 2: SDK re-init OK
+[01:46:42] Step 3: fingerprints injected
+[01:46:42] StealthBrowser: Ready (page=True)
+[01:46:42] SignerDaemon: listening on http://127.0.0.1:18765
+[01:46:42] daemon start: True
+[01:46:43] Step 2: SDK re-init OK
+[01:46:43] Step 3: fingerprints injected
+[01:46:43] StealthBrowser: Ready (page=True)
+[01:46:43] fetch_video: ...
+[01:47:30] SignerDaemon: stopped
+[01:49:05] === start_server() called (playwright daemon) ===
+[01:49:05] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:49:05] SignerDaemon: launching browser in daemon thread...
+[01:49:05] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:49:06] Step 1: first nav + SDK wait
+[01:49:06] _call_api: daemon not ready, starting...
+[01:49:10] Step 1: SDK init OK
+[01:49:10] Step 2: re-nav + inject cookie
+[01:49:11] Step 2: 42 cookies injected
+[01:49:12] Step 2: SDK re-init OK
+[01:49:12] Step 3: fingerprints injected
+[01:49:12] StealthBrowser: Ready (page=True)
+[01:49:12] SignerDaemon: serving on port 18765
+[01:49:12] SignerDaemon: listening on http://127.0.0.1:18765
+[01:49:12] daemon start: True
+[01:49:12] call_api: https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4...
+[01:49:12] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4bRSOuLQzHZ8GeCLThgIWkrEFrvDle0jMb3d30IgjDWn6nsBRIl7O6LpDfdTW&max_cursor=0&count=18&aid=6383&device_platform=webapp&version_code=290100&version_name=29.1.0&cookie_enabled=true HTTP/1.1
+[01:49:19] SignerDaemon: stopped
+[01:51:50] === start_server() called (playwright daemon) ===
+[01:51:50] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:51:50] SignerDaemon: launching browser in daemon thread...
+[01:51:50] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:51:51] Step 1: first nav + SDK wait
+[01:51:51] === start_server() called (playwright daemon) ===
+[01:51:55] Step 1: SDK init OK
+[01:51:55] Step 2: re-nav + inject cookie
+[01:51:56] Step 2: 42 cookies injected
+[01:51:57] Step 2: SDK re-init OK
+[01:51:58] Step 3: fingerprints injected
+[01:51:58] StealthBrowser: Ready (page=True)
+[01:51:58] SignerDaemon: serving on port 18765
+.0.0.1:18765
+[01:51:58] daemon start: True
+[01:51:58] daemon start: True
+[01:51:58] === start_server() called (playwright daemon) ===
+[01:51:58] fast path: daemon already running
+[01:51:58] call_api: https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4...
+[01:51:58] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4bRSOuLQzHZ8GeCLThgIWkrEFrvDle0jMb3d30IgjDWn6nsBRIl7O6LpDfdTW&max_cursor=0&count=18&aid=6383&device_platform=webapp&version_code=290100&version_name=29.1.0&cookie_enabled=true HTTP/1.1
+[01:52:08] SignerDaemon: stopped
+[01:52:15] === start_server() called (playwright daemon) ===
+[01:52:15] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:52:15] SignerDaemon: launching browser in daemon thread...
+[01:52:15] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:52:16] Step 1: first nav + SDK wait
+[01:52:16] === start_server() called (playwright daemon) ===
+[01:52:20] Step 1: SDK init OK
+[01:52:20] Step 2: re-nav + inject cookie
+[01:52:22] Step 2: 42 cookies injected
+[01:52:23] Step 2: SDK re-init OK
+[01:52:23] Step 3: fingerprints injected
+[01:52:23] StealthBrowser: Ready (page=True)
+[01:52:23] SignerDaemon: listening on http://127.0.0.1:18765
+[01:52:23] SignerDaemon: serving on port 18765
+[01:52:23] daemon start: True
+[01:52:23] daemon start: True
+[01:52:23] === start_server() called (playwright daemon) ===
+[01:52:23] fast path: daemon already running
+[01:52:23] call_api: https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4...
+[01:52:23] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4bRSOuLQzHZ8GeCLThgIWkrEFrvDle0jMb3d30IgjDWn6nsBRIl7O6LpDfdTW&max_cursor=0&count=18&aid=6383&device_platform=webapp&version_code=290100&version_name=29.1.0&cookie_enabled=true HTTP/1.1
+[01:52:27] SignerDaemon: stopped
+[01:53:57] === start_server() called (playwright daemon) ===
+[01:53:57] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:53:57] SignerDaemon: launching browser in daemon thread...
+[01:53:57] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[01:53:58] Step 1: first nav + SDK wait
+[01:54:03] Step 1: SDK init OK
+[01:54:03] Step 2: re-nav + inject cookie
+[01:54:04] Step 2: 42 cookies injected
+[01:54:05] Step 2: SDK re-init OK
+[01:54:05] Step 3: fingerprints injected
+[01:54:05] StealthBrowser: Ready (page=True)
+[01:54:05] SignerDaemon: listening on http://127.0.0.1:18765
+[01:54:05] SignerDaemon: serving on port 18765
+[01:54:05] daemon start: True
+[01:54:08] === start_server() called (playwright daemon) ===
+[01:54:08] fast path: daemon already running
+[01:54:08] === start_server() called (playwright daemon) ===
+[01:54:08] fast path: daemon already running
+[01:54:08] call_api: https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4...
+[01:54:08] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/aweme/favorite/?sec_user_id=MS4wLjABAAAAJcv4bRSOuLQzHZ8GeCLThgIWkrEFrvDle0jMb3d30IgjDWn6nsBRIl7O6LpDfdTW&max_cursor=0&count=18&aid=6383&device_platform=webapp&version_code=290100&version_name=29.1.0&cookie_enabled=true HTTP/1.1
+[01:54:12] SignerDaemon: stopped

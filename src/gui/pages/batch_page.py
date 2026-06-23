@@ -864,9 +864,8 @@ class BatchPage(QWidget):
             self._other_path.setText(_sp)
             self._own_path.setText(_sp)
         if idx == 1:
-            # 不再自动加载，用户点击"查看列表"时手动触发
-            if not self._own_sec_uid:
-                self._own_info.setText("点击下方「查看列表」加载账号数据")
+            # 切到自己标签时自动加载
+            self._detect_own()
 
     # ══════════════════════════════════════════
     # 面板 0：下载他人主页
@@ -1377,13 +1376,6 @@ class BatchPage(QWidget):
             return
 
         # ── posts/likes 模式 ──
-        # 预暖 daemon（避免两个线程同时抢启动）
-        try:
-            from src.webview_api import start_server
-            start_server()
-        except Exception:
-            pass
-
         def _run():
             total = 0
             cursor = 0
@@ -1452,12 +1444,10 @@ class BatchPage(QWidget):
         threading.Thread(target=_run, daemon=True).start()
 
     def _show_own_select_dialog(self):
-        """弹出自己的作品选择对话框（实时刷新，选完直接开始下载）"""
-        # 首次点击：触发加载
+        """弹出自己的作品选择对话框"""
         if not self._own_sec_uid:
             self._detect_own(force=True)
-            self._own_info.setText("正在获取账号信息...")
-            return  # 等加载完成后用户再点一次
+            return
 
         # 按实际选中状态取对应列表
         if self._sub_posts.isChecked():

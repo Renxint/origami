@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<title>Origami</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:var(--bg-deep);color:var(--text-primary);font-family:var(--font);font-size:13px;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
+  .page{position:absolute;inset:0;display:none;flex-direction:column}
+  .page.active{display:flex}
+
+  /* ── shared ── */
+  .topbar{display:flex;align-items:center;gap:10px;padding:14px 20px;flex-shrink:0}
+  .btn-back{background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:5px 12px;font-size:12px;cursor:pointer;font-family:var(--font)}
+  .btn-back:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .topbar-title{font-size:16px;font-weight:700}
+  .topbar-divider{height:1px;background:var(--divider);flex-shrink:0}
+  .input{flex:1;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;outline:none;font-family:var(--font)}
+  .input:focus{border-color:var(--accent)}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap}
+  .btn:hover{background:var(--accent-glow)}
+  .btn:disabled{opacity:.5}
+  .btn.ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border-default);font-weight:400}
+  .btn.ghost:hover{background:var(--bg-hover);color:var(--text-primary)}
+  .btn.small{padding:5px 12px;font-size:11px}
+</style>
+
+<!-- ═══════════════ HOME ═══════════════ -->
+<style>
+  #page-home{align-items:center;padding:0 24px}
+  .home-brand{font-size:19px;font-weight:700;margin-top:20px;align-self:stretch;display:flex;justify-content:space-between}
+  .home-ver{font-size:11px;color:var(--text-disabled)}
+  .home-title{text-align:center;padding:28px 0 20px}
+  .home-title h1{font-size:22px;font-weight:700;margin-bottom:4px}
+  .home-title p{font-size:13px;color:var(--text-secondary)}
+  .card-row{display:flex;gap:14px}
+  .platform-card{flex:1;max-width:140px;aspect-ratio:.82;background:var(--bg-card);border:2px solid var(--border-default);border-radius:var(--radius-md);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:border-color .25s,background .25s}
+  .platform-card:hover{border-color:var(--accent);background:var(--bg-hover)}
+  .platform-card img{width:48px;height:48px;background:transparent}
+  .platform-card .name{font-size:14px;font-weight:600;color:var(--text-secondary)}
+  .platform-card:hover .name{color:var(--accent)}
+  .platform-card .badge{font-size:10px;color:var(--text-disabled)}
+  .spacer{flex:1}
+  .bottombar{display:flex;justify-content:space-between;align-items:center;padding:14px 0 20px;align-self:stretch;border-top:1px solid var(--divider);margin-top:14px}
+  .bottombar-status{font-size:12px;color:var(--text-secondary)}
+</style>
+
+<!-- ═══════════════ MODE ═══════════════ -->
+<style>
+  .mode-body{flex:1;display:flex;gap:20px;align-items:center;justify-content:center;padding:24px 32px}
+  .mode-card{flex:1;max-width:360px;aspect-ratio:1/.85;background:var(--bg-card);border:2px solid var(--border-default);border-radius:var(--radius-md);padding:36px 24px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;transition:border-color .25s,background .25s}
+  .mode-card:hover{border-color:var(--accent);background:var(--bg-hover)}
+  .mode-icon{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--bg-hover);font-size:28px}
+  .mode-name{font-size:18px;font-weight:700}
+  .mode-desc{font-size:12px;color:var(--text-secondary)}
+</style>
+
+<!-- ═══════════════ SINGLE ═══════════════ -->
+<style>
+  #page-single{padding:16px 20px;gap:10px}
+  .desc-row{color:var(--text-secondary);font-size:11px;padding:0 4px;display:none}
+  .url-row{display:flex;gap:8px}
+  .path-row{display:flex;flex-direction:column;gap:6px}
+  .path-label{font-size:11px;color:var(--text-secondary)}
+  .path-body{display:flex;gap:8px}
+  .path-input{flex:1;background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:8px 12px;font-size:11px;word-break:break-all;line-height:1.5}
+  .content-split{flex:1;display:flex;gap:12px;min-height:0}
+  .log-box{flex:1;background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:10px;font-size:11px;color:var(--text-secondary);overflow-y:auto;font-family:'Consolas','Courier New',monospace;line-height:1.6}
+  .log-box .ok{color:var(--success)}.log-box .err{color:var(--error)}.log-box .warn{color:var(--warn)}.log-box .info{color:var(--text-disabled)}
+  .dl-list{width:220px;background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-sm);padding:8px;overflow-y:auto;font-size:11px;flex-shrink:0}
+  .dl-list-title{font-size:10px;color:var(--text-disabled);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+  .dl-item{display:flex;justify-content:space-between;padding:4px 6px;font-size:11px}
+  .progress-wrap{height:4px;background:var(--bg-card);border-radius:2px;overflow:hidden;flex-shrink:0}
+  .progress-fill{height:100%;width:0;background:var(--accent);border-radius:2px;transition:width .3s}
+  .statusbar{font-size:11px;color:var(--text-secondary);flex-shrink:0}
+  /* Gallery modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-dialog{background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:20px;width:90%;max-width:600px;max-height:80vh;display:flex;flex-direction:column}
+  .modal-title{font-size:15px;font-weight:700;margin-bottom:4px}
+  .modal-sub{font-size:11px;color:var(--text-secondary);margin-bottom:14px}
+  .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;overflow-y:auto;flex:1}
+  .gallery-item{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid transparent}
+  .gallery-item:hover,.gallery-item.selected{border-color:var(--accent)}
+  .gallery-item img{width:100%;height:100%;object-fit:cover}
+  .gallery-item .check-mark{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:4px;background:rgba(0,0,0,.6);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+  .gallery-item.selected .check-mark{background:var(--accent);border-color:var(--accent)}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--divider)}
+  .select-all-btn{font-size:11px;color:var(--text-secondary);cursor:pointer;margin-right:auto;align-self:center}
+  .select-all-btn:hover{color:var(--text-primary)}
+  /* Author info in topbar */
+  .author-avatar{width:30px;height:30px;border-radius:50%;border:2px solid var(--border-default);object-fit:cover;display:none}
+  .author-name{font-size:11px;color:var(--text-secondary)}
+  .author-stats{font-size:11px;color:var(--text-primary)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HOME ═══════════ -->
+<div class="page active" id="page-home">
+  <div class="home-brand"><span>Origami</span><span class="home-ver" id="homeVer">v0.6.2</span></div>
+  <div class="home-title"><h1>选择平台</h1><p>折你所爱，存你所想</p></div>
+  <div class="card-row">
+    <button class="platform-card" onclick="go('mode')"><img src="../assets/icons/douyin.png" alt="抖"><span class="name">抖音</span><span class="badge">可用</span></button>
+    <button class="platform-card" style="opacity:.7;cursor:default" disabled><img src="../assets/icons/bilibili.png" alt="B"><span class="name">B站</span><span class="badge">即将上线</span></button>
+  </div>
+  <div class="spacer"></div>
+  <div class="bottombar"><span class="bottombar-status" id="homeStatus">未登录</span><button class="btn ghost" onclick="go('settings')">设置</button></div>
+</div>
+
+<!-- ═══════════ MODE ═══════════ -->
+<div class="page" id="page-mode">
+  <div class="topbar"><button class="btn-back" onclick="go('home')">← 返回</button><span class="topbar-title">抖音</span></div>
+  <div class="topbar-divider"></div>
+  <div class="mode-body">
+    <button class="mode-card" onclick="go('single')"><div class="mode-icon">📥</div><div class="mode-name">单个作品</div><div class="mode-desc">粘贴分享链接或口令<br>解析后预览并下载</div></button>
+    <button class="mode-card" onclick="go('batch')"><div class="mode-icon">📦</div><div class="mode-name">批量下载</div><div class="mode-desc">输入主页链接<br>批量获取并归档作品</div></button>
+  </div>
+</div>
+
+<!-- ═══════════ SINGLE ═══════════ -->
+<div class="page" id="page-single">
+  <div class="topbar">
+    <button class="btn-back" onclick="go('mode')">← 返回</button>
+    <span class="topbar-title" style="color:var(--accent)">单视频下载</span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <img class="author-avatar" id="authorAvatar"><span class="author-name" id="authorName"></span><span class="author-stats" id="authorStats"></span>
+    </div>
+  </div>
+  <div class="desc-row" id="descRow"><span id="descText"></span></div>
+  <div class="url-row">
+    <input class="input" id="urlInput" placeholder="粘贴分享链接或口令...">
+    <button class="btn" id="actionBtn" onclick="fetchMedia()">解析</button>
+    <button class="btn ghost" id="cancelBtn" onclick="cancel()" style="display:none">取消</button>
+    <button class="btn ghost small" id="commentBtn" disabled>评论</button>
+  </div>
+  <div class="path-row">
+    <span class="path-label">保存到</span>
+    <div class="path-body"><div class="path-input" id="pathDisplay">output/单作品/</div><button class="btn ghost" onclick="browsePath()">浏览</button><button class="btn ghost" onclick="openFolder()">打开</button></div>
+  </div>
+  <div class="content-split">
+    <div class="log-box" id="logBox"><div class="empty" style="text-align:center;padding:20px;opacity:.5">粘贴链接后开始解析</div></div>
+    <div class="dl-list"><div class="dl-list-title">已下载</div><div id="dlItems"></div></div>
+  </div>
+  <div class="progress-wrap" id="progressWrap" style="display:none"><div class="progress-fill" id="progressBar"></div></div>
+  <div class="statusbar" id="statusBar">就绪</div>
+  <!-- Gallery modal -->
+  <div class="modal-overlay" id="galleryModal">
+    <div class="modal-dialog"><div class="modal-title">选择要下载的图片</div><div class="modal-sub">点击图片选中/取消，选好后点击下载</div><div class="gallery-grid" id="galleryGrid"></div>
+    <div class="modal-actions"><span class="select-all-btn" onclick="toggleSelectAll()">全选 / 取消</span><span style="font-size:11px;color:var(--text-secondary)">已选 <b style="color:var(--accent)" id="selectedCount">0</b> 张</span><button class="btn ghost" onclick="closeGallery()">取消</button><button class="btn" onclick="confirmGallery()">确认下载</button></div></div>
+  </div>
+</div>
+
+<!-- ═══════════ BATCH ═══════════ -->
+<div class="page" id="page-batch">
+  <div class="topbar"><button class="btn-back" onclick="go('mode')">← 返回</button><span class="topbar-title">批量下载</span></div>
+  <div class="topbar-divider"></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-disabled);font-size:14px">即将上线</div>
+</div>
+
+<!-- ═══════════ SETTINGS ═══════════ -->
+<div class="page" id="page-settings">
+  <div class="topbar"><button class="btn-back" onclick="go('home')">← 返回</button><span class="topbar-title">设置</span></div>
+  <div class="topbar-divider"></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-disabled);font-size:14px">即将上线</div>
+</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  document.body.style.zoom = '131%';
+  var bridge = null, mediaData = null, galleryUrls = [], selectedImgs = new Set();
+
+  // ── Init ──
+  new QWebChannel(qt.webChannelTransport, function(ch) {
+    bridge = ch.objects.bridge;
+    bridge.getSetting('theme').then(function(t) { if(t) setTheme(t); });
+    bridge.getSetting('zoom').then(function(v) { if(v) document.body.style.zoom=String(Math.round(Number(v)*100))+'%'; });
+    bridge.getSetting('download_paths').then(function(p) { if(p&&p.single) document.getElementById('pathDisplay').textContent=p.single; });
+    bridge.isLoggedIn().then(function(ok) { document.getElementById('homeStatus').textContent=ok?'已登录':'未登录'; });
+    bridge.getVersion().then(function(v) { document.getElementById('homeVer').textContent='v'+v; });
+    // Check for clipboard URL from Python
+    var clipUrl = localStorage.getItem('clipboard_url');
+    if (clipUrl) { localStorage.removeItem('clipboard_url'); go('single'); setTimeout(function(){ document.getElementById('urlInput').value=clipUrl; fetchMedia(); }, 300); }
+  });
+
+  function setTheme(name) { document.documentElement.dataset.theme = name; if(bridge) bridge.setSetting('theme', name); }
+
+  // ── Navigation (no page reload!) ──
+  function go(name) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById('page-'+name).classList.add('active');
+    if (bridge) {
+      bridge.navigateTo(name);
+    }
+  }
+
+  // ── Log ──
+  function log(msg, cls) {
+    var box = document.getElementById('logBox'), empty = box.querySelector('.empty');
+    if (empty) empty.remove();
+    var d = document.createElement('div'); d.className = cls||'';
+    var t = new Date(); d.textContent = '[' + [t.getHours(),t.getMinutes(),t.getSeconds()].map(function(x){return (x<10?'0':'')+x}).join(':') + '] ' + msg;
+    box.appendChild(d); box.scrollTop = box.scrollHeight;
+  }
+  function addDlItem(name) { var d=document.createElement('div'); d.className='dl-item'; d.innerHTML='<span>'+name+'</span><span style="color:var(--success)">✓</span>'; document.getElementById('dlItems').appendChild(d); }
+
+  // ── Single: fetch ──
+  async function fetchMedia() {
+    var url = document.getElementById('urlInput').value.trim();
+    if (!url) return log('请粘贴分享链接', 'warn');
+    if (!bridge) return log('Bridge 未就绪', 'err');
+    var btn = document.getElementById('actionBtn');
+    btn.disabled = true; btn.textContent = '解析中...';
+    log('开始解析链接...', 'info');
+    try {
+      var resolved = await bridge.resolveUrl(url);
+      if (!resolved||resolved.error) { log('[FAIL] '+(resolved?resolved.error:'解析失败'), 'err'); btn.disabled=false; btn.textContent='解析'; return; }
+      log('[OK] ID: '+resolved.item_id, 'ok');
+      log('获取作品详情...', 'info');
+      var media = await bridge.fetchMedia(resolved.item_id);
+      if (!media||media.error) { log('[FAIL] '+(media?media.error:'获取失败'), 'err'); btn.disabled=false; btn.textContent='解析'; return; }
+      mediaData = media;
+      log('[OK] '+ (media.title||'').slice(0,40), 'ok');
+      log('作者: '+(media.author||'?')+' | 类型: '+media.item_type+' | 头像: '+(media.author_avatar?'有':'无'), 'info');
+      document.getElementById('authorName').textContent = media.author||'';
+      document.getElementById('authorStats').textContent = media.item_type||'';
+      if (media.author_avatar) {
+        bridge.fetchImageAsDataUrl(media.author_avatar).then(function(d) {
+          var av = document.getElementById('authorAvatar'); av.src = d; av.style.display='block';
+        });
+      }
+      if (media.title) { document.getElementById('descRow').style.display='block'; document.getElementById('descText').textContent=media.title; }
+      var isGallery = media.item_type==='gallery'||media.item_type==='image';
+      if (isGallery && (media.media_urls||[]).length>0) { showGallery(media.media_urls); }
+      btn.textContent = '下载';
+      btn.onclick = isGallery ? function(){showGallery(media.media_urls||[]);} : startDownload;
+      btn.disabled = false;
+      document.getElementById('commentBtn').disabled = false;
+      document.getElementById('cancelBtn').style.display = '';
+      document.getElementById('statusBar').textContent = '就绪 · 点击下载';
+    } catch(e) { log('[ERR] '+e, 'err'); btn.disabled=false; btn.textContent='解析'; }
+  }
+
+  function cancel() {
+    var btn = document.getElementById('actionBtn'); btn.textContent='解析'; btn.onclick=fetchMedia;
+    document.getElementById('cancelBtn').style.display='none'; document.getElementById('commentBtn').disabled=true;
+    document.getElementById('descRow').style.display='none'; document.getElementById('statusBar').textContent='已取消';
+    log('[WARN] 已取消', 'warn'); galleryUrls=[]; selectedImgs.clear();
+  }
+
+  // ── Gallery modal ──
+  function showGallery(urls) {
+    galleryUrls=urls; selectedImgs=new Set(); urls.forEach(function(_,i){selectedImgs.add(i);});
+    var grid=document.getElementById('galleryGrid'); grid.innerHTML='';
+    urls.forEach(function(u,i){
+      var item=document.createElement('div'); item.className='gallery-item selected';
+      item.innerHTML='<img src="'+u+'" loading="lazy"><div class="check-mark">✓</div>';
+      item.onclick=function(){toggleImg(i);}; grid.appendChild(item);
+    });
+    document.getElementById('selectedCount').textContent=selectedImgs.size;
+    document.getElementById('galleryModal').classList.add('show');
+    log('图集弹窗: '+urls.length+' 张', 'info');
+  }
+  function toggleImg(i) { selectedImgs.has(i)?selectedImgs.delete(i):selectedImgs.add(i); document.querySelectorAll('#galleryGrid .gallery-item')[i].classList.toggle('selected'); document.getElementById('selectedCount').textContent=selectedImgs.size; }
+  function toggleSelectAll() { if(selectedImgs.size===galleryUrls.length) selectedImgs.clear(); else galleryUrls.forEach(function(_,i){selectedImgs.add(i);}); document.querySelectorAll('#galleryGrid .gallery-item').forEach(function(el,i){el.classList.toggle('selected',selectedImgs.has(i));}); document.getElementById('selectedCount').textContent=selectedImgs.size; }
+  function closeGallery() { document.getElementById('galleryModal').classList.remove('show'); }
+  function confirmGallery() { document.getElementById('galleryModal').classList.remove('show'); startDownload(); }
+
+  // ── Download ──
+  function startDownload() {
+    if (!mediaData) return;
+    var urls = galleryUrls.length>0 ? [] : (mediaData.media_urls||[]);
+    if (galleryUrls.length>0) selectedImgs.forEach(function(i){urls.push(galleryUrls[i]);});
+    log('下载 '+urls.length+' 个文件...', 'info');
+    document.getElementById('progressWrap').style.display='block'; document.getElementById('progressBar').style.width='0%';
+    document.getElementById('statusBar').textContent='下载中...';
+    var done=0;
+    function dlNext(i) {
+      if (i>=urls.length) { document.getElementById('progressBar').style.width='100%'; document.getElementById('statusBar').textContent='完成'; log('[OK] 全部完成','ok'); return; }
+      var name=(mediaData.title||'media')+'_'+(i+1);
+      bridge.downloadFile(urls[i], name).then(function(r) {
+        done++; document.getElementById('progressBar').style.width=Math.round(done/urls.length*100)+'%';
+        if(r&&r.ok){addDlItem(name);log('[OK] '+name,'ok');} else {log('[FAIL] '+name,'err');}
+        dlNext(i+1);
+      });
+    }
+    dlNext(0);
+  }
+
+  function browsePath() { if(bridge) bridge.browseFolder().then(function(p){ if(p) document.getElementById('pathDisplay').textContent=p; }); }
+  function openFolder() { if(bridge) bridge.openFolder(''); }
+</script>
+</body>
+</html>
