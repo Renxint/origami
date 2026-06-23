@@ -443,6 +443,27 @@ def cmd_login():
         print("请先安装: pip install pywebview")
         return
 
+    # Monkey-patch: pywebview 的 create_cookie 遇到空名 cookie 会崩
+    import webview.util as _wutil
+    _orig_create = _wutil.create_cookie
+    def _safe_create(input_):
+        if not input_.get("name", "").strip():
+            return None
+        try:
+            return _orig_create(input_)
+        except Exception:
+            return None
+    _wutil.create_cookie = _safe_create
+
+    # 同时修 _parse_cookies 过滤 None
+    import webview.platforms.edgechromium as _wec
+    _orig_parse = getattr(_wec, '_parse_cookies', None)
+    if _orig_parse:
+        def _safe_parse(cookies):
+            result = _orig_parse(cookies)
+            return [c for c in result if c is not None]
+        setattr(_wec, '_parse_cookies', _safe_parse)
+
     from src.cookie import save_cookie
     import time
 
