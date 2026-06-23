@@ -27,11 +27,25 @@ def _daemon_url() -> str:
 
 
 def _call_api(url: str, timeout: float = 20) -> dict:
-    """通过 HTTP Daemon 调用 API（替代旧 Node.js api-call.js）"""
+    """通过 HTTP Daemon 调用 API（自动启动 daemon）"""
     if not COOKIE_FILE.exists():
         return {"_error": "not_logged_in"}
 
     signer = get_signer()
+
+    # 自动启动 daemon
+    if not signer.is_ready():
+        _debug_log("_call_api: daemon not ready, starting...")
+        cookie = _load_cookie_raw()
+        if not cookie:
+            return {"_error": "no_cookie"}
+        signer.start(cookie_str=cookie)
+        # 等就绪
+        for i in range(40):
+            if signer.is_ready():
+                break
+            time.sleep(1 if i < 5 else 2)
+
     if signer.is_ready():
         try:
             r = _req.post(
@@ -41,12 +55,7 @@ def _call_api(url: str, timeout: float = 20) -> dict:
         except Exception as e:
             _debug_log(f"_call_api HTTP failed: {e}")
 
-    # 回退到 one-shot
-    cookie = _load_cookie_raw()
-    if not cookie:
-        return {"_error": "no_cookie"}
-    return one_shot_fetch(url.split("aweme_id=")[-1].split("&")[0]
-                         if "aweme_id" in url else "", cookie)
+    return {"_error": "signer_unavailable"}
 
 
 def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
