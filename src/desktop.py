@@ -3,11 +3,11 @@
 Origami v2 — Desktop Shell
 
 入口：python src/desktop.py
-用户看到独立的桌面窗口，API Server 在后台运行。
 """
 
 import sys
 import os
+import subprocess
 import threading
 import time
 
@@ -19,45 +19,22 @@ if ROOT not in sys.path:
 class DesktopApi:
     """pywebview JS-Python 桥"""
 
-    def __init__(self):
-        self._window = None
-
-    def set_window(self, w):
-        self._window = w
-
     def startLogin(self):
-        """导航到抖音 → 轮询 Cookie → 保存 → 回首页"""
-        w = self._window
-        if not w:
-            return {"ok": False, "error": "no_window"}
-
-        from src.cookie import save_cookie
-        w.load_url("https://www.douyin.com/")
-
-        def _poll():
-            for _ in range(60):
-                time.sleep(2)
-                try:
-                    cookies = w.get_cookies()
-                    parts = [f"{c['name']}={c['value']}" for c in cookies
-                             if c.get("name") and c.get("value")]
-                    cs = "; ".join(parts)
-                    if "sessionid=" in cs and "ttwid=" in cs:
-                        save_cookie(cs)
-                        w.load_url(f"http://127.0.0.1:{_port}/pages/home.html")
-                        return
-                except Exception:
-                    pass
-            w.load_url(f"http://127.0.0.1:{_port}/pages/home.html")
-
-        threading.Thread(target=_poll, daemon=True).start()
-        return {"ok": True}
+        """独立进程启动登录窗口 → 等 Cookie 保存 → 通知前端"""
+        login_script = os.path.join(ROOT, "src", "main.py")
+        # 用 subprocess 跑独立进程，完全避开 pywebview 线程限制
+        subprocess.run(
+            [sys.executable, login_script, "login"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,  # 消掉 cookie 解析警告
+        )
+        # 检查是否登录成功
+        from src.cookie import load_cookie
+        cookie = load_cookie()
+        return {"ok": bool(cookie and "sessionid=" in cookie)}
 
     def getApiBase(self):
         return f"http://127.0.0.1:{_port}"
-
-    def getWsUrl(self):
-        return f"ws://127.0.0.1:{_port}/ws/events"
 
 
 _port = 8765
@@ -65,8 +42,8 @@ _port = 8765
 
 def run():
     global _port
-    """启动桌面应用"""
-    # 1. 后台启动 API Server
+
+    # 1. 后台 API Server
     from src.server import create_app, find_available_port, API_PORT
     from aiohttp import web
 
@@ -89,7 +66,7 @@ def run():
 
     print(f"[Origami] http://127.0.0.1:{_port}")
 
-    # 2. 前台 pywebview 窗口
+    # 2. pywebview 窗口
     import webview
 
     api = DesktopApi()
@@ -99,8 +76,6 @@ def run():
         js_api=api,
         width=800, height=600, min_size=(520, 420),
     )
-    api.set_window(window)
-
     webview.start()
 
 
