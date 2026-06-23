@@ -510,4 +510,15 @@ def run_server(port: int = 0):
     app = create_app()
     print(f"[Origami v2] API Server → http://localhost:{port}")
     print(f"[Origami v2] WebSocket   → ws://localhost:{port}/ws/events")
-    web.run_app(app, host="127.0.0.1", port=port, print=lambda *_: None)
+
+    # 静默关闭，不刷屏
+    import signal as _sig
+    def _shutdown(sig, frame):
+        raise SystemExit(0)
+    _sig.signal(_sig.SIGINT, _shutdown)
+
+    try:
+        web.run_app(app, host="127.0.0.1", port=port,
+                    print=lambda *_: None, handle_signals=False)
+    except SystemExit:
+        pass
