@@ -119,24 +119,19 @@
 <script src="../js/api.js"></script>
 <script>
   async function doLogin() {
-    var el = document.getElementById('loginStatus');
-    el.textContent = '正在打开登录窗口...';
+    document.getElementById('loginStatus').textContent = '正在打开登录页面...';
 
-    // 优先 pywebview 桥
+    // 桌面模式：Python 控制导航+Cookie检测
+    if (window.pywebview && window.pywebview.api) {
+      await window.pywebview.api.startLogin();
+      return;
+    }
+
+    // 浏览器模式：调 HTTP API
     try {
-      if (window.pywebview && window.pywebview.api) {
-        var r = await window.pywebview.api.login();
-        if (r && r.ok) { location.reload(); return; }
-      }
+      var r = await Origami.login();
+      if (r.ok) location.reload();
     } catch(e) {}
-
-    // 回退 HTTP API
-    try {
-      var r2 = await Origami.login();
-      if (r2.ok) { location.reload(); return; }
-    } catch(e) {}
-
-    el.textContent = '未登录 · 点击重试';
   }
 
   window.addEventListener('DOMContentLoaded', async function() {

@@ -17,52 +17,43 @@ if ROOT not in sys.path:
 
 
 class DesktopApi:
-    """pywebview JS-Python 桥：前端通过 window.pywebview.api.xxx() 调用"""
+    """pywebview JS-Python 桥"""
 
-    def login(self):
-        """扫码登录 — 在主线程启动 WebView 窗口"""
+    def __init__(self):
+        self._window = None
+
+    def set_window(self, w):
+        self._window = w
+
+    def startLogin(self):
+        """导航到抖音 → 轮询 Cookie → 保存 → 回首页"""
+        w = self._window
+        if not w:
+            return {"ok": False, "error": "no_window"}
+
         from src.cookie import save_cookie
-        import webview
+        w.load_url("https://www.douyin.com/")
 
-        result = {"cookie": "", "done": False}
-
-        def _on_loaded():
-            def _check():
-                for _ in range(60):
-                    time.sleep(2)
-                    try:
-                        cookies = window.get_cookies()
-                        if cookies:
-                            parts = [f"{c['name']}={c['value']}" for c in cookies
-                                     if c.get("name") and c.get("value")]
-                            cs = "; ".join(parts)
-                            if "sessionid=" in cs and "ttwid=" in cs:
-                                result["cookie"] = cs
-                                result["done"] = True
-                                window.destroy()
-                                return
-                    except Exception:
-                        pass
-                result["done"] = True
+        def _poll():
+            for _ in range(60):
+                time.sleep(2)
                 try:
-                    window.destroy()
+                    cookies = w.get_cookies()
+                    parts = [f"{c['name']}={c['value']}" for c in cookies
+                             if c.get("name") and c.get("value")]
+                    cs = "; ".join(parts)
+                    if "sessionid=" in cs and "ttwid=" in cs:
+                        save_cookie(cs)
+                        w.load_url(f"http://127.0.0.1:{_port}/pages/home.html")
+                        return
                 except Exception:
                     pass
-            threading.Thread(target=_check, daemon=True).start()
+            w.load_url(f"http://127.0.0.1:{_port}/pages/home.html")
 
-        window = webview.create_window(
-            "Origami — 登录抖音", "https://www.douyin.com/",
-            width=420, height=620, on_top=True)
-        window.events.loaded += _on_loaded
-        webview.start()
-
-        if result["cookie"]:
-            save_cookie(result["cookie"])
-            return {"ok": True, "cookie_len": len(result["cookie"])}
-        return {"ok": False}
+        threading.Thread(target=_poll, daemon=True).start()
+        return {"ok": True}
 
     def getApiBase(self):
-        """返回 API Server 地址"""
         return f"http://127.0.0.1:{_port}"
 
     def getWsUrl(self):
@@ -103,6 +94,12 @@ def run():
 
     api = DesktopApi()
     window = webview.create_window(
+        "Origami",
+        f"http://127.0.0.1:{_port}/pages/home.html",
+        js_api=api,
+        width=800, height=600, min_size=(520, 420),
+    )
+    api.set_window(window)
         "Origami",
         f"http://127.0.0.1:{_port}/pages/home.html",
         js_api=api,
