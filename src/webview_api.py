@@ -215,10 +215,25 @@ def _get_avatar(user: dict) -> str:
 
 
 def get_user_likes(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
+    """喜欢列表 — 直连 HTTP（不需要浏览器签名）"""
+    from src.cookie import load_cookie
+    from src.environ import USER_AGENT
+    import requests as _r
     params = (f"sec_user_id={sec_uid}&max_cursor={max_cursor}&count={count}"
               f"&aid=6383&device_platform=webapp&version_code=290100"
               f"&version_name=29.1.0&cookie_enabled=true")
-    return _call_api(f"https://www.douyin.com/aweme/v1/web/aweme/favorite/?{params}")
+    try:
+        r = _r.get(
+            f"https://www.douyin.com/aweme/v1/web/aweme/favorite/?{params}",
+            headers={
+                "User-Agent": USER_AGENT,
+                "Cookie": load_cookie() or "",
+                "Referer": "https://www.douyin.com/",
+            },
+            timeout=20)
+        return r.json()
+    except Exception:
+        return {}
 
 
 def get_favorite_collections(cursor: int = 0) -> dict:

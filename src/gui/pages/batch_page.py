@@ -1397,7 +1397,7 @@ class BatchPage(QWidget):
                                 self._bg_own_log.emit(f'[统计] 返回数据异常', '#EF4444')
                                 return
                             items = result.get("items") or []
-                            if items and hasattr(items[0], 'extra'):
+                            if isinstance(items, list) and items and hasattr(items[0], 'extra'):
                                 items = [i.extra.get("aweme", {}) for i in items]
                             data["has_more"] = result.get("has_more", 0)
                             data["max_cursor"] = result.get("next_cursor", 0)
