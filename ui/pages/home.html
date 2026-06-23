@@ -118,60 +118,43 @@
 
 <script src="../js/api.js"></script>
 <script>
-  var isDesktop = typeof window.pywebview !== 'undefined';
-
   async function doLogin() {
     var el = document.getElementById('loginStatus');
     el.textContent = '正在打开登录窗口...';
 
-    if (isDesktop) {
-      try {
-        var result = await window.pywebview.api.login();
-        if (result && result.ok) { location.reload(); }
-        else { el.textContent = '登录超时 · 点击重试'; }
-      } catch(e) {
-        el.textContent = '登录失败: ' + e.message;
-      }
-      return;
-    }
-
-    // 浏览器模式
+    // 优先 pywebview 桥
     try {
-      var r = await Origami.login();
-      if (r.ok) { location.reload(); }
-      else { el.textContent = r.message || '登录失败'; }
-    } catch(e) {
-      el.textContent = '服务未启动';
-    }
+      if (window.pywebview && window.pywebview.api) {
+        var r = await window.pywebview.api.login();
+        if (r && r.ok) { location.reload(); return; }
+      }
+    } catch(e) {}
+
+    // 回退 HTTP API
+    try {
+      var r2 = await Origami.login();
+      if (r2.ok) { location.reload(); return; }
+    } catch(e) {}
+
+    el.textContent = '未登录 · 点击重试';
   }
 
-  // 等 DOM + API 初始化完成后加载状态
   window.addEventListener('DOMContentLoaded', async function() {
-    // 等 api.js 的 _initApiBase 完成
     await new Promise(r => setTimeout(r, 500));
-
-    var el = document.getElementById('loginStatus');
     try {
       var v = await Origami.version();
       document.getElementById('versionBadge').textContent = 'v' + v.version;
-    } catch(e) {}
-
-    try {
       var cs = await Origami.cookieStatus();
       if (cs.ok) {
+        var el = document.getElementById('loginStatus');
         el.textContent = '已登录';
         el.style.color = 'var(--success)';
       }
     } catch(e) {}
   });
 
-  function selectPlatform(id) {
-    if (id === 'douyin') window.location.href = 'mode.html';
-  }
-
-  function openSettings() {
-    window.location.href = 'settings.html';
-  }
+  function selectPlatform(id) { if (id === 'douyin') location.href = 'mode.html'; }
+  function openSettings() { location.href = 'settings.html'; }
 </script>
 </body>
 </html>
