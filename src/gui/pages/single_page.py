@@ -81,10 +81,16 @@ class SingleDownloadThread(QThread):
         self.save_dir = Path(save_dir) if save_dir else OUTPUT_SINGLE
         self.download_music = music
         self.preview_mode = preview_mode
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+        self.quit()
 
     def run(self):
         import time as _t; _start = _t.time()
         try:
+            if self._cancelled: return
             if getattr(self, '_cached_aweme', None):
                 aweme = self._cached_aweme
                 aweme_id = aweme.get("aweme_id", "")
@@ -92,10 +98,12 @@ class SingleDownloadThread(QThread):
             else:
                 self.log.emit("[>>] 解析链接...")
                 aweme_id = self._resolve(self.raw_text)
+                if self._cancelled: return
                 self.log.emit(f"[OK] 视频ID: {aweme_id}")
                 cookie = load_cookie()
                 self.log.emit("[>>] 获取数据...")
                 aweme = self._fetch(aweme_id, cookie)
+                if self._cancelled: return
 
             desc = aweme.get("desc", "") or aweme_id
             author_info = aweme.get("author", {})
@@ -348,6 +356,8 @@ class SingleDownloadThread(QThread):
         self.finished.emit(True, f"完成! {author}")
 
     def _dl(self, url: str, path: Path) -> bool:
+        if self._cancelled:
+            return False
         if path.exists():
             self.log.emit(f"  [SKIP] {path.name}")
             return True
@@ -675,6 +685,8 @@ class SinglePage(QWidget):
         self._auto_timer.start(800)
 
     def _auto_parse(self):
+        if self.thread and self.thread.isRunning():
+            return  # 正在下载中，不重复触发
         self._cached_img_list = None
         self._cached_aweme = None
         self._start()
@@ -1070,6 +1082,9 @@ class SinglePage(QWidget):
         return result
 
     def _start(self):
+        # 防重入：有线程在跑就先取消
+        if self.thread and self.thread.isRunning():
+            self._cancel_download()
         text = self.url_input.text().strip()
         if not text: return
         cookie = ensure_cookie(self)
@@ -1711,9 +1726,11 @@ class SinglePage(QWidget):
 
     def _cancel_download(self):
         """取消当前下载或预览"""
+        self._auto_timer.stop()  # 防止自动解析再次触发
         if self.thread and self.thread.isRunning():
-            self.thread.quit()
-            self.thread.wait(2000)
+            self.thread.cancel()
+            self.thread.wait(3000)
+            self.thread = None
         self._cached_img_list = None
         self._cached_aweme = None
         self._set_downloading(False)
@@ -1723,6 +1740,10 @@ class SinglePage(QWidget):
         self._cancel_btn.hide()
         self.status.setText("已取消")
         self.progress.setVisible(False)
+        # 通知 MainWindow 下载已经结束
+        w = self.window()
+        if hasattr(w, 'set_download_active'):
+            w.set_download_active(False)
 
     def _set_downloading(self, active: bool):
         w = self.window()
