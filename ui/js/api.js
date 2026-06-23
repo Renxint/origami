@@ -5,7 +5,10 @@
  * 所有页面引用此文件即可调用后端 API。
  */
 
-const API_BASE = 'http://127.0.0.1:8765';
+// 自动检测：取当前页面的 origin，兜底 8765
+const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+    ? window.location.origin
+    : 'http://127.0.0.1:8765';
 let _ws = null;
 let _eventHandlers = {};
 
