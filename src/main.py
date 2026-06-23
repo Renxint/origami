@@ -137,6 +137,7 @@ def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_u
     """写 主页简介.md + 下载头像/封面（完全对齐 GUI _write_profile）"""
     import time as _t
     import requests as _r
+    from src.environ import USER_AGENT as _UA
 
     nickname = author.nickname or profile.get("nickname", "")
     unique_id = profile.get("unique_id", "")
@@ -198,7 +199,7 @@ def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_u
 
     # 下载头像/封面（需要 Cookie + Referer）
     _dl_headers = {
-        "User-Agent": USER_AGENT,
+        "User-Agent": _UA,
         "Referer": "https://www.douyin.com/",
     }
     from src.cookie import load_cookie
