@@ -30,8 +30,7 @@ from PyQt6.QtGui import QAction
 
 from src.gui.fonts import font_scale, scaled_font
 from src.environ import (
-    OUTPUT_SINGLE, BOOTSTRAP_JS, NODE_CMD,
-    USER_AGENT, CREATE_NO_WINDOW,
+    OUTPUT_SINGLE, USER_AGENT, CREATE_NO_WINDOW,
 )
 from src.utils import clean_name, pick_best_video_url
 from src.cookie import load_cookie, save_cookie

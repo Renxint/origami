@@ -57,15 +57,6 @@ API_URL  = f"http://localhost:{API_PORT}"
 # Playwright — 缓存的浏览器路径，首次调用时由 signer.BrowserFinder 填充
 CHROME_PATH = ""
 
-# ── 向后兼容别名（M2 重写后删除）───────────────────────────
-# 旧 sign-server (Node.js) 的常量，douyin.py / webview_api.py / single_page.py 仍引用。
-# M2 会用 playwright signer 重写这些文件，届时一并清理。
-BOOTSTRAP_JS    = BASE_DIR / "sign-server" / "bootstrap.js"
-SIGN_SERVER_JS  = BASE_DIR / "sign-server" / "server.js"
-NODE_EXE        = BASE_DIR / "node.exe"
-NODE_CMD        = str(NODE_EXE) if NODE_EXE.exists() else "node"
-SIGN_SERVER_PORT = 18765
-SIGN_SERVER_URL  = f"http://localhost:{SIGN_SERVER_PORT}"
 
 # ── 窗口强置顶 ────────────────────────────────────────────
 
