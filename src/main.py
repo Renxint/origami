@@ -456,7 +456,10 @@ def cmd_login():
             headless=False,
             args=["--no-sandbox"],
         )
-        context = browser.contexts[0]
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36",
+        )
         page = context.new_page()
         page.goto("https://www.douyin.com/")
 
