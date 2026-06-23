@@ -111,26 +111,58 @@
   <!-- 底栏 -->
   <div class="foot-divider"></div>
   <div class="foot">
-    <span class="foot-status" id="loginStatus">未登录</span>
+    <span class="foot-status" id="loginStatus" onclick="doLogin()" style="cursor:pointer;">未登录 · 点击登录</span>
     <button class="foot-btn" onclick="openSettings()">设置</button>
   </div>
 </div>
 
 <script src="../js/api.js"></script>
 <script>
+  // 检测运行环境
+  var isDesktop = typeof window.pywebview !== 'undefined';
+
+  async function doLogin() {
+    document.getElementById('loginStatus').textContent = '正在打开登录窗口...';
+
+    if (isDesktop) {
+      // pywebview 桌面模式：JS→Python 桥
+      try {
+        var result = await window.pywebview.api.login();
+        if (result && result.ok) {
+          location.reload();
+        } else {
+          document.getElementById('loginStatus').textContent = '登录超时 · 点击重试';
+        }
+      } catch(e) {
+        document.getElementById('loginStatus').textContent = '登录失败 · 点击重试';
+      }
+    } else {
+      // 浏览器模式：HTTP API
+      try {
+        var r = await Origami.login();
+        if (r.ok) location.reload();
+        else document.getElementById('loginStatus').textContent = r.message || '登录失败';
+      } catch(e) {
+        document.getElementById('loginStatus').textContent = '服务未启动';
+      }
+    }
+  }
+
   // 加载版本号 + 登录状态
   (async function() {
     try {
-      const v = await Origami.version();
+      var v = await Origami.version();
       document.getElementById('versionBadge').textContent = 'v' + v.version;
     } catch(e) {}
 
     try {
-      const cs = await Origami.cookieStatus();
-      const el = document.getElementById('loginStatus');
+      var cs = await Origami.cookieStatus();
+      var el = document.getElementById('loginStatus');
       if (cs.ok) {
         el.textContent = '已登录';
         el.style.color = 'var(--success)';
+        el.style.cursor = 'default';
+        el.onclick = null;
       }
     } catch(e) {}
   })();
