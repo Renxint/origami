@@ -37,8 +37,9 @@ def cmd_cli(args: list[str]):
         print("  例: python -m src.main cli batch  \"https://www.douyin.com/user/MS4wLjAB...\"")
         print()
         print("  可选参数:")
-        print("    --count N    批量下载数量 (默认全部)")
-        print("    --dir  PATH  保存目录")
+        print("    --count N       批量下载数量 (默认全部)")
+        print("    --dir  PATH     保存目录")
+        print("    --images 1,3,5  单作品图集：只下载指定序号 (如 1,3,5-8)")
         return
 
     mode = args[0]
@@ -62,20 +63,28 @@ def cmd_cli(args: list[str]):
         return
 
     if mode == "single":
-        _cli_single(url, save_dir)
+        _cli_single(url, save_dir, args)
     elif mode == "batch":
         _cli_batch(url, count, save_dir)
     else:
         print(f"未知模式: {mode}，可用: single | batch")
 
 
-def _cli_single(url: str, save_dir: str = ""):
+def _cli_single(url: str, save_dir: str = "", args: list = None):
     """CLI 单视频下载"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
     from src.utils import clean_name
     from src.environ import OUTPUT_SINGLE
+
+    # 解析 --images 参数
+    img_filter = None
+    if args:
+        for j, a in enumerate(args):
+            if a == "--images" and j + 1 < len(args):
+                img_filter = _parse_image_range(args[j + 1])
+                break
 
     out = Path(save_dir) if save_dir else OUTPUT_SINGLE
     out.mkdir(parents=True, exist_ok=True)
@@ -87,19 +96,43 @@ def _cli_single(url: str, save_dir: str = ""):
 
     print("[*] 获取作品数据...")
     media = adapter.fetch_media(item_id)
+    type_emoji = {"video": "🎬", "image": "🖼️", "gallery": "🖼️"}
+    emoji = type_emoji.get(media.item_type, "📦")
+    type_cn = {"video": "视频", "image": "单图", "gallery": f"图集({len(media.media_urls)}图)"}
+    cn = type_cn.get(media.item_type, media.item_type)
     print(f"[OK] {media.title[:40]}  by {media.author}")
-    print(f"     类型: {media.item_type}  文件数: {len(media.media_urls)}")
+    print(f"     {emoji} {cn}")
 
-    for i, murl in enumerate(media.media_urls):
+    selected = list(enumerate(media.media_urls))
+    if img_filter is not None:
+        selected = [(i, u) for i, u in selected if i in img_filter]
+        print(f"     筛选: {len(selected)}/{len(media.media_urls)} 张")
+
+    for idx, (i, murl) in enumerate(selected):
         ext = ".mp4" if media.item_type == "video" else ".jpg"
-        fname = f"{clean_name(media.title or item_id, 30)}_{i+1}{ext}"
+        label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
+        fname = f"{clean_name(media.title or item_id, 30)}_{label}{ext}"
         fpath = out / fname
-        print(f"[*] 下载 {i+1}/{len(media.media_urls)}: {fname}...")
+        print(f"[*] 下载 {idx+1}/{len(selected)}: {fname}...")
         ok = download_file(murl, fpath)
         tag = "OK" if ok else "FAIL"
         print(f"[{tag}] {fpath}")
 
     print(f"[DONE] 保存到: {out}")
+
+
+def _parse_image_range(spec: str) -> set:
+    """解析 --images 参数: '1,3,5-8' → {0, 2, 4, 5, 6, 7}（转为 0-based）"""
+    result = set()
+    for part in spec.split(","):
+        part = part.strip()
+        if "-" in part:
+            a, b = part.split("-", 1)
+            for n in range(int(a.strip()), int(b.strip()) + 1):
+                result.add(n - 1)  # 转为 0-based
+        else:
+            result.add(int(part) - 1)
+    return result
 
 
 def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
