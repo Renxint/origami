@@ -62,9 +62,12 @@ def run():
             if (window.wsConnect) window.wsConnect();
         """)
 
+    # 窗口图标
+    ico_path = os.path.join(ROOT, "app.ico")
+
     window = webview.create_window(
         f"Origami", f"http://127.0.0.1:{port}/pages/home.html",
-        width=820, height=640, min_size=(520, 380),
+        width=420, height=560, min_size=(340, 420),
         on_top=False, confirm_close=False)
 
     # 页面加载后注入 API 地址
