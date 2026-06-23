@@ -457,7 +457,7 @@ class _SignerHandler(BaseHTTPRequestHandler):
 
 
 class SignerDaemon:
-    """独立线程 HTTP 服务：管理 playwright 浏览器 + 提供 HTTP API"""
+    """独立线程 HTTP 服务：浏览器创建 + HTTP 服务全在 daemon 线程内"""
 
     def __init__(self, port: int = 18765):
         self._port = port
@@ -465,27 +465,16 @@ class SignerDaemon:
         self._server: Optional[HTTPServer] = None
         self._thread: Optional[threading.Thread] = None
         self._running = False
+        self._ready = threading.Event()
+        self._error: Optional[str] = None
         self._lock = threading.Lock()
 
     def start(self, cookie_str: str = "") -> bool:
         with self._lock:
-            if self._running:
+            if self._running and self._browser and self._browser.is_ready():
                 return True
 
-            browser_path = BrowserFinder.find()
-            if not browser_path:
-                _debug_log("SignerDaemon: no browser found")
-                return False
-
-            try:
-                _debug_log("SignerDaemon: launching browser...")
-                self._browser = StealthBrowser(browser_path, headless=True)
-                self._browser.start(cookie_str=cookie_str, timeout_ms=90000)
-            except Exception as e:
-                _debug_log(f"SignerDaemon: browser launch failed: {e}")
-                return False
-
-            # 启动 HTTP server
+            # 先找端口
             import socket
             actual_port = self._port
             for p in range(self._port, self._port + 50):
@@ -499,32 +488,67 @@ class SignerDaemon:
                     s.close()
             else:
                 _debug_log("SignerDaemon: no available port")
-                self._browser.close()
                 return False
 
-            _SignerHandler.browser = self._browser
-            self._server = HTTPServer(("127.0.0.1", actual_port), _SignerHandler)
             self._port = actual_port
+            self._ready.clear()
+            self._error = None
 
+            # 启动 daemon 线程 — 浏览器创建全在内部完成
             self._thread = threading.Thread(
-                target=self._serve, daemon=True, name="signer-daemon")
+                target=self._run, args=(cookie_str,),
+                daemon=True, name="signer-daemon")
             self._thread.start()
-            self._running = True
 
-            _debug_log(f"SignerDaemon: listening on http://127.0.0.1:{actual_port}")
+            # 等就绪或报错（最多 90s）
+            if not self._ready.wait(timeout=90):
+                _debug_log("SignerDaemon: startup timeout")
+                return False
+
+            if self._error:
+                _debug_log(f"SignerDaemon: startup error: {self._error}")
+                return False
+
+            self._running = True
+            _debug_log(f"SignerDaemon: listening on http://127.0.0.1:{self._port}")
             return True
 
-    def _serve(self):
+    def _run(self, cookie_str: str):
+        """在 daemon 线程内：找浏览器 → 启动 playwright → HTTP serve"""
         try:
+            # 1. 找浏览器
+            browser_path = BrowserFinder.find()
+            if not browser_path:
+                self._error = "no_browser_found"
+                self._ready.set()
+                return
+
+            # 2. 启动 playwright 浏览器（在 daemon 线程，greenlet 绑这里）
+            _debug_log("SignerDaemon: launching browser in daemon thread...")
+            self._browser = StealthBrowser(browser_path, headless=True)
+            self._browser.start(cookie_str=cookie_str, timeout_ms=90000)
+
+            # 3. 启动 HTTP server
+            _SignerHandler.browser = self._browser
+            self._server = HTTPServer(
+                ("127.0.0.1", self._port), _SignerHandler)
+
+            # 4. 通知主线程就绪
+            self._ready.set()
+
+            # 5. 阻塞 serve
+            _debug_log(f"SignerDaemon: serving on port {self._port}")
             self._server.serve_forever(poll_interval=0.5)
+
         except Exception as e:
-            _debug_log(f"SignerDaemon: serve error: {e}")
+            _debug_log(f"SignerDaemon: _run error: {e}")
+            self._error = str(e)
+            self._ready.set()
 
     def is_ready(self) -> bool:
-        with self._lock:
-            return (self._running
-                    and self._browser is not None
-                    and self._browser.is_ready())
+        return (self._running
+                and self._browser is not None
+                and self._browser.is_ready())
 
     @property
     def ready(self) -> bool:
