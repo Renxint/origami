@@ -132,85 +132,51 @@ async def api_cookie_status(request: web.Request):
 
 # ── POST /api/login/webview ──
 async def api_login_webview(request: web.Request):
-    """启动系统 WebView 扫码登录 → 保存 Cookie → 返回结果"""
-    import threading, time as _t
+    """启动系统 WebView 扫码登录（主线程）→ 保存 Cookie"""
+    try:
+        import webview
+    except ImportError:
+        return json_response({"ok": False, "message": "请先安装: pip install pywebview"})
+
     from src.cookie import save_cookie
+    import time as _t, threading
 
-    result = {}
+    result = {"cookie": "", "done": False}
 
-    def _login_thread():
-        try:
-            import webview
-            cookie_value = []
+    def _on_loaded():
+        def _check():
+            for _ in range(60):
+                _t.sleep(2)
+                try:
+                    cookies = window.get_cookies()
+                    if cookies:
+                        parts = [f"{c['name']}={c['value']}" for c in cookies
+                                 if c.get("name") and c.get("value")]
+                        cs = "; ".join(parts)
+                        if "sessionid=" in cs and "ttwid=" in cs:
+                            result["cookie"] = cs
+                            result["done"] = True
+                            window.destroy()
+                            return
+                except Exception:
+                    pass
+            result["done"] = True
+            try:
+                window.destroy()
+            except Exception:
+                pass
+        threading.Thread(target=_check, daemon=True).start()
 
-            class _Api:
-                def on_cookie(self, c):
-                    cookie_value.append(c)
+    window = webview.create_window(
+        "Origami — 登录抖音", "https://www.douyin.com/",
+        width=420, height=620, on_top=True)
+    window.events.loaded += _on_loaded
+    webview.start()
 
-            api = _Api()
-            window = webview.create_window(
-                "Origami — 登录抖音", "https://www.douyin.com/",
-                js_api=api, width=420, height=620,
-                confirm_close=False)
-
-            # 轮询检测 Cookie
-            def _check():
-                cookies = window.get_cookies()
-                if cookies:
-                    cookie_str = "; ".join(
-                        f"{c['name']}={c['value']}" for c in cookies
-                        if c.get("name") and c.get("value")
-                    )
-                    has_session = "sessionid=" in cookie_str
-                    has_ttwid = "ttwid=" in cookie_str
-                    if has_session and has_ttwid:
-                        cookie_value.append(cookie_str)
-                        window.destroy()
-                        return
-                if not cookie_value:
-                    _t.sleep(2)
-                    # 从主线程调度下一次检查
-                    import ctypes
-                    ctypes.pythonapi.PyGILState_Ensure()
-                    try:
-                        _check()
-                    finally:
-                        pass
-
-            # 延迟 3 秒开始检查
-            _t.sleep(3)
-            _check()
-            webview.start()
-
-            if cookie_value:
-                cookie_str = cookie_value[0]
-                save_cookie(cookie_str)
-                result["ok"] = True
-                result["cookie_len"] = len(cookie_str)
-            else:
-                result["ok"] = False
-                result["message"] = "登录已取消"
-        except ImportError:
-            result["ok"] = False
-            result["message"] = "pywebview 未安装，请运行: pip install pywebview"
-        except Exception as e:
-            result["ok"] = False
-            result["message"] = str(e)
-
-    t = threading.Thread(target=_login_thread, daemon=True)
-    t.start()
-
-    # 等最多 120 秒
-    for _ in range(120):
-        if result:
-            break
-        await asyncio.sleep(1)
-
-    if not result:
-        result["ok"] = False
-        result["message"] = "登录超时"
-
-    return json_response(result)
+    if result["cookie"]:
+        save_cookie(result["cookie"])
+        return json_response({"ok": True, "cookie_len": len(result["cookie"])})
+    return json_response({"ok": False, "message": "登录超时或已取消"})
 
 # ── POST /api/resolve-url ──
 async def api_resolve_url(request: web.Request):
