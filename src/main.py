@@ -11,6 +11,10 @@ Origami v2 — 入口
 
 import sys
 import os
+import warnings
+
+# 静默 playwright 关闭时的 EPIPE 噪音
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 # 确保项目根在 sys.path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -218,30 +222,58 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     print(f"[OK] 共 {len(all_items)} 个作品")
 
     stats = {"ok": 0, "fail": 0, "skip": 0}
+    from src.utils import pick_best_video_url
+
     for i, item in enumerate(all_items):
-        # 获取无水印链接
         aweme_id = item.item_id
-        print(f"[{i+1}/{len(all_items)}] {item.title[:30]}...")
+        desc = clean_name(item.title or aweme_id, 40)
+        num = f"{i+1:03d}"  # 对齐 GUI 格式
+        print(f"[{num}/{len(all_items)}] {item.title[:30]}...")
+
+        # 获取无水印详情
         try:
             media = adapter.fetch_media(aweme_id)
         except Exception:
             media = item
 
-        post_dir = author_dir / f"{i+1:03d}_{clean_name(item.title or aweme_id, 30)}"
+        post_dir = author_dir / f"{num}_{desc}"
         post_dir.mkdir(parents=True, exist_ok=True)
 
+        # 对齐 GUI：纯视频→video.mp4，图集→01.jpg/02.jpg...
         downloaded = False
-        for j, murl in enumerate(media.media_urls):
-            if media.item_type == "video":
-                fpath = post_dir / "video.mp4"
-            else:
-                fpath = post_dir / f"{j+1:02d}.jpg"
-            if download_file(murl, fpath):
-                stats["ok"] += 1
-                downloaded = True
-            else:
-                stats["fail"] += 1
-            time.sleep(0.1)
+        aweme = media.extra.get("aweme", {})
+        video = aweme.get("video")
+        images = aweme.get("images") or []
+
+        if video and not images:
+            url = pick_best_video_url(video)
+            if url:
+                if download_file(url, post_dir / "video.mp4"):
+                    stats["ok"] += 1
+                    downloaded = True
+                else:
+                    stats["fail"] += 1
+        elif images:
+            for j, img in enumerate(images):
+                urls = img.get("url_list", [])
+                img_url = urls[-1] if urls else ""
+                if img_url and download_file(img_url, post_dir / f"{j+1:02d}.jpg"):
+                    stats["ok"] += 1
+                    downloaded = True
+                else:
+                    stats["fail"] += 1
+        elif media.media_urls:
+            # 兜底：用 media_urls
+            for j, murl in enumerate(media.media_urls):
+                ext = ".mp4" if media.item_type == "video" else ".jpg"
+                if download_file(murl, post_dir / f"{j+1:02d}{ext}"):
+                    stats["ok"] += 1
+                    downloaded = True
+                else:
+                    stats["fail"] += 1
+
+        # 写描述
+        (post_dir / "desc.md").write_text(item.title, encoding="utf-8")
 
         if not downloaded:
             print(f"  [无资源]")
