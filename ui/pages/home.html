@@ -118,53 +118,52 @@
 
 <script src="../js/api.js"></script>
 <script>
-  // 检测运行环境
   var isDesktop = typeof window.pywebview !== 'undefined';
 
   async function doLogin() {
-    document.getElementById('loginStatus').textContent = '正在打开登录窗口...';
+    var el = document.getElementById('loginStatus');
+    el.textContent = '正在打开登录窗口...';
 
     if (isDesktop) {
-      // pywebview 桌面模式：JS→Python 桥
       try {
         var result = await window.pywebview.api.login();
-        if (result && result.ok) {
-          location.reload();
-        } else {
-          document.getElementById('loginStatus').textContent = '登录超时 · 点击重试';
-        }
+        if (result && result.ok) { location.reload(); }
+        else { el.textContent = '登录超时 · 点击重试'; }
       } catch(e) {
-        document.getElementById('loginStatus').textContent = '登录失败 · 点击重试';
+        el.textContent = '登录失败: ' + e.message;
       }
-    } else {
-      // 浏览器模式：HTTP API
-      try {
-        var r = await Origami.login();
-        if (r.ok) location.reload();
-        else document.getElementById('loginStatus').textContent = r.message || '登录失败';
-      } catch(e) {
-        document.getElementById('loginStatus').textContent = '服务未启动';
-      }
+      return;
+    }
+
+    // 浏览器模式
+    try {
+      var r = await Origami.login();
+      if (r.ok) { location.reload(); }
+      else { el.textContent = r.message || '登录失败'; }
+    } catch(e) {
+      el.textContent = '服务未启动';
     }
   }
 
   // 加载版本号 + 登录状态
   (async function() {
+    var el = document.getElementById('loginStatus');
     try {
       var v = await Origami.version();
       document.getElementById('versionBadge').textContent = 'v' + v.version;
-    } catch(e) {}
+    } catch(e) {
+      // 可能还在加载，忽略
+    }
 
     try {
       var cs = await Origami.cookieStatus();
-      var el = document.getElementById('loginStatus');
       if (cs.ok) {
         el.textContent = '已登录';
         el.style.color = 'var(--success)';
-        el.style.cursor = 'default';
-        el.onclick = null;
       }
-    } catch(e) {}
+    } catch(e) {
+      // cookie API 不通也正常，保留"点击登录"
+    }
   })();
 
   function selectPlatform(id) {
