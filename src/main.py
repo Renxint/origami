@@ -134,36 +134,83 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
 
 
 def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_url):
-    """写 主页简介.md + 下载头像/封面（对齐 GUI）"""
+    """写 主页简介.md + 下载头像/封面（完全对齐 GUI _write_profile）"""
     import time as _t
     import requests as _r
-    nickname = author.nickname
+
+    nickname = author.nickname or profile.get("nickname", "")
+    unique_id = profile.get("unique_id", "")
+    short_id = profile.get("short_id", "")
+    uid = profile.get("uid", "")
+    bio = profile.get("desc", "")
+    gender_map = {0: "未设置", 1: "男", 2: "女"}
+    gender = gender_map.get(profile.get("gender", 0), "")
+    age = profile.get("age", -1)
+    region = "-".join(filter(None, [
+        profile.get("country", ""), profile.get("province", ""),
+        profile.get("city", ""), profile.get("district", ""),
+    ])) or "N/A"
+    ip_location = profile.get("ip_location", "")
+    school = profile.get("school", "")
+    verify = profile.get("custom_verify", "") or profile.get("enterprise_verify_reason", "")
+    tags = profile.get("personal_tags", [])
+    birthday_hidden = profile.get("birthday_hide_level", 0)
+    secret = profile.get("secret", 0)
+
+    def _fmt(n):
+        if n is None or n < 0: return "N/A"
+        if n >= 10000: return f"{n/10000:.1f}万"
+        return str(n)
+
     lines = [
         f"# {nickname}", "",
         "## 基本信息", "",
-        f"| 项目 | 内容 |",
-        f"|------|------|",
-        f"| 抖音号 | {profile.get('unique_id', 'N/A')} |",
-        f"| 作品 | {author.post_count} |",
-        f"| 粉丝 | {author.follower_count} |",
-        f"| 简介 | {profile.get('desc', 'N/A')} |",
-        "", "## 下载信息", "",
-        f"- 主页链接: {source_url}",
-        f"- 下载日期: {_t.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"| 项目 | 内容 |", f"|------|------|",
+        f"| 抖音号 | {unique_id or short_id or 'N/A'} |",
+        f"| UID | {uid} |",
+        f"| 性别 | {gender} |",
+        f"| 年龄 | {age if age > 0 else 'N/A'} |",
+        f"| 地区 | {region} |",
     ]
-    (data_dir / "主页简介.md").write_text("\n".join(lines), encoding="utf-8")
+    if ip_location: lines.append(f"| IP属地 | {ip_location} |")
+    if school: lines.append(f"| 学校 | {school} |")
+    if bio: lines.append(f"| 简介 | {bio} |")
+    if tags: lines.append(f"| 标签 | {', '.join(tags)} |")
+    lines.append(f"| 认证 | {verify or '无'} |")
+    if birthday_hidden: lines.append("| 生日 | 已隐藏 |")
+    if secret: lines.append("| 私密账号 | 是 |")
+
+    lines.extend(["", "## 数据统计", "",
+        f"| 项目 | 数值 |", f"|------|------|",
+        f"| 作品 | {author.post_count} |",
+        f"| 粉丝 | {_fmt(author.follower_count)} |",
+        f"| 关注 | {_fmt(profile.get('following_count', 0))} |",
+        f"| 获赞 | {_fmt(profile.get('favoriting_count', 0))} |",
+        f"| 被赞 | {_fmt(profile.get('total_favorited', 0))} |",
+    ])
+
+    lines.extend(["", "## 下载信息", ""])
+    if source_url: lines.append(f"- 主页链接: {source_url}")
+    lines.append(f"- sec_uid: {profile.get('sec_uid', '')}")
+    lines.append(f"- 下载日期: {_t.strftime('%Y-%m-%d %H:%M:%S')}")
+    if avatar_url: lines.append(f"- 头像: {avatar_url}")
+    if cover_url: lines.append(f"- 封面: {cover_url}")
+
+    lines.append("")
     if avatar_url:
         try:
             r = _r.get(avatar_url, headers={"User-Agent": USER_AGENT}, timeout=15)
             (data_dir / "avatar.jpg").write_bytes(r.content)
-        except Exception:
-            pass
+            lines.append("*(头像已保存)*")
+        except Exception: pass
     if cover_url:
         try:
             r = _r.get(cover_url, headers={"User-Agent": USER_AGENT}, timeout=15)
             (data_dir / "cover.jpg").write_bytes(r.content)
-        except Exception:
-            pass
+            lines.append("*(封面已保存)*")
+        except Exception: pass
+
+    (data_dir / "主页简介.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def _parse_image_range(spec: str) -> set:
