@@ -135,6 +135,7 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
 
 def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_url):
     """写 主页简介.md + 下载头像/封面（对齐 GUI）"""
+    import time as _t
     import requests as _r
     nickname = author.nickname
     lines = [
@@ -148,7 +149,7 @@ def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_u
         f"| 简介 | {profile.get('desc', 'N/A')} |",
         "", "## 下载信息", "",
         f"- 主页链接: {source_url}",
-        f"- 下载日期: {time.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"- 下载日期: {_t.strftime('%Y-%m-%d %H:%M:%S')}",
     ]
     (data_dir / "主页简介.md").write_text("\n".join(lines), encoding="utf-8")
     if avatar_url:
