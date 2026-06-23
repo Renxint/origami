@@ -145,15 +145,16 @@
     }
   }
 
-  // 加载版本号 + 登录状态
-  (async function() {
+  // 等 DOM + API 初始化完成后加载状态
+  window.addEventListener('DOMContentLoaded', async function() {
+    // 等 api.js 的 _initApiBase 完成
+    await new Promise(r => setTimeout(r, 500));
+
     var el = document.getElementById('loginStatus');
     try {
       var v = await Origami.version();
       document.getElementById('versionBadge').textContent = 'v' + v.version;
-    } catch(e) {
-      // 可能还在加载，忽略
-    }
+    } catch(e) {}
 
     try {
       var cs = await Origami.cookieStatus();
@@ -161,10 +162,8 @@
         el.textContent = '已登录';
         el.style.color = 'var(--success)';
       }
-    } catch(e) {
-      // cookie API 不通也正常，保留"点击登录"
-    }
-  })();
+    } catch(e) {}
+  });
 
   function selectPlatform(id) {
     if (id === 'douyin') window.location.href = 'mode.html';

@@ -5,10 +5,26 @@
  * 所有页面引用此文件即可调用后端 API。
  */
 
-// 自动检测：取当前页面的 origin，兜底 8765
-const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
-    ? window.location.origin
-    : 'http://127.0.0.1:8765';
+// 自动检测 API 地址
+var API_BASE = 'http://127.0.0.1:8765';
+var WS_BASE = 'ws://127.0.0.1:8765';
+
+// 优先：页面被 server 加载 → 取当前 origin
+if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    API_BASE = window.location.origin;
+    WS_BASE = window.location.origin.replace('http', 'ws');
+}
+
+// 桌面模式：pywebview 会注入正确的地址
+async function _initApiBase() {
+    if (typeof window.pywebview !== 'undefined' && window.pywebview.api) {
+        try {
+            API_BASE = await window.pywebview.api.getApiBase();
+            WS_BASE = await window.pywebview.api.getWsUrl();
+        } catch(e) {}
+    }
+}
+
 let _ws = null;
 let _eventHandlers = {};
 
@@ -16,7 +32,7 @@ let _eventHandlers = {};
 
 function wsConnect() {
     if (_ws && _ws.readyState === WebSocket.OPEN) return;
-    _ws = new WebSocket(`ws://127.0.0.1:8765/ws/events`);
+    _ws = new WebSocket(WS_BASE + '/ws/events');
     _ws.onmessage = (e) => {
         try {
             const evt = JSON.parse(e.data);
@@ -96,5 +112,8 @@ const Origami = {
     wsConnect,
 };
 
-// 页面加载时自动连接 WebSocket
-document.addEventListener('DOMContentLoaded', wsConnect);
+// 页面加载时初始化 API 地址 + 连接 WebSocket
+document.addEventListener('DOMContentLoaded', async function() {
+    await _initApiBase();
+    wsConnect();
+});
