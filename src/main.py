@@ -261,13 +261,18 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
         cursor = data.get("next_cursor", 0)
         time.sleep(0.5)
 
+    # 标记原始序号（翻页顺序，0=最新）
+    for _i, _it in enumerate(all_items):
+        _it.extra["_orig_idx"] = _i
+
     print(f"[OK] 共 {len(all_items)} 个作品")
 
     # 对齐 GUI 扁平结构：{pos}_{hash}_{index}.jpg
+    # 编号基于作者实际作品总数，而非本次下载数量
     import hashlib
     from src.utils import pick_best_video_url
     stats = {"ok": 0, "fail": 0, "skip": 0}
-    _orig_total = len(all_items)
+    _orig_total = author.post_count or len(all_items)
 
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
