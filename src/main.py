@@ -221,13 +221,20 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
 
     print(f"[OK] 共 {len(all_items)} 个作品")
 
-    stats = {"ok": 0, "fail": 0, "skip": 0}
+    # 对齐 GUI 扁平结构：{pos}_{hash}_{index}.jpg
+    import hashlib
     from src.utils import pick_best_video_url
+    stats = {"ok": 0, "fail": 0, "skip": 0}
+    _orig_total = len(all_items)
 
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
-        desc = clean_name(item.title or aweme_id, 40)
-        num = f"{i+1:03d}"  # 对齐 GUI 格式
+        desc = clean_name(item.title or aweme_id, 30)
+        short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
+        _oi = item.extra.get("_orig_idx", i)
+        pos = f"{_orig_total - _oi:04d}_{short}_"  # GUI 格式
+        num = f"{i+1:03d}"
+
         print(f"[{num}/{len(all_items)}] {item.title[:30]}...")
 
         # 获取无水印详情
@@ -236,10 +243,6 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
         except Exception:
             media = item
 
-        post_dir = author_dir / f"{num}_{desc}"
-        post_dir.mkdir(parents=True, exist_ok=True)
-
-        # 对齐 GUI：纯视频→video.mp4，图集→01.jpg/02.jpg...
         downloaded = False
         aweme = media.extra.get("aweme", {})
         video = aweme.get("video")
@@ -247,36 +250,42 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
 
         if video and not images:
             url = pick_best_video_url(video)
-            if url:
-                if download_file(url, post_dir / "video.mp4"):
-                    stats["ok"] += 1
-                    downloaded = True
-                else:
-                    stats["fail"] += 1
+            if url and download_file(url, author_dir / f"{pos}{desc}.mp4"):
+                stats["ok"] += 1
+                downloaded = True
+            else:
+                stats["fail"] += 1
         elif images:
             for j, img in enumerate(images):
                 urls = img.get("url_list", [])
                 img_url = urls[-1] if urls else ""
-                if img_url and download_file(img_url, post_dir / f"{j+1:02d}.jpg"):
+                if img_url and download_file(img_url, author_dir / f"{pos}{j+1}.jpg"):
                     stats["ok"] += 1
                     downloaded = True
                 else:
                     stats["fail"] += 1
         elif media.media_urls:
-            # 兜底：用 media_urls
             for j, murl in enumerate(media.media_urls):
                 ext = ".mp4" if media.item_type == "video" else ".jpg"
-                if download_file(murl, post_dir / f"{j+1:02d}{ext}"):
+                if download_file(murl, author_dir / f"{pos}{j+1}{ext}"):
                     stats["ok"] += 1
                     downloaded = True
                 else:
                     stats["fail"] += 1
 
-        # 写描述
-        (post_dir / "desc.md").write_text(item.title, encoding="utf-8")
-
         if not downloaded:
             print(f"  [无资源]")
+
+    # 写作品目录
+    lines = [f"# {name}", "", f"共 {len(all_items)} 个作品", ""]
+    for idx, it in enumerate(all_items):
+        aw = it.extra.get("aweme", {})
+        d = clean_name(it.title or it.item_id)
+        v = aw.get("video")
+        imgs = aw.get("images") or []
+        typ = "视频" if (v and not imgs) else f"图集({len(imgs)}图)" if imgs else "未知"
+        lines.append(f"{idx+1}. [{typ}] {d}")
+    (author_dir / f"作品目录_{time.strftime('%Y%m%d_%H%M%S')}.md").write_text("\n".join(lines), encoding="utf-8")
 
     print(f"[DONE] 视频:{stats['ok']}  失败:{stats['fail']}")
     print(f"       保存到: {author_dir}")
