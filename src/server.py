@@ -492,6 +492,11 @@ def create_app() -> web.Application:
 
     app.middlewares.append(cors_middleware)
 
+    # ── 静态文件：ui/ → /
+    ui_dir = BASE_DIR / "ui"
+    if ui_dir.exists():
+        app.router.add_static("/", ui_dir, show_index=True)
+
     # ── 路由表 ──
     app.router.add_get("/api/version",     api_version)
     app.router.add_get("/api/settings",    api_get_settings)

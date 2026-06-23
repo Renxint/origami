@@ -895,3 +895,190 @@
 [02:17:02] fetch_video: 764795441861...
 [02:17:03] [daemon] POST /video?aweme_id=7647954418617392500 HTTP/1.1
 [02:17:31] SignerDaemon: stopped
+[02:25:52] call_server attempt 1: daemon not ready, starting...
+[02:25:52] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:25:52] SignerDaemon: launching browser in daemon thread...
+[02:25:52] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:25:53] Step 1: first nav + SDK wait
+[02:25:57] Step 1: SDK init OK
+[02:25:57] Step 2: JS inject cookies + re-nav
+[02:25:58] Step 2: cookies injected via JS
+[02:26:01] Step 2: SDK re-init OK
+[02:26:01] Step 3: fingerprints injected
+[02:26:01] StealthBrowser: Ready (page=True)
+[02:26:01] SignerDaemon: serving on port 18765
+[02:26:01] SignerDaemon: starting on port 18765 (block=True)
+[02:26:01] fetch_video: 752812222570...
+[02:26:02] [daemon] POST /video?aweme_id=7528122225707978044 HTTP/1.1
+[02:33:19] call_server attempt 1: daemon not ready, starting...
+[02:33:19] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:33:19] SignerDaemon: launching browser in daemon thread...
+[02:33:19] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:33:20] Step 1: first nav + SDK wait
+[02:33:24] Step 1: SDK init OK
+[02:33:24] Step 2: JS inject cookies + re-nav
+[02:33:25] Step 2: cookies injected via JS
+[02:33:28] Step 2: SDK re-init OK
+[02:33:28] Step 3: fingerprints injected
+[02:33:28] StealthBrowser: Ready (page=True)
+[02:33:28] SignerDaemon: serving on port 18765
+[02:33:28] SignerDaemon: starting on port 18765 (block=True)
+[02:33:28] fetch_video: 752812222570...
+[02:33:28] [daemon] POST /video?aweme_id=7528122225707978044 HTTP/1.1
+[02:37:19] call_server attempt 1: daemon not ready, starting...
+[02:37:19] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:37:19] SignerDaemon: launching browser in daemon thread...
+[02:37:19] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:37:20] Step 1: first nav + SDK wait
+[02:37:24] Step 1: SDK init OK
+[02:37:24] Step 2: JS inject cookies + re-nav
+[02:37:25] Step 2: cookies injected via JS
+[02:37:29] Step 2: SDK re-init OK
+[02:37:29] Step 3: fingerprints injected
+[02:37:29] StealthBrowser: Ready (page=True)
+[02:37:29] SignerDaemon: serving on port 18765
+[02:37:29] SignerDaemon: starting on port 18765 (block=True)
+[02:37:29] fetch_video: 765345851512...
+[02:37:29] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:37:32] fetch_video: 765302836696...
+[02:37:32] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:37:32] daemon error: Unexpected end of JSON input
+[02:37:32] fetch_video: 765196399875...
+[02:37:33] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:40:11] call_server attempt 1: daemon not ready, starting...
+[02:40:12] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:40:12] SignerDaemon: launching browser in daemon thread...
+[02:40:12] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:40:12] Step 1: first nav + SDK wait
+[02:40:16] Step 1: SDK init OK
+[02:40:16] Step 2: JS inject cookies + re-nav
+[02:40:17] Step 2: cookies injected via JS
+[02:40:20] Step 2: SDK re-init OK
+[02:40:20] Step 3: fingerprints injected
+[02:40:20] StealthBrowser: Ready (page=True)
+[02:40:20] SignerDaemon: serving on port 18765
+(block=True)
+[02:40:20] fetch_video: 765345851512...
+[02:40:21] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:40:24] fetch_video: 765302836696...
+[02:40:24] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:40:24] fetch_video: 765196399875...
+[02:40:25] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:43:51] call_server attempt 1: daemon not ready, starting...
+[02:43:51] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:43:51] SignerDaemon: launching browser in daemon thread...
+[02:43:51] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:43:52] Step 1: first nav + SDK wait
+[02:43:56] Step 1: SDK init OK
+[02:43:56] Step 2: JS inject cookies + re-nav
+[02:43:57] Step 2: cookies injected via JS
+[02:44:00] Step 2: SDK re-init OK
+[02:44:00] Step 3: fingerprints injected
+[02:44:00] StealthBrowser: Ready (page=True)
+[02:44:00] SignerDaemon: starting on port 18765 (block=True)
+[02:44:00] SignerDaemon: serving on port 18765
+[02:44:00] fetch_video: 765345851512...
+[02:44:00] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:44:00] daemon error: Unexpected end of JSON input
+[02:44:03] fetch_video: 765302836696...
+[02:44:03] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:44:03] daemon error: Unexpected end of JSON input
+[02:44:04] fetch_video: 765196399875...
+[02:44:04] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:46:00] call_server attempt 1: daemon not ready, starting...
+[02:46:00] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:46:00] SignerDaemon: launching browser in daemon thread...
+[02:46:00] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:46:00] Step 1: first nav + SDK wait
+[02:46:05] Step 1: SDK init OK
+[02:46:05] Step 2: JS inject cookies + re-nav
+[02:46:06] Step 2: cookies injected via JS
+[02:46:09] Step 2: SDK re-init OK
+[02:46:10] Step 3: fingerprints injected
+[02:46:10] StealthBrowser: Ready (page=True)
+[02:46:10] SignerDaemon: serving on port 18765
+[02:46:10] SignerDaemon: starting on port 18765 (block=True)
+[02:46:10] fetch_video: 765345851512...
+[02:46:10] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:46:12] fetch_video: 765302836696...
+[02:46:13] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:46:13] fetch_video: 765196399875...
+[02:46:13] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:50:07] call_server attempt 1: daemon not ready, starting...
+[02:50:07] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:50:07] SignerDaemon: launching browser in daemon thread...
+[02:50:07] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:50:08] Step 1: first nav + SDK wait
+[02:50:12] Step 1: SDK init OK
+[02:50:12] Step 2: JS inject cookies + re-nav
+[02:50:13] Step 2: cookies injected via JS
+[02:50:16] Step 2: SDK re-init OK
+[02:50:16] Step 3: fingerprints injected
+[02:50:16] StealthBrowser: Ready (page=True)
+[02:50:16] SignerDaemon: serving on port 18765
+(block=True)
+[02:50:16] fetch_video: 765345851512...
+[02:50:17] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:50:19] fetch_video: 765302836696...
+[02:50:19] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:50:20] fetch_video: 765196399875...
+[02:50:20] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:52:46] call_server attempt 1: daemon not ready, starting...
+[02:52:46] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:52:46] SignerDaemon: launching browser in daemon thread...
+[02:52:46] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:52:47] Step 1: first nav + SDK wait
+[02:52:51] Step 1: SDK init OK
+[02:52:51] Step 2: JS inject cookies + re-nav
+[02:52:52] Step 2: cookies injected via JS
+[02:52:55] Step 2: SDK re-init OK
+[02:52:55] Step 3: fingerprints injected
+[02:52:55] StealthBrowser: Ready (page=True)
+[02:52:55] SignerDaemon: serving on port 18765
+[02:52:55] SignerDaemon: starting on port 18765 (block=True)
+[02:52:55] fetch_video: 765345851512...
+[02:52:56] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:52:58] fetch_video: 765302836696...
+[02:52:58] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:52:58] fetch_video: 765196399875...
+[02:52:59] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:54:43] call_server attempt 1: daemon not ready, starting...
+[02:54:43] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:54:43] SignerDaemon: launching browser in daemon thread...
+[02:54:43] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:54:44] Step 1: first nav + SDK wait
+[02:54:48] Step 1: SDK init OK
+[02:54:48] Step 2: JS inject cookies + re-nav
+[02:54:49] Step 2: cookies injected via JS
+[02:54:53] Step 2: SDK re-init OK
+[02:54:53] Step 3: fingerprints injected
+[02:54:53] StealthBrowser: Ready (page=True)
+[02:54:53] SignerDaemon: starting on port 18765 (block=True)
+[02:54:53] SignerDaemon: serving on port 18765
+[02:54:53] fetch_video: 765345851512...
+[02:54:53] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:54:56] fetch_video: 765302836696...
+[02:54:56] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:54:57] fetch_video: 765196399875...
+[02:54:58] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:56:06] call_server attempt 1: daemon not ready, starting...
+[02:56:06] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:56:06] SignerDaemon: launching browser in daemon thread...
+[02:56:06] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:56:07] Step 1: first nav + SDK wait
+[02:56:12] Step 1: SDK init OK
+[02:56:12] Step 2: JS inject cookies + re-nav
+[02:56:12] Step 2: cookies injected via JS
+[02:56:16] Step 2: SDK re-init OK
+[02:56:16] Step 3: fingerprints injected
+[02:56:16] StealthBrowser: Ready (page=True)
+[02:56:16] SignerDaemon: serving on port 18765
+[02:56:16] SignerDaemon: starting on port 18765 (block=True)
+[02:56:16] fetch_video: 765345851512...
+[02:56:16] [daemon] POST /video?aweme_id=7653458515129794938 HTTP/1.1
+[02:56:19] fetch_video: 765302836696...
+[02:56:19] [daemon] POST /video?aweme_id=7653028366967439865 HTTP/1.1
+[02:56:19] daemon error: Unexpected end of JSON input
+[02:56:19] fetch_video: 765196399875...
+[02:56:19] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
+[02:56:19] daemon error: Unexpected end of JSON input

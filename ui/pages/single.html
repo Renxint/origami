@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami · 单个作品</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; background:var(--bg-deep);
+    color:var(--text-primary); font-family:var(--font); font-size:13px;
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background:radial-gradient(ellipse 60% 30% at 50% 15%, rgba(233,69,96,0.04) 0%, transparent 70%);
+    pointer-events:none; z-index:0;
+  }
+  .app { position:relative; z-index:1; height:100%; display:flex; flex-direction:column; padding:0 28px; }
+
+  /* ── Topbar ── */
+  .topbar { display:flex; align-items:center; gap:12px; padding:14px 0 10px; flex-shrink:0; }
+  .btn-back { background:var(--bg-card); color:var(--text-secondary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:6px 14px; font-size:13px; cursor:pointer; transition:background .2s, color .2s; font-family:var(--font); }
+  .btn-back:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .topbar-title { font-size:16px; font-weight:700; }
+  .topbar-divider { height:1px; background:var(--divider); flex-shrink:0; }
+
+  /* ── Body: two columns ── */
+  .body-wrap { flex:1; display:flex; gap:16px; padding:16px 0; overflow:hidden; min-height:0; }
+
+  /* Left column: input + preview */
+  .col-left { flex:1; display:flex; flex-direction:column; gap:12px; min-width:240px; }
+  .section { background:var(--bg-card); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px; }
+  .section-title { font-size:11px; color:var(--text-disabled); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+  .input { width:100%; background:var(--bg-deep); color:var(--text-primary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:9px 12px; font-size:13px; outline:none; transition:border-color .2s; font-family:var(--font); }
+  .input:focus { border-color:var(--accent); }
+  .input-row { display:flex; gap:8px; }
+  .input-row .input { flex:1; }
+  .btn {
+    background:var(--accent); color:#fff; border:none; border-radius:var(--radius-sm);
+    padding:9px 18px; font-size:13px; font-weight:600; cursor:pointer;
+    transition:background .2s; font-family:var(--font); white-space:nowrap;
+  }
+  .btn:hover { background:var(--accent-glow); }
+  .btn.ghost { background:transparent; color:var(--text-secondary); border:1px solid var(--border-default); }
+  .btn.ghost:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .preview-img { width:100%; max-height:180px; object-fit:cover; border-radius:var(--radius-sm); display:none; }
+  .preview-info { margin-top:8px; font-size:12px; color:var(--text-secondary); line-height:1.5; }
+  .path-row { display:flex; gap:8px; align-items:center; }
+
+  /* Right column: log + results */
+  .col-right { flex:1; display:flex; flex-direction:column; gap:12px; min-width:240px; }
+  .log-box {
+    flex:1; background:var(--bg-deep); border:1px solid var(--border-default);
+    border-radius:var(--radius-sm); padding:10px; font-size:11px; color:var(--text-secondary);
+    overflow-y:auto; font-family:'Consolas','Courier New',monospace; min-height:120px;
+  }
+  .log-box .ok { color:var(--success); } .log-box .err { color:var(--error); }
+  .log-box .warn { color:var(--warn); } .log-box .info { color:var(--text-disabled); }
+
+  .statusbar { padding:10px 0 14px; font-size:11px; color:var(--text-secondary); flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <button class="btn-back" onclick="goBack()">← 返回</button>
+    <span class="topbar-title">单个作品</span>
+  </div>
+  <div class="topbar-divider"></div>
+
+  <div class="body-wrap">
+
+    <!-- Left Column -->
+    <div class="col-left">
+      <div class="section">
+        <div class="section-title">分享链接</div>
+        <div class="input-row">
+          <input class="input" id="urlInput" type="text" placeholder="粘贴抖音分享链接或口令...">
+          <button class="btn" id="fetchBtn" onclick="fetchMedia()">开始</button>
+          <button class="btn ghost" id="cancelBtn" onclick="cancel()" style="display:none;">取消</button>
+        </div>
+      </div>
+
+      <div class="section" id="previewSection" style="display:none;">
+        <div class="section-title">作品预览</div>
+        <img class="preview-img" id="previewImg" alt="">
+        <div class="preview-info" id="previewInfo"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">保存位置</div>
+        <div class="path-row">
+          <input class="input" id="pathInput" type="text" placeholder="选择保存目录...">
+          <button class="btn ghost" onclick="browseFolder()">浏览</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-right">
+      <div class="section" style="flex:1; display:flex; flex-direction:column;">
+        <div class="section-title">下载日志</div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="statusbar" id="statusBar">就绪</div>
+
+</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  document.body.style.zoom = '131%';
+  function setTheme(name) { document.documentElement.dataset.theme = name; if(bridge) bridge.setSetting('theme', name); }
+  var bridge = null;
+  new QWebChannel(qt.webChannelTransport, function(ch) {
+    bridge = ch.objects.bridge;
+    bridge.getSetting('theme').then(function(t) { if(t) setTheme(t); });
+    bridge.getSetting('zoom').then(function(v) { if(v) document.body.style.zoom = String(Math.round(Number(v)*100))+'%'; });
+  });
+
+  function goBack() { window.location.href = 'mode.html'; }
+
+  function log(msg, cls) {
+    var box = document.getElementById('logBox');
+    var d = document.createElement('div'); d.className = cls||'';
+    var t = new Date();
+    d.textContent = '[' + [t.getHours(),t.getMinutes(),t.getSeconds()].map(function(x){return (x<10?'0':'')+x}).join(':') + '] ' + msg;
+    box.appendChild(d); box.scrollTop = box.scrollHeight;
+  }
+
+  async function fetchMedia() {
+    var url = document.getElementById('urlInput').value.trim();
+    if (!url) return log('请粘贴分享链接', 'warn');
+    var btn = document.getElementById('fetchBtn'); btn.disabled = true; btn.textContent = '解析中...';
+    log('解析: ' + url.slice(0,60), 'info');
+    try {
+      var r = await bridge.resolveUrl(url);
+      if (!r || r.error) { log('[ERR] 无法解析', 'err'); btn.disabled = false; btn.textContent = '开始'; return; }
+      log('[OK] 解析成功: ' + r.item_id, 'ok');
+      var m = await bridge.fetchMedia(r.item_id);
+      if (!m || m.error) { log('[ERR] ' + (m?m.error:'获取失败'), 'err'); btn.disabled = false; btn.textContent = '开始'; return; }
+      document.getElementById('previewSection').style.display = 'block';
+      document.getElementById('previewInfo').innerHTML = '<strong>'+(m.title||'无标题')+'</strong><br>作者: '+(m.author||'未知')+' | 类型: '+m.item_type;
+      if (m.cover_url) { document.getElementById('previewImg').src = m.cover_url; document.getElementById('previewImg').style.display = 'block'; }
+      btn.style.display = 'none'; document.getElementById('cancelBtn').style.display = '';
+      log('[OK] 获取成功', 'ok');
+    } catch(e) { log('[ERR] '+e, 'err'); }
+    btn.disabled = false; btn.textContent = '开始';
+  }
+
+  function cancel() {
+    document.getElementById('fetchBtn').style.display = ''; document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('previewSection').style.display = 'none'; log('[WARN] 已取消', 'warn');
+  }
+  function browseFolder() { if(bridge) bridge.browseFolder().then(function(p){ if(p) document.getElementById('pathInput').value = p; }); }
+</script>
+</body>
+</html>

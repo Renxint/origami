@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami · 批量下载</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; background:var(--bg-deep);
+    color:var(--text-primary); font-family:var(--font); font-size:13px;
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background:radial-gradient(ellipse 60% 30% at 50% 15%, rgba(233,69,96,0.04) 0%, transparent 70%);
+    pointer-events:none; z-index:0;
+  }
+  .app { position:relative; z-index:1; height:100%; display:flex; flex-direction:column; padding:0 28px; }
+
+  /* ── Topbar ── */
+  .topbar { display:flex; align-items:center; gap:12px; padding:14px 0 10px; flex-shrink:0; }
+  .btn-back { background:var(--bg-card); color:var(--text-secondary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:6px 14px; font-size:13px; cursor:pointer; transition:background .2s, color .2s; font-family:var(--font); }
+  .btn-back:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .topbar-title { font-size:16px; font-weight:700; }
+  .topbar-divider { height:1px; background:var(--divider); flex-shrink:0; }
+
+  /* ── Body: left panel + right grid ── */
+  .body-wrap { flex:1; display:flex; gap:16px; padding:16px 0; overflow:hidden; min-height:0; }
+
+  /* Left: controls */
+  .col-left { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:12px; }
+  .section { background:var(--bg-card); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:16px; }
+  .section-title { font-size:11px; color:var(--text-disabled); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+  .input { width:100%; background:var(--bg-deep); color:var(--text-primary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:9px 12px; font-size:13px; outline:none; transition:border-color .2s; font-family:var(--font); }
+  .input:focus { border-color:var(--accent); }
+  .input-row { display:flex; gap:8px; } .input-row .input { flex:1; }
+  .btn {
+    background:var(--accent); color:#fff; border:none; border-radius:var(--radius-sm);
+    padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;
+    transition:background .2s; font-family:var(--font); white-space:nowrap;
+  }
+  .btn:hover { background:var(--accent-glow); }
+  .btn.ghost { background:transparent; color:var(--text-secondary); border:1px solid var(--border-default); }
+  .btn.ghost:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .btn.small { padding:5px 12px; font-size:11px; }
+
+  .author-row { display:flex; gap:10px; align-items:center; }
+  .author-avatar { width:44px; height:44px; border-radius:50%; background:var(--bg-deep); border:2px solid var(--border-default); flex-shrink:0; }
+  .author-name { font-weight:700; font-size:14px; }
+  .author-stats { font-size:10px; color:var(--text-secondary); margin-top:1px; }
+
+  .tab-row { display:flex; gap:0; }
+  .tab { flex:1; background:transparent; color:var(--text-disabled); border:1px solid var(--border-default); padding:5px 8px; font-size:11px; cursor:pointer; text-align:center; font-family:var(--font); transition:background .2s, color .2s; }
+  .tab:first-child { border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
+  .tab:last-child { border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .progress-bar-wrap { background:var(--bg-deep); border-radius:4px; height:6px; overflow:hidden; margin-top:8px; }
+  .progress-bar-fill { background:var(--accent); height:100%; width:0%; transition:width .3s; border-radius:4px; }
+
+  .select-all { font-size:11px; color:var(--text-secondary); cursor:pointer; }
+  .select-all:hover { color:var(--text-primary); }
+  .count-badge { background:var(--accent); color:#fff; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700; display:inline-block; }
+
+  /* Right: media grid */
+  .col-right { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .media-grid {
+    flex:1; overflow-y:auto; display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
+    gap:8px; align-content:start;
+  }
+  .media-item {
+    background:var(--bg-card); border:2px solid var(--border-default);
+    border-radius:var(--radius-sm); padding:6px; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .media-item:hover { background:var(--bg-hover); }
+  .media-item.selected { border-color:var(--accent); background:var(--bg-hover); }
+  .media-thumb { width:100%; aspect-ratio:1; object-fit:cover; border-radius:4px; background:var(--bg-deep); }
+  .media-title { font-size:10px; font-weight:600; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .media-author { font-size:9px; color:var(--text-secondary); }
+  .media-check { position:absolute; top:4px; right:4px; width:18px; height:18px; border:2px solid var(--border-default); border-radius:4px; background:var(--bg-card); display:none; align-items:center; justify-content:center; font-size:9px; color:#fff; }
+  .media-item.selected .media-check { display:flex; background:var(--accent); border-color:var(--accent); }
+
+  .statusbar { padding:8px 0 14px; font-size:11px; color:var(--text-secondary); flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <button class="btn-back" onclick="goBack()">← 返回</button>
+    <span class="topbar-title">批量下载</span>
+    <div class="tab-row" style="margin-left:auto;">
+      <button class="tab active" onclick="switchTab('other')">他人</button>
+      <button class="tab" onclick="switchTab('self')">自己</button>
+    </div>
+  </div>
+  <div class="topbar-divider"></div>
+
+  <div class="body-wrap">
+
+    <!-- Left: controls -->
+    <div class="col-left">
+      <div class="section">
+        <div class="section-title">主页链接</div>
+        <div class="input-row">
+          <input class="input" id="urlInput" type="text" placeholder="粘贴抖音主页链接...">
+          <button class="btn" id="fetchBtn" onclick="fetchPosts()">获取</button>
+        </div>
+      </div>
+
+      <div class="section" id="authorSection" style="display:none;">
+        <div class="author-row">
+          <img class="author-avatar" id="authorAvatar" alt="">
+          <div>
+            <div class="author-name" id="authorName"></div>
+            <div class="author-stats" id="authorStats"></div>
+          </div>
+        </div>
+        <div class="progress-bar-wrap" id="progressWrap" style="display:none;">
+          <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+      </div>
+
+      <div class="section" id="actionSection" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span class="select-all" onclick="toggleSelectAll()">全选 / 取消</span>
+          <span class="count-badge" id="selectedCount">0</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="flex:1;" id="dlBtn" onclick="startDownload()">开始下载</button>
+          <button class="btn ghost small" id="pauseBtn" onclick="togglePause()" style="display:none;">暂停</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: media grid -->
+    <div class="col-right">
+      <div class="section" style="flex:1; display:flex; flex-direction:column;">
+        <div class="section-title">作品列表</div>
+        <div class="media-grid" id="mediaGrid"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="statusbar" id="statusBar">就绪</div>
+
+</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  document.body.style.zoom = '131%';
+  function setTheme(name) { document.documentElement.dataset.theme = name; if(bridge) bridge.setSetting('theme', name); }
+  var bridge = null, items = [], selected = new Set();
+  new QWebChannel(qt.webChannelTransport, function(ch) {
+    bridge = ch.objects.bridge;
+    bridge.getSetting('theme').then(function(t) { if(t) setTheme(t); });
+    bridge.getSetting('zoom').then(function(v) { if(v) document.body.style.zoom = String(Math.round(Number(v)*100))+'%'; });
+  });
+
+  function goBack() { window.location.href = 'mode.html'; }
+
+  function switchTab(t) {
+    document.querySelectorAll('.tab').forEach(function(el,i) { el.classList.toggle('active', (t==='other' && i===0) || (t==='self' && i===1)); });
+  }
+
+  async function fetchPosts() {
+    var url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+    var btn = document.getElementById('fetchBtn'); btn.disabled = true; btn.textContent = '加载中...';
+    try {
+      var author = await bridge.fetchAuthor(url);
+      if (!author||author.error) { btn.disabled = false; btn.textContent = '获取'; return; }
+      document.getElementById('authorSection').style.display = 'block';
+      document.getElementById('authorName').textContent = author.nickname||'未知';
+      document.getElementById('authorStats').textContent = (author.post_count||0)+' 作品 · '+(author.follower_count||0)+' 粉丝';
+      if (author.avatar_url) document.getElementById('authorAvatar').src = author.avatar_url;
+      var data = await bridge.fetchPosts(author.author_id, 0, 30);
+      items = (data&&data.items) ? data.items : []; selected.clear();
+      renderGrid();
+      document.getElementById('actionSection').style.display = 'block';
+      document.getElementById('statusBar').textContent = '加载了 '+items.length+' 个作品';
+    } catch(e) { document.getElementById('statusBar').textContent = '错误: '+e; }
+    btn.disabled = false; btn.textContent = '获取';
+  }
+
+  function renderGrid() {
+    var grid = document.getElementById('mediaGrid'); grid.innerHTML = '';
+    items.forEach(function(item, i) {
+      var div = document.createElement('div');
+      div.className = 'media-item' + (selected.has(i)?' selected':'');
+      div.onclick = function(){ toggleItem(i); };
+      div.style.position = 'relative';
+      div.innerHTML =
+        '<img class="media-thumb" src="'+(item.cover_url||'')+'" onerror="this.style.display=\'none\'">'+
+        '<div class="media-title">'+(item.title||'无标题')+'</div>'+
+        '<div class="media-author">'+(item.author||'')+'</div>'+
+        '<div class="media-check">✓</div>';
+      grid.appendChild(div);
+    });
+  }
+
+  function toggleItem(i) {
+    selected.has(i) ? selected.delete(i) : selected.add(i);
+    document.querySelectorAll('.media-item')[i].classList.toggle('selected');
+    document.getElementById('selectedCount').textContent = selected.size;
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === items.length) selected.clear();
+    else items.forEach(function(_,i){ selected.add(i); });
+    document.getElementById('selectedCount').textContent = selected.size;
+    renderGrid();
+  }
+
+  function startDownload() {
+    document.getElementById('statusBar').textContent = '下载 '+selected.size+' 个...';
+    document.getElementById('dlBtn').style.display = 'none';
+    document.getElementById('pauseBtn').style.display = '';
+    document.getElementById('progressWrap').style.display = 'block';
+  }
+  function togglePause() { var b=document.getElementById('pauseBtn'); b.textContent = b.textContent==='暂停'?'继续':'暂停'; }
+</script>
+</body>
+</html>

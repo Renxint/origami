@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami · 设置</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  :root { --sidebar-w: 180px; }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; background:var(--bg-deep);
+    color:var(--text-primary); font-family:var(--font); font-size:13px;
+    -webkit-font-smoothing:antialiased; user-select:none; overflow:hidden;
+  }
+  .app { height:100%; display:flex; flex-direction:column; }
+
+  /* ── Topbar ── */
+  .topbar { display:flex; align-items:center; gap:10px; padding:12px 24px; flex-shrink:0; }
+  .btn-back { background:var(--bg-card); color:var(--text-secondary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:5px 12px; font-size:12px; cursor:pointer; font-family:var(--font); transition:background .2s, color .2s; }
+  .btn-back:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .topbar-title { font-size:16px; font-weight:700; }
+  .topbar-divider { height:1px; background:var(--divider); flex-shrink:0; }
+
+  /* ── Body ── */
+  .body-wrap { flex:1; display:flex; overflow:hidden; }
+  .sidebar { width:var(--sidebar-w); flex-shrink:0; background:var(--bg-surface); border-right:1px solid var(--divider); padding:8px 0; overflow-y:auto; }
+  .sidebar-item { color:var(--text-secondary); padding:10px 18px; margin:1px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:background .15s, color .15s; font-size:13px; }
+  .sidebar-item:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .sidebar-item.active { background:var(--accent); color:#fff; font-weight:700; }
+
+  .content { flex:1; overflow-y:auto; padding:28px 32px; }
+
+  /* ── Panel ── */
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  .section-label { font-size:10px; color:var(--text-disabled); text-transform:uppercase; letter-spacing:1px; margin:24px 0 10px; }
+  .section-label:first-child { margin-top:0; }
+
+  .row { display:flex; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--divider); gap:24px; }
+  .row:last-child { border-bottom:none; }
+  .row-left { flex:1; min-width:0; }
+  .row-label { font-weight:600; font-size:13px; margin-bottom:3px; }
+  .row-desc  { font-size:11px; color:var(--text-secondary); line-height:1.4; }
+  .row-right { flex-shrink:0; display:flex; align-items:center; min-height:32px; }
+
+  .btn { background:var(--accent); color:#fff; border:none; border-radius:var(--radius-sm); padding:8px 18px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font); white-space:nowrap; transition:background .2s; }
+  .btn:hover { background:var(--accent-glow); }
+  .btn.ghost { background:transparent; color:var(--text-secondary); border:1px solid var(--border-default); }
+  .btn.ghost:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .btn.small { padding:5px 12px; font-size:11px; }
+
+  .select { background:var(--bg-surface); color:var(--text-primary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:7px 12px; font-size:12px; outline:none; font-family:var(--font); cursor:pointer; min-width:110px; }
+  .select:focus { border-color:var(--accent); }
+
+  .toggle { position:relative; width:40px; height:22px; cursor:pointer; display:inline-block; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle .slider { position:absolute; inset:0; background:var(--border-default); border-radius:11px; transition:background .2s; }
+  .toggle .slider::before { content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform .2s; }
+  .toggle input:checked + .slider { background:var(--accent); }
+  .toggle input:checked + .slider::before { transform:translateX(18px); }
+
+  .font-preview { color:var(--text-secondary); font-size:12px; background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:6px 12px; margin-right:8px; white-space:nowrap; }
+
+  .setting-value { font-size:12px; color:var(--text-secondary); background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:6px 12px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .shortcut-key { background:var(--bg-surface); border:1px solid var(--border-default); border-radius:4px; padding:5px 10px; font-size:11px; font-family:'Consolas','Courier New',monospace; color:var(--text-primary); min-width:80px; text-align:center; }
+
+  /* ── About hero ── */
+  .about-hero { text-align:center; padding:24px 0 18px; }
+  .about-logo { width:56px; height:56px; border-radius:16px; margin-bottom:12px; }
+  .about-name { font-size:22px; font-weight:700; }
+  .about-tagline { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+  .about-divider { height:1px; background:var(--divider); margin-bottom:14px; }
+  .link-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--divider); }
+  .link-row:last-child { border-bottom:none; }
+  .link-val { color:var(--accent); cursor:pointer; font-size:12px; }
+  .link-val:hover { text-decoration:underline; }
+
+  /* ── Platform cards ── */
+  .plat-cards { display:flex; gap:16px; padding:4px 0; }
+  .plat-card { background:var(--bg-surface); border:2px solid var(--border-default); border-radius:var(--radius-md); padding:20px 18px; text-align:center; width:110px; }
+  .plat-card img { width:40px; height:40px; }
+  .plat-card .name { font-size:13px; font-weight:700; margin-top:8px; }
+  .plat-card .stat { font-size:10px; margin-top:3px; }
+  .plat-card.on { border-color:var(--accent); }
+  .plat-card.off { opacity:0.45; }
+
+  .version-footer { text-align:center; padding:10px 0; color:var(--text-disabled); font-size:10px; flex-shrink:0; border-top:1px solid var(--divider); }
+  .version-footer span { color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <button class="btn-back" onclick="goHome()">← 返回</button>
+    <span class="topbar-title">设置</span>
+  </div>
+  <div class="topbar-divider"></div>
+
+  <div class="body-wrap">
+
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-item active" data-panel="general">通用</div>
+      <div class="sidebar-item" data-panel="download">下载</div>
+      <div class="sidebar-item" data-panel="platforms">平台</div>
+      <div class="sidebar-item" data-panel="shortcuts">快捷键</div>
+      <div class="sidebar-item" data-panel="about">关于</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══ 通用 ═══ -->
+      <div class="panel active" id="panel-general">
+
+        <div class="section-label">外观</div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">主题</div>
+            <div class="row-desc">选择预设配色方案，即时生效</div>
+          </div>
+          <div class="row-right">
+            <select id="themeSelect" class="select" onchange="changeTheme(this.value)">
+              <option value="soft-dark">柔和暗色</option>
+              <option value="mint">薄荷清爽</option>
+              <option value="sky">天空柔光</option>
+              <option value="latte">拿铁暖调</option>
+              <option value="sakura">樱花物语</option>
+              <option value="matcha">抹茶素净</option>
+              <option value="twilight">暮光暗色</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">字号</div>
+            <div class="row-desc">界面文字大小，范围 11pt - 18pt</div>
+          </div>
+          <div class="row-right">
+            <button class="btn ghost small" onclick="adjFont(-1)">−</button>
+            <span style="margin:0 10px; min-width:24px; text-align:center; font-weight:700;" id="fontSizeVal">13</span>
+            <button class="btn ghost small" onclick="adjFont(1)">+</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">字体</div>
+            <div class="row-desc" id="fontDisplay">Microsoft YaHei UI · 17pt</div>
+          </div>
+          <div class="row-right">
+            <button class="btn ghost" onclick="chooseFont()">选择字体</button>
+          </div>
+        </div>
+
+        <div class="section-label">行为</div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">自动识别剪贴板链接</div>
+            <div class="row-desc">复制抖音链接时自动填入并跳转到对应页面</div>
+          </div>
+          <div class="row-right">
+            <label class="toggle"><input type="checkbox" id="autoRaise" checked onchange="saveToggle('auto_raise', this.checked)"><span class="slider"></span></label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">高速模式</div>
+            <div class="row-desc">提高请求并发数，速度更快但有一定风控风险</div>
+          </div>
+          <div class="row-right">
+            <label class="toggle"><input type="checkbox" id="highSpeed" onchange="saveToggle('high_speed', this.checked)"><span class="slider"></span></label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">系统托盘</div>
+            <div class="row-desc">关闭窗口时最小化到托盘，双击托盘图标恢复</div>
+          </div>
+          <div class="row-right">
+            <label class="toggle"><input type="checkbox" id="trayEnabled" onchange="saveToggle('tray_enabled', this.checked)"><span class="slider"></span></label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ 下载 ═══ -->
+      <div class="panel" id="panel-download">
+
+        <div class="section-label">存储</div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">下载路径</div>
+            <div class="row-desc" id="pathDisplay">output/</div>
+          </div>
+          <div class="row-right">
+            <button class="btn ghost" onclick="changePath()">更改</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">下载后打开文件夹</div>
+            <div class="row-desc">完成后自动在资源管理器中打开保存目录</div>
+          </div>
+          <div class="row-right">
+            <label class="toggle"><input type="checkbox" id="autoOpen" checked><span class="slider"></span></label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ 平台 ═══ -->
+      <div class="panel" id="panel-platforms">
+
+        <div class="section-label">登录状态</div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label" id="loginStatus">未登录</div>
+            <div class="row-desc">登录后可下载高清作品和访问自己的主页</div>
+          </div>
+          <div class="row-right">
+            <button class="btn" onclick="doLogin()">登录</button>
+          </div>
+        </div>
+
+        <div class="section-label">已接入平台</div>
+
+        <div class="plat-cards">
+          <div class="plat-card on">
+            <img src="../assets/icons/douyin.png" alt="抖音">
+            <div class="name">抖音</div>
+            <div class="stat" style="color:var(--accent);">已支持</div>
+          </div>
+          <div class="plat-card off">
+            <img src="../assets/icons/bilibili.png" alt="B站">
+            <div class="name">B站</div>
+            <div class="stat">即将上线</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ 快捷键 ═══ -->
+      <div class="panel" id="panel-shortcuts">
+
+        <div class="section-label">快捷键</div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">回到首页</div>
+            <div class="row-desc">从任意页面导航回主页</div>
+          </div>
+          <div class="row-right"><span class="shortcut-key">Ctrl + H</span></div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">打开设置</div>
+            <div class="row-desc">打开设置面板</div>
+          </div>
+          <div class="row-right"><span class="shortcut-key">Ctrl + ,</span></div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">退出程序</div>
+            <div class="row-desc">完全退出 Origami</div>
+          </div>
+          <div class="row-right"><span class="shortcut-key">Ctrl + Q</span></div>
+        </div>
+
+        <div class="row">
+          <div class="row-left">
+            <div class="row-label">最小化到托盘</div>
+            <div class="row-desc">隐藏窗口但不退出</div>
+          </div>
+          <div class="row-right"><span class="shortcut-key">Esc</span></div>
+        </div>
+
+      </div>
+
+      <!-- ═══ 关于 ═══ -->
+      <div class="panel" id="panel-about">
+
+        <div class="about-hero">
+          <img class="about-logo" src="../assets/logo.png" alt="Origami">
+          <div class="about-name">Origami</div>
+          <div class="about-tagline">折你所爱，存你所想</div>
+        </div>
+
+        <div class="about-divider"></div>
+
+        <div class="row">
+          <div class="row-left"><div class="row-label">版本</div></div>
+          <div class="row-right"><span class="setting-value" id="verDisplay">v0.6.2</span></div>
+        </div>
+
+        <div style="text-align:right; padding:6px 0 16px;">
+          <button class="btn ghost" onclick="checkUpdate()">检查更新</button>
+        </div>
+
+        <div class="link-row">
+          <span class="row-label">仓库</span>
+          <span class="link-val" onclick="openLink('https://github.com/Renxint/origami')">github.com/Renxint/origami</span>
+        </div>
+        <div class="link-row">
+          <span class="row-label">镜像</span>
+          <span class="link-val" onclick="openLink('https://gitee.com/Renxint/origami')">gitee.com/Renxint/origami</span>
+        </div>
+        <div class="link-row">
+          <span class="row-label">反馈</span>
+          <span class="link-val" onclick="openLink('https://github.com/Renxint/origami/issues')">GitHub Issues</span>
+        </div>
+
+        <div class="section-label" style="margin-top:12px;"></div>
+
+        <div class="row">
+          <div class="row-left"><div class="row-label">作者</div></div>
+          <div class="row-right"><span class="setting-value">Renxint</span></div>
+        </div>
+        <div class="row">
+          <div class="row-left"><div class="row-label">许可</div></div>
+          <div class="row-right"><span class="setting-value">MIT License</span></div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="version-footer">折你所爱，存你所想 · <span id="verFooter">v0.6.2</span></div>
+
+</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  var bridge = null;
+  new QWebChannel(qt.webChannelTransport, function(ch) {
+    bridge = ch.objects.bridge;
+    bridge.getVersion().then(function(v) {
+      document.getElementById('verDisplay').textContent = 'v' + v;
+      document.getElementById('verFooter').textContent = 'v' + v;
+    });
+    bridge.getSetting('theme').then(function(t) {
+      if (t) { setTheme(t); syncThemeSelect(t); }
+    });
+    // Load toggle states
+    loadToggle('auto_raise', 'autoRaise');
+    loadToggle('high_speed', 'highSpeed');
+    loadToggle('tray_enabled', 'trayEnabled');
+    // Load saved zoom
+    bridge.getSetting('zoom').then(function(v) { if(v) applyZoom(Number(v)); });
+  });
+
+  // Sidebar
+  document.getElementById('sidebar').addEventListener('click', function(e) {
+    var item = e.target.closest('.sidebar-item');
+    if (!item) return;
+    document.querySelectorAll('.sidebar-item').forEach(function(el) { el.classList.remove('active'); });
+    item.classList.add('active');
+    var panelId = 'panel-' + item.dataset.panel;
+    document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById(panelId).classList.add('active');
+  });
+
+  // Theme
+  function setTheme(name) { document.documentElement.dataset.theme = name; if(bridge) bridge.setSetting('theme', name); }
+  function syncThemeSelect(v) {
+    var sel = document.getElementById('themeSelect');
+    for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === v) { sel.selectedIndex = i; break; } }
+  }
+  function changeTheme(v) { setTheme(v); syncThemeSelect(v); }
+
+  // Font size — use zoom for whole-page scaling (px-based CSS won't respond to font-size)
+  var basePt = 13, zoom = 17 / 13;  // default 17pt
+  function applyZoom(z) {
+    zoom = Math.max(0.75, Math.min(1.5, z));
+    document.body.style.zoom = String(Math.round(zoom * 100)) + '%';
+    var fz = Math.round(basePt * zoom);
+    document.getElementById('fontSizeVal').textContent = fz;
+    if(bridge) bridge.setSetting('zoom', zoom);
+  }
+  applyZoom(zoom);  // apply default immediately
+  function adjFont(d) { applyZoom(zoom + d * 0.05); }
+  function chooseFont() {}
+
+  // Toggles
+  function saveToggle(key, val) { if(bridge) bridge.setSetting(key, val); }
+  function loadToggle(key, elId) { if(bridge) bridge.getSetting(key).then(function(v) { if (v !== null && v !== undefined) document.getElementById(elId).checked = v; }); }
+
+  // Misc
+  function goHome() { window.location.href = 'home.html'; }
+  function changePath() { if(bridge) bridge.browseFolder().then(function(p) { if(p) document.getElementById('pathDisplay').textContent = p; }); }
+  function doLogin() { document.getElementById('loginStatus').textContent = '登录中...'; }
+  function checkUpdate() {}
+  function openLink(url) { if(bridge) bridge.openFolder(url); else window.open(url); }
+</script>
+</body>
+</html>

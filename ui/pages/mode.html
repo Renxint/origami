@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami · 选择模式</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; background:var(--bg-deep);
+    color:var(--text-primary); font-family:var(--font); font-size:13px;
+    -webkit-font-smoothing:antialiased; user-select:none; overflow:hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background:radial-gradient(ellipse 60% 30% at 50% 20%, rgba(233,69,96,0.04) 0%, transparent 70%);
+    pointer-events:none; z-index:0;
+  }
+  .app { position:relative; z-index:1; height:100%; display:flex; flex-direction:column; padding:0 32px; }
+
+  /* ── Topbar ── */
+  .topbar { display:flex; align-items:center; gap:12px; padding:18px 0 12px; flex-shrink:0; }
+  .btn-back { background:var(--bg-card); color:var(--text-secondary); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:6px 14px; font-size:13px; cursor:pointer; transition:background .2s, color .2s; font-family:var(--font); }
+  .btn-back:hover { background:var(--bg-hover); color:var(--text-primary); }
+  .topbar-title { font-size:16px; font-weight:700; }
+  .topbar-divider { height:1px; background:var(--divider); flex-shrink:0; }
+
+  /* ── Body: two large cards side by side ── */
+  .mode-body { flex:1; display:flex; gap:20px; align-items:center; justify-content:center; padding:24px 0; }
+  .mode-card {
+    flex:1; max-width:360px; aspect-ratio:1/0.85;
+    background:var(--bg-card); border:2px solid var(--border-default);
+    border-radius:var(--radius-md); padding:36px 24px;
+    cursor:pointer; transition:border-color .25s, background .25s, transform .15s;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    text-align:center; outline:none;
+  }
+  .mode-card:hover { border-color:var(--accent); background:var(--bg-hover); transform:translateY(-2px); }
+  .mode-card:active { transform:scale(0.98); }
+
+  .mode-icon {
+    width:64px; height:64px; border-radius:16px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(233,69,96,0.08); transition:background .25s, transform .2s;
+  }
+  .mode-card:hover .mode-icon { background:rgba(233,69,96,0.18); transform:scale(1.06); }
+
+  .mode-name { font-size:18px; font-weight:700; }
+  .mode-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .topbar { animation:fadeUp .3s ease both; }
+  .topbar-divider { animation:fadeUp .3s .04s ease both; }
+  .mode-card:nth-child(1) { animation:fadeUp .35s .12s ease both; }
+  .mode-card:nth-child(2) { animation:fadeUp .35s .20s ease both; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <button class="btn-back" onclick="goHome()">← 返回</button>
+    <span class="topbar-title">抖音</span>
+  </div>
+  <div class="topbar-divider"></div>
+
+  <div class="mode-body">
+    <button class="mode-card" onclick="goSingle()">
+      <div class="mode-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      </div>
+      <div class="mode-name">单个作品</div>
+      <div class="mode-desc">粘贴分享链接或口令<br>解析后预览并下载</div>
+    </button>
+
+    <button class="mode-card" onclick="goBatch()">
+      <div class="mode-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </div>
+      <div class="mode-name">批量下载</div>
+      <div class="mode-desc">输入主页链接<br>批量获取并归档作品</div>
+    </button>
+  </div>
+
+</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  document.body.style.zoom = '131%';
+  function setTheme(name) { document.documentElement.dataset.theme = name; if(bridge) bridge.setSetting('theme', name); }
+  var bridge = null;
+  new QWebChannel(qt.webChannelTransport, function(ch) {
+    bridge = ch.objects.bridge;
+    bridge.getSetting('theme').then(function(t) { if(t) setTheme(t); });
+    bridge.getSetting('zoom').then(function(v) { if(v) document.body.style.zoom = String(Math.round(Number(v)*100))+'%'; });
+  });
+
+  function goHome() { window.location.href = 'home.html'; }
+  function goSingle() { window.location.href = 'single.html'; }
+  function goBatch() { window.location.href = 'batch.html'; }
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    overflow: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% 30%, color-mix(in srgb, var(--accent) 4%, transparent) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 50% 80%, color-mix(in srgb, var(--accent) 3%, transparent) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .app-shell { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0 24px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 12px; flex-shrink: 0; }
+  .topbar-brand { font-size: 19px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-primary); }
+  .topbar-version { font-size: 11px; color: var(--text-disabled); }
+  .topbar-divider { height: 1px; background: var(--divider); flex-shrink: 0; }
+  .title-section { text-align: center; padding: 32px 0 24px; flex-shrink: 0; }
+  .title-main { font-size: 22px; font-weight: 700; color: var(--text-primary); letter-spacing: 1px; margin-bottom: 6px; }
+  .title-sub { font-size: 13px; color: var(--text-secondary); letter-spacing: 0.8px; }
+
+  .card-row { display: flex; gap: 14px; justify-content: center; flex-shrink: 0; padding: 0 8px; }
+  .platform-card {
+    flex: 1; max-width: 140px; aspect-ratio: 0.82;
+    background: var(--bg-card); border: 2px solid var(--border-default);
+    border-radius: var(--radius-md);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; cursor: pointer;
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.2s ease;
+    text-decoration: none; color: inherit; outline: none;
+  }
+  .card-logo {
+    width: 52px; height: 52px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    transition: transform 0.2s ease;
+  }
+  .card-logo img { background: transparent; }
+  .card-name { font-size: 14px; font-weight: 600; color: var(--text-secondary); transition: color 0.25s ease; }
+  .card-badge { font-size: 10px; color: var(--text-disabled); }
+
+  .platform-card.available:hover { border-color: var(--accent); background: var(--bg-hover); transform: translateY(-1px); }
+  .platform-card.available:hover .card-logo { transform: scale(1.05); }
+  .platform-card.available:hover .card-name { color: var(--accent); font-weight: 700; }
+
+  .platform-card.unavailable { cursor: default; opacity: 0.7; }
+  .platform-card.unavailable:hover { border-color: var(--border-default); opacity: 0.85; }
+
+  .spacer { flex: 1; min-height: 20px; }
+  .bottombar-divider { height: 1px; background: var(--divider); flex-shrink: 0; }
+  .bottombar { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 20px; flex-shrink: 0; }
+  .bottombar-status { font-size: 12px; color: var(--text-secondary); }
+  .bottombar-btn {
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid transparent; border-radius: 8px;
+    padding: 7px 20px; font-size: 13px; cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    font-family: 'Segoe UI', system-ui, sans-serif; outline: none;
+  }
+  .bottombar-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-default); }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .topbar { animation: fadeUp 0.5s ease both; }
+  .topbar-divider { animation: fadeUp 0.5s 0.05s ease both; }
+  .title-section { animation: fadeUp 0.5s 0.10s ease both; }
+  .platform-card:nth-child(1) { animation: fadeUp 0.5s 0.16s ease both; }
+  .platform-card:nth-child(2) { animation: fadeUp 0.5s 0.22s ease both; }
+  .bottombar-divider { animation: fadeUp 0.5s 0.28s ease both; }
+  .bottombar { animation: fadeUp 0.5s 0.32s ease both; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="topbar">
+    <span class="topbar-brand">Origami</span>
+    <span class="topbar-version">v0.6.2</span>
+  </div>
+  <div class="topbar-divider"></div>
+  <div class="title-section">
+    <h1 class="title-main">选择平台</h1>
+    <p class="title-sub">折你所爱，存你所想</p>
+  </div>
+  <div class="card-row">
+    <button class="platform-card available" onclick="selectPlatform('douyin')">
+      <div class="card-logo douyin">
+        <img src="../assets/icons/douyin.png" width="48" height="48" alt="抖音">
+      </div>
+      <span class="card-name">抖音</span>
+      <span class="card-badge">可用</span>
+    </button>
+    <button class="platform-card unavailable" disabled>
+      <div class="card-logo bilibili">
+        <img src="../assets/icons/bilibili.png" width="48" height="48" alt="B站">
+      </div>
+      <span class="card-name">B站</span>
+      <span class="card-badge">即将上线</span>
+    </button>
+  </div>
+  <div class="spacer"></div>
+  <div class="bottombar-divider"></div>
+  <div class="bottombar">
+    <span class="bottombar-status">未登录</span>
+    <button class="bottombar-btn" onclick="openSettings()">设置</button>
+  </div>
+</div>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  document.body.style.zoom = '131%';  // default 17pt
+  function setTheme(name) { document.documentElement.dataset.theme = name; if(bridge) bridge.setSetting('theme', name); }
+  var bridge = null;
+  new QWebChannel(qt.webChannelTransport, function(ch) {
+    bridge = ch.objects.bridge;
+    bridge.getSetting('theme').then(function(t) { if(t) setTheme(t); });
+    bridge.getSetting('zoom').then(function(v) { if(v) document.body.style.zoom = String(Math.round(Number(v)*100))+'%'; });
+  });
+  function selectPlatform(id) { if (id === 'douyin') window.location.href = 'mode.html'; }
+  function openSettings() { window.location.href = 'settings.html'; }
+</script>
+</body>
+</html>

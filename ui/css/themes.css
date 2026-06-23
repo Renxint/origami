@@ -1,0 +1,137 @@
+/* ═══════════════ Origami 主题系统 ═══════════════ */
+/* Usage: <html data-theme="soft-dark">           */
+/* Available: mint, sky, soft-dark, latte,        */
+/*            sakura, matcha, twilight            */
+
+/* ── Shared ── */
+:root {
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 14px;
+}
+
+/* ── Default (soft-dark) ── */
+:root, [data-theme="soft-dark"] {
+  --bg-deep:    #0a0a14;
+  --bg-surface: #12122a;
+  --bg-card:    #181835;
+  --bg-hover:   #1e1e42;
+  --accent:     #E94560;
+  --accent-glow:#ff5c7a;
+  --text-primary:   #e8e8f0;
+  --text-secondary: #7a7a95;
+  --text-disabled:  #4a4a60;
+  --border-default: #252545;
+  --divider:        #1a1a32;
+  --success: #22C55E;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+}
+
+/* ── 薄荷清爽 ── */
+[data-theme="mint"] {
+  --bg-deep:    #FAFCFB;
+  --bg-surface: #F1F5F9;
+  --bg-card:    #FFFFFF;
+  --bg-hover:   #F0FDF6;
+  --accent:     #10B981;
+  --accent-glow:#059669;
+  --text-primary:   #0F172A;
+  --text-secondary: #64748B;
+  --text-disabled:  #94A3B8;
+  --border-default: #E2E8F0;
+  --divider:        #E8ECF0;
+  --success: #22C55E;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+}
+
+/* ── 天空柔光 ── */
+[data-theme="sky"] {
+  --bg-deep:    #F8FAFC;
+  --bg-surface: #F1F5F9;
+  --bg-card:    #FFFFFF;
+  --bg-hover:   #EFF6FF;
+  --accent:     #3B82F6;
+  --accent-glow:#2563EB;
+  --text-primary:   #1E293B;
+  --text-secondary: #64748B;
+  --text-disabled:  #94A3B8;
+  --border-default: #E2E8F0;
+  --divider:        #E8ECF0;
+  --success: #22C55E;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+}
+
+/* ── 拿铁暖调 ── */
+[data-theme="latte"] {
+  --bg-deep:    #FFFBF5;
+  --bg-surface: #FDF6ED;
+  --bg-card:    #FFFFFF;
+  --bg-hover:   #FFF0E5;
+  --accent:     #E88D4A;
+  --accent-glow:#D4783A;
+  --text-primary:   #3D2E1E;
+  --text-secondary: #8B7355;
+  --text-disabled:  #B8A898;
+  --border-default: #F0E4D8;
+  --divider:        #F0E4D8;
+  --success: #65A30D;
+  --warn:    #D97706;
+  --error:   #DC2626;
+}
+
+/* ── 樱花物语 ── */
+[data-theme="sakura"] {
+  --bg-deep:    #FFF5F7;
+  --bg-surface: #FFF0F3;
+  --bg-card:    #FFFFFF;
+  --bg-hover:   #FFEBF0;
+  --accent:     #F472B6;
+  --accent-glow:#EC4899;
+  --text-primary:   #2D1820;
+  --text-secondary: #8B6478;
+  --text-disabled:  #C4A0AC;
+  --border-default: #F5E0E8;
+  --divider:        #F5E0E8;
+  --success: #22C55E;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+}
+
+/* ── 抹茶素净 ── */
+[data-theme="matcha"] {
+  --bg-deep:    #F9FAF8;
+  --bg-surface: #F2F5F0;
+  --bg-card:    #FFFFFF;
+  --bg-hover:   #EDF5EC;
+  --accent:     #7D9F7A;
+  --accent-glow:#6B8F68;
+  --text-primary:   #1A2E1A;
+  --text-secondary: #6B7D6B;
+  --text-disabled:  #A8B5A6;
+  --border-default: #E4EAE2;
+  --divider:        #E4EAE2;
+  --success: #65A30D;
+  --warn:    #D97706;
+  --error:   #DC2626;
+}
+
+/* ── 暮光暗色 ── */
+[data-theme="twilight"] {
+  --bg-deep:    #1E1E24;
+  --bg-surface: #242630;
+  --bg-card:    #242630;
+  --bg-hover:   #2A2D3A;
+  --accent:     #22D3EE;
+  --accent-glow:#67E8F9;
+  --text-primary:   #E8E8ED;
+  --text-secondary: #6B6B7E;
+  --text-disabled:  #5A5A6E;
+  --border-default: #2E3040;
+  --divider:        #2E3040;
+  --success: #4ADE80;
+  --warn:    #FBBF24;
+  --error:   #F87171;
+}
