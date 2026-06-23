@@ -492,11 +492,6 @@ def create_app() -> web.Application:
 
     app.middlewares.append(cors_middleware)
 
-    # ── 静态文件：ui/ → /
-    ui_dir = BASE_DIR / "ui"
-    if ui_dir.exists():
-        app.router.add_static("/", ui_dir, show_index=True)
-
     # ── 路由表 ──
     app.router.add_get("/api/version",     api_version)
     app.router.add_get("/api/settings",    api_get_settings)
@@ -514,6 +509,11 @@ def create_app() -> web.Application:
     app.router.add_post("/api/browse-folder", api_browse_folder)
     app.router.add_post("/api/open-folder",   api_open_folder)
     app.router.add_get("/ws/events",         ws_events)
+
+    # ── 静态文件：ui/ → /（必须在 API 路由之后）──
+    ui_dir = BASE_DIR / "ui"
+    if ui_dir.exists():
+        app.router.add_static("/", ui_dir, show_index=True)
 
     return app
 
