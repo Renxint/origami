@@ -10,22 +10,32 @@
   --radius-md: 14px;
 }
 
-/* ── Default (soft-dark) ── */
+/* ── Default (soft-dark / 柔和暗色) ── */
 :root, [data-theme="soft-dark"] {
-  --bg-deep:    #0a0a14;
-  --bg-surface: #12122a;
-  --bg-card:    #181835;
-  --bg-hover:   #1e1e42;
-  --accent:     #E94560;
-  --accent-glow:#ff5c7a;
-  --text-primary:   #e8e8f0;
-  --text-secondary: #7a7a95;
-  --text-disabled:  #4a4a60;
-  --border-default: #252545;
-  --divider:        #1a1a32;
-  --success: #22C55E;
-  --warn:    #F59E0B;
-  --error:   #EF4444;
+  --bg-deep:    #1A1B2E;
+  --bg-surface: #202238;
+  --bg-card:    #202238;
+  --bg-hover:   #2D2F4A;
+  --bg-selected: #818CF8;
+  --accent:     #818CF8;
+  --accent-hover:#A5B4FC;
+  --accent-glow:#6366F1;
+  --text-primary:   #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-disabled:  #4B5563;
+  --text-on-accent: #FFFFFF;
+  --border-default: #2A2C44;
+  --divider:        #2A2C44;
+  --success: #4ADE80;
+  --warn:    #FBBF24;
+  --error:   #F87171;
+  --scrollbar-bg:     #1A1B2E;
+  --scrollbar-handle: #4B5563;
+  --scrollbar-hover:  #6B7280;
+  --danger:       #EF4444;
+  --danger-hover: #DC2626;
+  --disabled-bg:  #1E2030;
+  --link:         #818CF8;
 }
 
 /* ── 薄荷清爽 ── */
