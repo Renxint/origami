@@ -435,6 +435,65 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     print(f"       保存到: {author_dir}")
 
 
+def cmd_login():
+    """扫码登录 — 在主进程启动 WebView 窗口"""
+    try:
+        import webview
+    except ImportError:
+        print("请先安装: pip install pywebview")
+        return
+
+    from src.cookie import save_cookie
+    import time
+
+    result = {"cookie": "", "done": False}
+
+    def _on_loaded():
+        # 轮询检测 Cookie
+        def _check():
+            for _ in range(60):
+                time.sleep(2)
+                try:
+                    cookies = window.get_cookies()
+                    if cookies:
+                        parts = []
+                        for c in cookies:
+                            if c.get("name") and c.get("value"):
+                                parts.append(f"{c['name']}={c['value']}")
+                        cookie_str = "; ".join(parts)
+                        if "sessionid=" in cookie_str and "ttwid=" in cookie_str:
+                            result["cookie"] = cookie_str
+                            result["done"] = True
+                            window.destroy()
+                            return
+                except Exception:
+                    pass
+            # 超时
+            result["done"] = True
+            try:
+                window.destroy()
+            except Exception:
+                pass
+
+        import threading
+        threading.Thread(target=_check, daemon=True).start()
+
+    window = webview.create_window(
+        "Origami — 登录抖音", "https://www.douyin.com/",
+        width=420, height=620, on_top=True)
+    window.events.loaded += _on_loaded
+
+    print("正在打开登录窗口...")
+    print("请在窗口中扫码登录抖音")
+    webview.start()
+
+    if result["cookie"]:
+        save_cookie(result["cookie"])
+        print(f"[OK] 登录成功！Cookie 已保存 ({len(result['cookie'])} 字符)")
+    else:
+        print("[!] 登录超时或已取消")
+
+
 def cmd_dev(args: list[str]):
     """开发辅助命令"""
     if not args:
@@ -459,7 +518,8 @@ def cmd_dev(args: list[str]):
 def main():
     if len(sys.argv) < 2:
         print("Origami v2 — 用法:")
-        print("  python -m src.main server      启动 API Server")
+        print("  python -m src.main login        扫码登录（首次使用）")
+        print("  python -m src.main server       启动 API Server")
         print("  python -m src.main cli <mode>   命令行下载")
         print("  python -m src.main dev <cmd>    开发工具")
         return
@@ -471,11 +531,13 @@ def main():
         cmd_server(rest)
     elif cmd == "cli":
         cmd_cli(rest)
+    elif cmd == "login":
+        cmd_login()
     elif cmd == "dev":
         cmd_dev(rest)
     else:
         print(f"未知命令: {cmd}")
-        print("可用: server | cli | dev")
+        print("可用: server | cli | login | dev")
 
 
 if __name__ == "__main__":
