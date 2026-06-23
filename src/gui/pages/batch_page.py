@@ -1378,7 +1378,14 @@ class BatchPage(QWidget):
             QTimer.singleShot(100, _fav_step)
             return
 
-        # ── posts/likes 模式：posts用HTTP，likes用Puppeteer ──
+        # ── posts/likes 模式 ──
+        # 预暖 daemon（避免两个线程同时抢启动）
+        try:
+            from src.webview_api import start_server
+            start_server()
+        except Exception:
+            pass
+
         def _run():
             total = 0
             cursor = 0
@@ -1386,20 +1393,22 @@ class BatchPage(QWidget):
             try:
                 while page < 100:
                     try:
+                        data = {}
                         if mode == 'posts':
                             from src.api import DouyinAPI
                             api = DouyinAPI(cookie_string=cookie)
                             data = api.get_user_posts(sec_uid, max_cursor=cursor, count=18)
-                            items = data.get("aweme_list", [])
+                            items = data.get("aweme_list") or []
                         else:
                             from src.platforms.douyin import DouyinAdapter
                             adapter = DouyinAdapter()
                             result = adapter.fetch_likes(sec_uid, cookie, max_cursor=cursor, count=18)
-                            items = result.get("items", [])
-                            data = {}
-                            if isinstance(items, list) and items and hasattr(items[0], 'extra'):
+                            if not isinstance(result, dict):
+                                self._bg_own_log.emit(f'[统计] 返回数据异常', '#EF4444')
+                                return
+                            items = result.get("items") or []
+                            if items and hasattr(items[0], 'extra'):
                                 items = [i.extra.get("aweme", {}) for i in items]
-                            # fetch_likes 的翻页信息
                             data["has_more"] = result.get("has_more", 0)
                             data["max_cursor"] = result.get("next_cursor", 0)
                     except Exception as e:
@@ -1409,22 +1418,21 @@ class BatchPage(QWidget):
                     if not items:
                         if page == 0:
                             self._bg_own_log.emit(f'[统计] 暂无{tag}', '#94A3B8')
-                            cm = 'posts' if self._sub_posts.isChecked() else 'likes'
-                            if cm == mode:
-                                self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 (0)"))
                         else:
                             self._bg_own_log.emit(f'[统计] {tag} 翻页结束 (共{total})', '#22C55E')
+                        if mode == 'posts':
+                            self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 ({total})"))
+                        elif mode == 'likes':
+                            self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 ({total})"))
                         return
 
                     store.extend(items)
                     total += len(items)
                     page += 1
                     has_more = data.get("has_more", 0)
-                    cursor = (data.get("max_cursor", 0)
-                              or data.get("cursor", 0))
+                    cursor = data.get("max_cursor", 0) or data.get("cursor", 0)
                     if page == 1:
-                        self._bg_own_log.emit(
-                            f'[统计] 已加载 {total} 个{tag}...', '#64748B')
+                        self._bg_own_log.emit(f'[统计] 已加载 {total} 个{tag}...', '#64748B')
                     if not has_more:
                         break
                     if cursor == 0:
@@ -1435,7 +1443,6 @@ class BatchPage(QWidget):
                 cur_mode = 'posts' if self._sub_posts.isChecked() else 'likes'
                 if cur_mode == mode:
                     self._ui_callback.emit(lambda: self._own_select_btn.setText(f"查看列表 ({total})"))
-                    self._ui_callback.emit(lambda: self._own_select_btn.show())
             finally:
                 if mode == 'posts':
                     self._own_posts_loading = False
