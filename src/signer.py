@@ -282,16 +282,33 @@ class StealthBrowser:
         except Exception as e:
             _debug_log(f"Step 1: SDK warning (non-fatal): {e}")
 
-        # —— Step 2: 重新导航 → 注入 Cookie → 重新初始化 SDK ——
+        # —— Step 2: JS 注入 Cookie（绕过 Playwright add_cookies 兼容问题） ——
         if cookie_str:
-            _debug_log("Step 2: re-nav + inject cookie")
+            _debug_log("Step 2: JS inject cookies + re-nav")
+            # 先访问一次建域名（cookie 只能设在当前域名下）
+            self._page.goto("https://www.douyin.com/",
+                            wait_until="commit", timeout=15000)
+            # 通过 JS 逐条注入 document.cookie
+            for part in cookie_str.split(";"):
+                part = part.strip()
+                if "=" not in part:
+                    continue
+                name, value = part.split("=", 1)
+                name = name.strip()
+                value = value.strip()
+                if name:
+                    try:
+                        self._page.evaluate(
+                            """([n, v]) => {
+                                document.cookie = n + '=' + v +
+                                    '; domain=.douyin.com; path=/; max-age=31536000';
+                            }""", [name, value])
+                    except Exception:
+                        pass
+            _debug_log(f"Step 2: cookies injected via JS")
+            # 重新导航让 cookie 生效
             self._page.goto("https://www.douyin.com/?recommend=1",
                             wait_until="domcontentloaded", timeout=30000)
-
-            cookies = _cookie_to_list(cookie_str)
-            if cookies:
-                context.add_cookies(cookies)
-                _debug_log(f"Step 2: {len(cookies)} cookies injected")
 
             try:
                 self._page.wait_for_function(
