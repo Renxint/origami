@@ -132,12 +132,85 @@ async def api_cookie_status(request: web.Request):
 
 # ── POST /api/login/webview ──
 async def api_login_webview(request: web.Request):
-    """启动系统 WebView 扫码登录 → 返回登录结果"""
-    # M3 实现 — 目前返回 stub
-    return json_response({
-        "ok": False,
-        "message": "login not yet implemented — will launch pywebview in M3",
-    })
+    """启动系统 WebView 扫码登录 → 保存 Cookie → 返回结果"""
+    import threading, time as _t
+    from src.cookie import save_cookie
+
+    result = {}
+
+    def _login_thread():
+        try:
+            import webview
+            cookie_value = []
+
+            class _Api:
+                def on_cookie(self, c):
+                    cookie_value.append(c)
+
+            api = _Api()
+            window = webview.create_window(
+                "Origami — 登录抖音", "https://www.douyin.com/",
+                js_api=api, width=420, height=620,
+                confirm_close=False)
+
+            # 轮询检测 Cookie
+            def _check():
+                cookies = window.get_cookies()
+                if cookies:
+                    cookie_str = "; ".join(
+                        f"{c['name']}={c['value']}" for c in cookies
+                        if c.get("name") and c.get("value")
+                    )
+                    has_session = "sessionid=" in cookie_str
+                    has_ttwid = "ttwid=" in cookie_str
+                    if has_session and has_ttwid:
+                        cookie_value.append(cookie_str)
+                        window.destroy()
+                        return
+                if not cookie_value:
+                    _t.sleep(2)
+                    # 从主线程调度下一次检查
+                    import ctypes
+                    ctypes.pythonapi.PyGILState_Ensure()
+                    try:
+                        _check()
+                    finally:
+                        pass
+
+            # 延迟 3 秒开始检查
+            _t.sleep(3)
+            _check()
+            webview.start()
+
+            if cookie_value:
+                cookie_str = cookie_value[0]
+                save_cookie(cookie_str)
+                result["ok"] = True
+                result["cookie_len"] = len(cookie_str)
+            else:
+                result["ok"] = False
+                result["message"] = "登录已取消"
+        except ImportError:
+            result["ok"] = False
+            result["message"] = "pywebview 未安装，请运行: pip install pywebview"
+        except Exception as e:
+            result["ok"] = False
+            result["message"] = str(e)
+
+    t = threading.Thread(target=_login_thread, daemon=True)
+    t.start()
+
+    # 等最多 120 秒
+    for _ in range(120):
+        if result:
+            break
+        await asyncio.sleep(1)
+
+    if not result:
+        result["ok"] = False
+        result["message"] = "登录超时"
+
+    return json_response(result)
 
 # ── POST /api/resolve-url ──
 async def api_resolve_url(request: web.Request):
@@ -297,13 +370,16 @@ async def api_fetch_comments(request: web.Request):
 
 # ── POST /api/download ──
 async def api_download(request: web.Request):
-    """下载作品（异步，进度通过 WebSocket 推送）"""
-    # M3 完整实现（线程+进度+WS推送），目前走同步简单路径
+    """下载作品（进度通过 WebSocket 实时推送）"""
     body = await read_body(request)
     url = body.get("url", "")
     if not url:
         return error_response("missing url")
-    try:
+
+    import concurrent.futures
+    loop = asyncio.get_event_loop()
+
+    def _do_download():
         from src.platforms.douyin import DouyinAdapter
         from src.downloader import download_file
         from src.cookie import load_cookie
@@ -318,20 +394,31 @@ async def api_download(request: web.Request):
         save_dir.mkdir(parents=True, exist_ok=True)
 
         downloaded = []
+        total = len(media.media_urls)
+        push_event({"event": "download_start", "title": media.title,
+                     "author": media.author, "item_type": media.item_type, "total": total})
+
         for i, murl in enumerate(media.media_urls):
             ext = ".mp4" if media.item_type == "video" else ".jpg"
             fname = f"{clean_name(media.title or item_id, 30)}_{i+1}{ext}"
             fpath = save_dir / fname
+            push_event({"event": "log", "level": "info",
+                         "msg": f"[{i+1}/{total}] {fname}"})
             ok = download_file(murl, fpath)
             downloaded.append({"file": str(fpath), "ok": ok})
+            push_event({"event": "progress", "current": i+1, "total": total,
+                         "file": str(fpath), "ok": ok})
 
-        return json_response({
-            "ok": True,
-            "title": media.title,
-            "author": media.author,
-            "files": downloaded,
-        })
+        push_event({"event": "download_done", "title": media.title,
+                     "files": downloaded, "save_dir": str(save_dir)})
+        return {"ok": True, "title": media.title, "author": media.author,
+                "files": downloaded}
+
+    try:
+        result = await loop.run_in_executor(None, _do_download)
+        return json_response(result)
     except Exception as e:
+        push_event({"event": "log", "level": "error", "msg": str(e)})
         return error_response(str(e), 500)
 
 # ── POST /api/browse-folder ──
