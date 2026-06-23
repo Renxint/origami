@@ -317,7 +317,18 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     # 对齐 GUI 扁平结构：{pos}_{hash}_{index}.jpg
     # 编号基于作者实际作品总数，而非本次下载数量
     import hashlib
+    import json as _json
     from src.utils import pick_best_video_url
+
+    # 加载/创建下载追踪
+    tracker_file = data_dir / ".downloaded.json"
+    downloaded_ids = set()
+    if tracker_file.exists():
+        try:
+            downloaded_ids = set(_json.loads(tracker_file.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+
     stats = {"ok": 0, "fail": 0, "skip": 0}
     _orig_total = author.post_count or len(all_items)
 
@@ -328,6 +339,16 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
         _oi = item.extra.get("_orig_idx", i)
         pos = f"{_orig_total - _oi:04d}_{short}_"  # GUI 格式
         num = f"{i+1:03d}"
+
+        # 跳过已下载
+        if aweme_id in downloaded_ids:
+            any_file = any(author_dir.glob(f"*_{short}_*"))
+            if any_file:
+                stats["skip"] += 1
+                print(f"[{num}/{len(all_items)}] [跳过] {item.title[:30]}")
+                continue
+            else:
+                downloaded_ids.discard(aweme_id)
 
         print(f"[{num}/{len(all_items)}] {item.title[:30]}...")
 
@@ -367,8 +388,13 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
                 else:
                     stats["fail"] += 1
 
-        if not downloaded:
+        if downloaded:
+            downloaded_ids.add(aweme_id)
+        else:
             print(f"  [无资源]")
+
+    # 保存追踪
+    tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
 
     # 写作品目录
     lines = [f"# {name}", "", f"共 {len(all_items)} 个作品", ""]
@@ -381,7 +407,7 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
         lines.append(f"{idx+1}. [{typ}] {d}")
     (author_dir / f"作品目录_{time.strftime('%Y%m%d_%H%M%S')}.md").write_text("\n".join(lines), encoding="utf-8")
 
-    print(f"[DONE] 视频:{stats['ok']}  失败:{stats['fail']}")
+    print(f"[DONE] 视频:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
     print(f"       保存到: {author_dir}")
 
 
