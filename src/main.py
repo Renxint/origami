@@ -467,27 +467,37 @@ def cmd_login():
     from src.cookie import save_cookie
     import time
 
+    result = {"cookie": ""}
+
+    def _poll():
+        for _ in range(60):
+            time.sleep(2)
+            try:
+                cookies = window.get_cookies()
+                if cookies:
+                    parts = [f"{c['name']}={c['value']}" for c in cookies
+                             if c.get("name") and c.get("value")]
+                    cs = "; ".join(parts)
+                    if "sessionid=" in cs and "ttwid=" in cs:
+                        result["cookie"] = cs
+                        return
+            except Exception:
+                pass
+
+    import threading
+    threading.Thread(target=_poll, daemon=True).start()
+
     window = webview.create_window(
         "Origami — 登录抖音", "https://www.douyin.com/",
         width=800, height=600, on_top=True)
 
     print("正在打开登录窗口...")
-    print("请在窗口中扫码登录抖音，登录完成后关闭窗口")
+    print("请在窗口中扫码登录，成功后窗口会自动关闭")
     webview.start()
 
-    # 窗口关闭后读 Cookie（get_cookies 在主线程，能拿到 HttpOnly cookie）
-    cookie_str = ""
-    try:
-        cookies = window.get_cookies()
-        parts = [f"{c['name']}={c['value']}" for c in cookies
-                 if c.get("name") and c.get("value")]
-        cookie_str = "; ".join(parts)
-    except Exception:
-        pass
-
-    if cookie_str and "sessionid=" in cookie_str and "ttwid=" in cookie_str:
-        save_cookie(cookie_str)
-        print(f"[OK] 登录成功！Cookie 已保存 ({len(cookie_str)} 字符)")
+    if result["cookie"]:
+        save_cookie(result["cookie"])
+        print(f"[OK] 登录成功！Cookie 已保存 ({len(result['cookie'])} 字符)")
     else:
         print("[!] 未检测到登录 Cookie，请重试")
 
