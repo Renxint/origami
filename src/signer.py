@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 from playwright.sync_api import sync_playwright, Browser, Page
-import playwright_stealth
+from playwright_stealth import Stealth
 
 from src.environ import (
     BASE_DIR, EXE_DIR, COOKIE_FILE, CREATE_NO_WINDOW,
@@ -232,28 +232,55 @@ class StealthBrowser:
             user_agent=USER_AGENT,
             viewport={"width": 1920, "height": 1080},
         )
-        self._page = context.new_page()
 
-        # Stealth evasions
-        playwright_stealth.inject(self._page)
-        self._page.add_init_script("""
+        # Stealth: init 脚本在页面创建前注入
+        context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
             window.chrome = { runtime: {} };
-        """)
-
-        # —— Step 1: 首次导航，初始化 SDK（不带 Cookie）——
-        # （对齐 bootstrap.js：必须先做一次不带 Cookie 的 init）
-        _debug_log("Step 1: first nav + SDK init (no cookie)")
-        self._page.goto("https://www.douyin.com/?recommend=1",
-                        wait_until="domcontentloaded", timeout=timeout_ms)
-        self._page.wait_for_function(
-            "window.bdms && window.bdms.init", timeout=30000)
-        self._page.evaluate("""
-            window.bdms.init({
-                aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5]
+            });
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['zh-CN', 'zh', 'en']
             });
         """)
-        _debug_log("Step 1: SDK init OK")
+        self._page = context.new_page()
+
+        # 额外 stealth（playwright_stealth）
+        try:
+            stealth = Stealth(
+                navigator_webdriver=True,
+                navigator_languages=True,
+                navigator_plugins=True,
+                navigator_vendor=True,
+                chrome_runtime=True,
+            )
+            stealth.apply_stealth_sync(self._page)
+        except Exception as e:
+            _debug_log(f"Stealth warning: {e}")
+
+        # —— Step 1: 首次导航，等待 bdms SDK 加载 ——
+        # （对齐 bootstrap.js：必须先做一次不带 Cookie 的 init）
+        _debug_log("Step 1: first nav + SDK wait")
+        try:
+            self._page.goto(
+                "https://www.douyin.com/?recommend=1",
+                wait_until="domcontentloaded", timeout=timeout_ms)
+            # 等 bdms 对象出现（可能比 init 方法先加载）
+            self._page.wait_for_function(
+                "() => typeof window.bdms !== 'undefined'",
+                timeout=30000)
+            time.sleep(2)  # 等 SDK 完全初始化
+            self._page.evaluate("""
+                if (window.bdms && window.bdms.init) {
+                    window.bdms.init({
+                        aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5
+                    });
+                }
+            """)
+            _debug_log("Step 1: SDK init OK")
+        except Exception as e:
+            _debug_log(f"Step 1: SDK warning (non-fatal): {e}")
 
         # —— Step 2: 重新导航 → 注入 Cookie → 重新初始化 SDK ——
         if cookie_str:
@@ -266,17 +293,25 @@ class StealthBrowser:
                 context.add_cookies(cookies)
                 _debug_log(f"Step 2: {len(cookies)} cookies injected")
 
-            self._page.wait_for_function(
-                "window.bdms && window.bdms.init", timeout=30000)
-            self._page.evaluate("""
-                window.bdms.init({
-                    aid: 6383, pageId: 6241, boe: false, ddrt: 8.5, ic: 8.5,
-                    paths: ['^/aweme/v1/', '^/aweme/v2/', '/douplus/',
-                            '/v1/message/', '^/live/', '^/captcha/',
-                            '^/ecom/', '^/luna/pc']
-                });
-            """)
-            _debug_log("Step 2: SDK re-init with cookie OK")
+            try:
+                self._page.wait_for_function(
+                    "() => typeof window.bdms !== 'undefined'",
+                    timeout=30000)
+                time.sleep(1)
+                self._page.evaluate("""
+                    if (window.bdms && window.bdms.init) {
+                        window.bdms.init({
+                            aid: 6383, pageId: 6241, boe: false,
+                            ddrt: 8.5, ic: 8.5,
+                            paths: ['^/aweme/v1/', '^/aweme/v2/', '/douplus/',
+                                    '/v1/message/', '^/live/', '^/captcha/',
+                                    '^/ecom/', '^/luna/pc']
+                        });
+                    }
+                """)
+                _debug_log("Step 2: SDK re-init OK")
+            except Exception as e:
+                _debug_log(f"Step 2: SDK warning (non-fatal): {e}")
 
         # —— Step 3: 注入设备指纹 ——
         self._page.evaluate("""(fp) => {
@@ -287,8 +322,8 @@ class StealthBrowser:
         }""", FINGERPRINTS)
         _debug_log("Step 3: fingerprints injected")
 
-        self._sdk_ready = True
-        _debug_log("StealthBrowser: Ready")
+        self._sdk_ready = True  # 即使 SDK 有 warning 也标记就绪
+        _debug_log(f"StealthBrowser: Ready (page={self._page is not None})")
         return self._page
 
     def is_ready(self) -> bool:
@@ -337,100 +372,196 @@ class StealthBrowser:
             return {"_error": str(e)}
 
     def close(self):
-        if self._browser:
-            try:
+        try:
+            if self._browser:
                 self._browser.close()
-            except Exception:
-                pass
-            self._browser = None
-        if self._playwright:
-            try:
+        except Exception:
+            pass
+        self._browser = None
+        try:
+            if self._playwright:
                 self._playwright.stop()
-            except Exception:
-                pass
-            self._playwright = None
+        except Exception:
+            pass
+        self._playwright = None
         self._page = None
         self._sdk_ready = False
 
 
 # ═══════════════════════════════════════════════════════════
-# SignServer — 常驻浏览器服务 (server.js 等价)
+# SignerDaemon — 独立线程 HTTP 服务 (server.js 等价)
 # ═══════════════════════════════════════════════════════════
 
-class SignServer:
-    """常驻浏览器 + 线程安全接口"""
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 
-    def __init__(self):
+
+class _SignerHandler(BaseHTTPRequestHandler):
+    """HTTP handler that routes to the StealthBrowser instance"""
+
+    browser: StealthBrowser = None  # 类变量，由 daemon 设置
+
+    def log_message(self, format, *args):
+        _debug_log(f"[daemon] {args[0]}")
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/health":
+            ready = self.browser and self.browser.is_ready()
+            self._json(200, {"ok": ready, "sdkReady": ready})
+        else:
+            self._json(404, {"_error": "not_found"})
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        try:
+            if parsed.path == "/video":
+                aweme_id = params.get("aweme_id", [""])[0]
+                if not aweme_id:
+                    self._json(400, {"_error": "missing aweme_id"})
+                    return
+                if not self.browser or not self.browser.is_ready():
+                    self._json(503, {"_error": "browser_not_ready"})
+                    return
+                result = self.browser.fetch_video(aweme_id)
+                self._json(200, result)
+
+            elif parsed.path == "/call":
+                url = params.get("url", [""])[0]
+                if not url:
+                    self._json(400, {"_error": "missing url"})
+                    return
+                if not self.browser or not self.browser.is_ready():
+                    self._json(503, {"_error": "browser_not_ready"})
+                    return
+                result = self.browser.call_api(url)
+                self._json(200, result)
+
+            else:
+                self._json(404, {"_error": "not_found"})
+
+        except Exception as e:
+            _debug_log(f"[daemon] handler error: {e}")
+            self._json(500, {"_error": str(e)})
+
+    def _json(self, status: int, data: dict):
+        import json as _json
+        body = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+class SignerDaemon:
+    """独立线程 HTTP 服务：管理 playwright 浏览器 + 提供 HTTP API"""
+
+    def __init__(self, port: int = 18765):
+        self._port = port
         self._browser: Optional[StealthBrowser] = None
-        self._lock = threading.Lock()
-        self._port = 18765  # 保留兼容
+        self._server: Optional[HTTPServer] = None
+        self._thread: Optional[threading.Thread] = None
         self._running = False
+        self._lock = threading.Lock()
 
     def start(self, cookie_str: str = "") -> bool:
         with self._lock:
-            if self._browser and self._browser.is_ready():
+            if self._running:
                 return True
 
             browser_path = BrowserFinder.find()
             if not browser_path:
-                _debug_log("SignServer: no browser found")
+                _debug_log("SignerDaemon: no browser found")
                 return False
 
             try:
+                _debug_log("SignerDaemon: launching browser...")
                 self._browser = StealthBrowser(browser_path, headless=True)
-                self._browser.start(cookie_str=cookie_str)
-                self._running = True
-                return True
+                self._browser.start(cookie_str=cookie_str, timeout_ms=90000)
             except Exception as e:
-                _debug_log(f"SignServer.start failed: {e}")
-                self._running = False
+                _debug_log(f"SignerDaemon: browser launch failed: {e}")
                 return False
+
+            # 启动 HTTP server
+            import socket
+            actual_port = self._port
+            for p in range(self._port, self._port + 50):
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                try:
+                    s.bind(("127.0.0.1", p))
+                    s.close()
+                    actual_port = p
+                    break
+                except OSError:
+                    s.close()
+            else:
+                _debug_log("SignerDaemon: no available port")
+                self._browser.close()
+                return False
+
+            _SignerHandler.browser = self._browser
+            self._server = HTTPServer(("127.0.0.1", actual_port), _SignerHandler)
+            self._port = actual_port
+
+            self._thread = threading.Thread(
+                target=self._serve, daemon=True, name="signer-daemon")
+            self._thread.start()
+            self._running = True
+
+            _debug_log(f"SignerDaemon: listening on http://127.0.0.1:{actual_port}")
+            return True
+
+    def _serve(self):
+        try:
+            self._server.serve_forever(poll_interval=0.5)
+        except Exception as e:
+            _debug_log(f"SignerDaemon: serve error: {e}")
 
     def is_ready(self) -> bool:
         with self._lock:
-            return self._browser is not None and self._browser.is_ready()
+            return (self._running
+                    and self._browser is not None
+                    and self._browser.is_ready())
 
     @property
     def ready(self) -> bool:
         return self.is_ready()
 
-    def call(self, endpoint: str, **params) -> dict:
-        """统一调用接口（对齐原 call_server）"""
-        with self._lock:
-            if not self.is_ready():
-                # 自动启动
-                cookie = _load_cookie_raw()
-                if not self.start(cookie_str=cookie):
-                    return {"_error": "sign_server_unavailable"}
-
-            try:
-                if endpoint == "video":
-                    return self._browser.fetch_video(params.get("aweme_id", ""))
-                elif endpoint == "call":
-                    return self._browser.call_api(params.get("url", ""))
-                else:
-                    return {"_error": f"unknown endpoint: {endpoint}"}
-            except Exception as e:
-                _debug_log(f"SignServer.call({endpoint}) error: {e}")
-                # 浏览器死了，标记重连
-                self._browser = None
-                self._running = False
-                return {"_error": str(e)}
-
-    def stop(self):
-        with self._lock:
-            if self._browser:
-                self._browser.close()
-                self._browser = None
-            self._running = False
-
     @property
     def port(self) -> int:
         return self._port
 
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self._port}"
 
-# 全局单例
-_sign_server = SignServer()
+    def stop(self):
+        with self._lock:
+            if self._server:
+                try:
+                    self._server.shutdown()
+                except Exception:
+                    pass
+                self._server = None
+            if self._browser:
+                try:
+                    self._browser.close()
+                except Exception:
+                    pass
+                self._browser = None
+            self._running = False
+            _debug_log("SignerDaemon: stopped")
+
+
+# ── 全局单例 ──
+_signer_daemon = SignerDaemon()
+
+
+def get_signer() -> SignerDaemon:
+    return _signer_daemon
 
 
 # ═══════════════════════════════════════════════════════════
@@ -439,10 +570,7 @@ _sign_server = SignServer()
 
 def one_shot_fetch(aweme_id: str, cookie_str: str = "",
                    timeout_ms: int = 60000) -> dict:
-    """
-    一次性：启动浏览器 → 调 API → 关浏览器。
-    完全对齐 bootstrap.js 的流程。
-    """
+    """一次性：启动浏览器 → 调 API → 关浏览器"""
     _debug_log(f"one_shot_fetch: {aweme_id[:12]}...")
 
     browser_path = BrowserFinder.find()
@@ -464,23 +592,16 @@ def one_shot_fetch(aweme_id: str, cookie_str: str = "",
         browser.close()
 
 
-# ═══════════════════════════════════════════════════════════
-# 公共 API（供 webview_api.py / server.py 调用）
-# ═══════════════════════════════════════════════════════════
-
-def get_signer() -> SignServer:
-    return _sign_server
-
-
 def fetch_video_detail(aweme_id: str, cookie_str: str = "") -> dict:
-    """
-    获取视频详情。优先走常驻服务，失败则走一次性调用。
-    """
-    if _sign_server.is_ready():
-        result = _sign_server.call("video", aweme_id=aweme_id)
-        if "_error" not in result:
-            return result
+    """获取视频详情。优先走常驻 daemon，失败则走一次性调用"""
+    if _signer_daemon.is_ready():
+        import requests as _r
+        try:
+            r = _r.post(
+                f"{_signer_daemon.url}/video?aweme_id={aweme_id}",
+                timeout=60)
+            return r.json()
+        except Exception:
+            pass
 
-    # 回退到 one-shot
-    _debug_log(f"fallback to one_shot_fetch for {aweme_id}")
     return one_shot_fetch(aweme_id, cookie_str=cookie_str)

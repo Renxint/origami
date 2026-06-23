@@ -2,13 +2,14 @@
 """
 Origami v2 — 抖音 API 代理
 
-通过 Playwright（真实 Chrome/Edge）调用抖音 API，替代 Node.js sign-server。
-所有接口保持旧签名不变，上层调用方无需修改。
+通过独立线程的 Playwright HTTP Daemon 调用抖音 API。
+架构与旧版 Node.js sign-server 完全相同：Python → HTTP → Daemon → 浏览器。
+这样 playwright 的浏览器完全隔离在独立线程中，不碰 Qt 的事件循环。
 """
 
-import json
+import os
 import time
-from pathlib import Path
+import requests as _req
 
 from src.environ import COOKIE_FILE, EXE_DIR, CREATE_NO_WINDOW
 from src.signer import (
@@ -21,47 +22,44 @@ from src.signer import (
 # 内部工具
 # ═══════════════════════════════════════════════════════════
 
+def _daemon_url() -> str:
+    return get_signer().url
+
+
 def _call_api(url: str, timeout: float = 20) -> dict:
-    """通过 Playwright 浏览器调用 API（替代旧 Node.js api-call.js）"""
+    """通过 HTTP Daemon 调用 API（替代旧 Node.js api-call.js）"""
     if not COOKIE_FILE.exists():
         return {"_error": "not_logged_in"}
 
     signer = get_signer()
-    result = signer.call("call", url=url)
-    if "_error" in result and "unavailable" in str(result.get("_error", "")):
-        # 回退到 one-shot
-        cookie = _load_cookie_raw()
-        if not cookie:
-            return {"_error": "no_cookie"}
-        browser_path = BrowserFinder.find()
-        if not browser_path:
-            return {"_error": "no_browser_found"}
-        from src.signer import StealthBrowser
-        browser = StealthBrowser(browser_path, headless=True)
+    if signer.is_ready():
         try:
-            browser.start(cookie_str=cookie)
-            return browser.call_api(url)
+            r = _req.post(
+                f"{_daemon_url()}/call?url={url}",
+                timeout=timeout)
+            return r.json()
         except Exception as e:
-            return {"_error": str(e)}
-        finally:
-            browser.close()
-    return result
+            _debug_log(f"_call_api HTTP failed: {e}")
+
+    # 回退到 one-shot
+    cookie = _load_cookie_raw()
+    if not cookie:
+        return {"_error": "no_cookie"}
+    return one_shot_fetch(url.split("aweme_id=")[-1].split("&")[0]
+                         if "aweme_id" in url else "", cookie)
 
 
 def _call_api_signed(cursor: int = 0, timeout: float = 60) -> dict:
     """收藏列表 API（替代旧 Node.js api-signed.js）"""
-    signer = get_signer()
-    result = signer.call("call", url=(
-        f"https://www.douyin.com/aweme/v1/web/aweme/favorite/list/item/?"
-        f"cursor={cursor}&count=18"
-        f"&device_platform=webapp&aid=6383&version_code=290100"
-        f"&version_name=29.1.0&cookie_enabled=true"
-    ))
-    return result
+    url = (f"https://www.douyin.com/aweme/v1/web/aweme/favorite/list/item/?"
+           f"cursor={cursor}&count=18"
+           f"&device_platform=webapp&aid=6383&version_code=290100"
+           f"&version_name=29.1.0&cookie_enabled=true")
+    return _call_api(url, timeout=timeout)
 
 
 # ═══════════════════════════════════════════════════════════
-# 常驻服务管理（线程安全）
+# 常驻服务管理
 # ═══════════════════════════════════════════════════════════
 
 def _is_server_ready():
@@ -69,63 +67,93 @@ def _is_server_ready():
 
 
 def _kill_orphan_nodes():
-    """启动时清理残留 Node 进程（v2: 无 Node，仅保留兼容接口）"""
+    """v2: 无 Node 进程，仅保留兼容接口"""
     pass
 
 
 def _kill_sign_port():
-    """清理端口（v2: 无 Node 监听端口，仅保留兼容接口）"""
+    """v2: 无 Node 端口，仅保留兼容接口"""
     pass
 
 
 def start_server():
-    """启动常驻 Playwright 浏览器服务（对齐旧 start_server）"""
-    _debug_log("=== start_server() called (playwright) ===")
+    """启动 Playwright HTTP Daemon（独立线程，不在 Qt 线程内）"""
+    _debug_log("=== start_server() called (playwright daemon) ===")
 
     signer = get_signer()
     if signer.is_ready():
-        _debug_log("fast path: signer already running")
+        _debug_log("fast path: daemon already running")
         return True
 
+    _kill_orphan_nodes()
+
     cookie = _load_cookie_raw()
-    return signer.start(cookie_str=cookie)
+    ok = signer.start(cookie_str=cookie)
+    _debug_log(f"daemon start: {ok}")
+    return ok
 
 
 def stop_server():
-    """关闭常驻浏览器（对齐旧 stop_server）"""
+    """关闭 HTTP Daemon + 浏览器"""
     get_signer().stop()
 
 
 def call_server(endpoint: str, **params) -> dict:
-    """调用常驻服务端点（对齐旧 call_server，内置懒启动）"""
+    """调用常驻服务端点（对齐旧 call_server，内置懒启动+重试）"""
     signer = get_signer()
 
     for attempt in (1, 2, 3):
         if not signer.is_ready():
-            _debug_log(f"attempt {attempt}: not ready, starting...")
+            _debug_log(f"call_server attempt {attempt}: daemon not ready, starting...")
             cookie = _load_cookie_raw()
             signer.start(cookie_str=cookie)
-            # 等浏览器就绪
-            for i in range(33):
+            # 等 daemon 就绪
+            for i in range(40):
                 if signer.is_ready():
-                    _debug_log(f"ready after {i+1} checks")
+                    _debug_log(f"daemon ready after {i+1} checks")
                     break
                 time.sleep(1 if i < 5 else 2)
             else:
-                _debug_log("WARN: signer not ready after 60s")
+                _debug_log("WARN: daemon not ready after 60s")
                 if attempt < 3:
                     signer.stop()
                     time.sleep(1)
                     continue
+                return {"_error": "sign_server_timeout"}
 
-        result = signer.call(endpoint, **params)
-        if "_error" in result:
-            _debug_log(f"signer error: {result['_error'][:200]}")
+        try:
+            if endpoint == "video":
+                aweme_id = params.get("aweme_id", "")
+                r = _req.post(
+                    f"{_daemon_url()}/video?aweme_id={aweme_id}",
+                    timeout=60)
+                result = r.json()
+            elif endpoint == "call":
+                url = params.get("url", "")
+                r = _req.post(
+                    f"{_daemon_url()}/call?url={url}",
+                    timeout=30)
+                result = r.json()
+            else:
+                return {"_error": f"unknown endpoint: {endpoint}"}
+
+            if "_error" in result:
+                _debug_log(f"daemon error: {result['_error'][:200]}")
+                if "browser" in str(result.get("_error", "")).lower() and attempt < 3:
+                    _debug_log(f"retry {attempt+1}/3...")
+                    signer.stop()
+                    time.sleep(2)
+                    continue
+            return result
+
+        except Exception as e:
+            _debug_log(f"call_server HTTP failed: {e}")
             if attempt < 3:
                 _debug_log(f"retry {attempt+1}/3...")
+                signer.stop()
                 time.sleep(1)
                 continue
-        return result
+            return {"_error": str(e)}
 
     return {"_error": "sign_server_connection_failed"}
 
@@ -173,10 +201,14 @@ def get_user_profile(sec_uid: str) -> dict:
 
 
 def _get_avatar(user: dict) -> str:
-    for key in ("avatar_300_url", "avatar_url", "avatar_medium_url", "avatar_thumb_url"):
+    for key in ("avatar_larger", "avatar_300x300", "avatar_168x168",
+                "avatar_medium", "avatar_thumb",
+                "avatar_300_url", "avatar_url", "avatar_medium_url", "avatar_thumb_url"):
         val = user.get(key, "")
         if isinstance(val, dict):
             val = (val.get("url_list") or [""])[0]
+        if isinstance(val, (list, tuple)):
+            val = val[0] if val else ""
         if val and isinstance(val, str) and val.startswith("http"):
             return val
     return ""
@@ -190,7 +222,6 @@ def get_user_likes(sec_uid: str, max_cursor: int = 0, count: int = 18) -> dict:
 
 
 def get_favorite_collections(cursor: int = 0) -> dict:
-    """获取收藏夹列表（v2: 通过 playwright 浏览器）"""
     return _call_api(
         f"https://www.douyin.com/aweme/v1/web/favorite/list/?"
         f"cursor={cursor}&count=20"
