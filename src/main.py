@@ -200,46 +200,79 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
         try: downloaded_ids = set(_json.loads(tracker_file.read_text(encoding="utf-8")))
         except: pass
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading as _thr
+    _stats_lock = _thr.Lock()
+
     stats = {"ok":0,"fail":0,"skip":0}
     _orig_total = author.post_count or len(all_items)
+
+    # 第一步：收集所有下载任务
+    tasks = []  # (url, path, aweme_id)
+    _skip_ids = set()
+
     for i, item in enumerate(all_items):
         aweme_id = item.item_id; desc = clean_name(item.title or aweme_id, 30)
         short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
         _oi = item.extra.get("_orig_idx", i)
-        pos = f"{_orig_total - _oi:04d}_{short}_"; num = f"{i+1:03d}"
+        pos = f"{_orig_total - _oi:04d}_{short}_"
         if aweme_id in downloaded_ids:
-            if any(author_dir.glob(f"*_{short}_*")): stats["skip"] += 1; continue
+            if any(author_dir.glob(f"*_{short}_*")): stats["skip"] += 1; _skip_ids.add(aweme_id); continue
             else: downloaded_ids.discard(aweme_id)
-        print(f"[{num}/{len(all_items)}] {_s(desc, 30)}...")
-        # 调 fetch_media 获取无水印 URL（CDN 链需即时使用）
+        # 获取无水印数据
         try:
             media = adapter.fetch_media(aweme_id)
             aw = media.extra.get("aweme", {})
         except Exception:
             aw = item.extra.get("aweme", {})
-        downloaded = False
         video = aw.get("video"); images = aw.get("images") or []
         if video and not images:
             url = pick_best_video_url(video)
-            if url and download_file(url, author_dir / f"{pos}{desc}.mp4"): stats["ok"] += 1; downloaded = True
-            else: stats["fail"] += 1
+            if url: tasks.append((url, author_dir / f"{pos}{desc}.mp4", aweme_id))
         elif images:
             for j, img in enumerate(images):
                 urls = img.get("url_list",[])
                 img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
-                is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
-                live_tag = "_实况" if is_live else ""
-                if img_url and download_file(img_url, author_dir / f"{pos}{j+1}{live_tag}.jpg"): stats["ok"] += 1; downloaded = True
-                else: stats["fail"] += 1
-                if is_live:
-                    lv = img.get("video") or {}
-                    live_url = next((u for url_lst in (
-                        lv.get("play_addr",{}).get("url_list",[]),
-                        lv.get("play_addr_h264",{}).get("url_list",[]),
-                        lv.get("download_addr",{}).get("url_list",[]),
-                    ) for u in (url_lst or [])), None)
-                    if live_url and download_file(live_url, author_dir / f"{pos}{j+1}{live_tag}.mp4"): stats["ok"] += 1; downloaded = True
-        if downloaded: downloaded_ids.add(aweme_id)
+                if img_url:
+                    is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
+                    live_tag = "_实况" if is_live else ""
+                    tasks.append((img_url, author_dir / f"{pos}{j+1}{live_tag}.jpg", aweme_id))
+                    if is_live:
+                        lv = img.get("video") or {}
+                        live_url = next((u for url_lst in (
+                            lv.get("play_addr",{}).get("url_list",[]),
+                            lv.get("play_addr_h264",{}).get("url_list",[]),
+                        ) for u in (url_lst or [])), None)
+                        if live_url:
+                            tasks.append((live_url, author_dir / f"{pos}{j+1}{live_tag}.mp4", aweme_id))
+
+    print(f"[*] 共 {len(tasks)} 个下载任务，并发执行...")
+
+    # 第二步：多线程并发下载
+    _downloaded = set()
+    _total_tasks = len(tasks)
+    _done = [0]
+
+    def _dl_one(task):
+        url, path, awid = task
+        ok = download_file(url, path)
+        with _stats_lock:
+            _done[0] += 1
+            if ok:
+                stats["ok"] += 1
+                _downloaded.add(awid)
+            else:
+                stats["fail"] += 1
+            if _done[0] % 10 == 0 or _done[0] == _total_tasks:
+                print(f"  进度: {_done[0]}/{_total_tasks}")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(_dl_one, t) for t in tasks]
+        for f in as_completed(futures):
+            f.result()  # 传播异常
+
+    downloaded_ids.update(_downloaded)
+    downloaded_ids.difference_update(_skip_ids)
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
 
     lines = [f"# {name}", "", f"共 {len(all_items)} 个作品", ""]

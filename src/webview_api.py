@@ -83,21 +83,13 @@ def _kill_sign_port():
 
 
 def start_server():
-    """启动 Playwright HTTP Daemon（独立线程）"""
-    _debug_log("=== start_server() called (playwright daemon) ===")
-    signer = get_signer()
-    if signer.is_ready():
-        _debug_log("fast path: daemon already running")
-        return True
-    cookie = _load_cookie_raw()
-    ok = signer.start(cookie_str=cookie)
-    _debug_log(f"daemon start: {ok}")
-    return ok
+    """已废弃：纯 HTTP 不需要 daemon。保留接口兼容。"""
+    return True
 
 
 def stop_server():
-    """关闭 HTTP Daemon + 浏览器"""
-    get_signer().stop()
+    """已废弃：纯 HTTP 不需要 daemon。保留接口兼容。"""
+    pass
 
 
 def call_server(endpoint: str, **params) -> dict:
