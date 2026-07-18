@@ -22,16 +22,12 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 # ── 安全输出：过滤 emoji ──
-_EMOJI_RE = re.compile(
-    "[" "\U0001F300-\U0001F9FF" "\U0001FA00-\U0001FAFF"
-    "\U00002702-\U000027B0" "\U000024C2-\U0001F251"
-    "\U0001F900-\U0001F9FF" "\U0001F600-\U0001F64F"
-    "\U0001F680-\U0001F6FF" "\U0001F1E0-\U0001F1FF"
-    "\U00002600-\U000026FF" "\U00002B50-\U00002B55"
-    "\U0001F004-\U0001F0CF" "]+", flags=re.UNICODE)
 
 def _s(s, n=0):
-    r = _EMOJI_RE.sub("", str(s))
+    s = str(s)
+    # 过滤 GBK 不支持的字符: emoji, 变体选择器, ZWJ
+    r = ''.join(c for c in s if ord(c) < 0x10000 and ord(c) not in (
+        0xFE0F, 0x200D, 0xFE00, 0xFE01, 0xFE02, 0xFE03, 0xFE04))
     return r[:n] if n and len(r) > n else r
 
 
