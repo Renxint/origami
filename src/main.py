@@ -443,8 +443,8 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
                         lv = img.get("video") or {}
                         live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
                         if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4", aweme_id))
-            tag = f"图集({len(images)}图)" + (f" 含{live_count}实况" if live_count else "")
-            catalog_lines.append(f"{idx}. [{tag}] {item.title or aweme_id}")
+            type_tag = f"图集({len(images)}图)" + (f" 含{live_count}实况" if live_count else "")
+            catalog_lines.append(f"{idx}. [{type_tag}] {item.title or aweme_id}")
         else:
             catalog_lines.append(f"{idx}. [未知] {item.title or aweme_id}")
 

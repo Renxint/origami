@@ -314,7 +314,11 @@ class DouyinAdapter(PlatformAdapter):
 
     def fetch_user_collection(self, cookie: str = "",
                                cursor: int = 0, count: int = 18) -> dict:
-        """翻页获取当前登录用户的收藏作品列表（POST，仅自己可见）"""
+        """翻页获取当前登录用户的收藏作品列表（POST，仅自己可见）
+
+        同时拉取 disabled_item_ids（图集/实况等非视频类型），
+        通过 aweme/detail 端点逐个获取完整数据。
+        """
         import requests as _r
         cookie = cookie or self._load_cookie()
         resp = _r.post(
@@ -340,6 +344,14 @@ class DouyinAdapter(PlatformAdapter):
                 author=aw.get("author", {}).get("nickname", ""),
                 extra={"aweme": aw},
             ))
+        # 拉取 disabled 作品（图集/实况等，API 不返回在 aweme_list 中）
+        disabled_ids = data.get("disabled_item_ids", []) or []
+        for did in disabled_ids:
+            try:
+                media = self.fetch_media(did, cookie)
+                items.append(media)
+            except Exception:
+                pass  # 作品已删除或不可访问，跳过
         return {
             "items": items,
             "has_more": bool(data.get("has_more", 0)),
