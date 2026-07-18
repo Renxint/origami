@@ -42,13 +42,15 @@ CRASH_LOG       = EXE_DIR / "_crash.log"
 COOKIE_FILE     = BASE_DIR / "data" / "Cookie.txt"
 CONFIG_FILE     = BASE_DIR / "data" / "config.json"
 
-# 输出目录
+# 输出目录 — 按平台分子目录，方便多平台扩展
+_PLATFORM       = "抖音"
 OUTPUT_BASE     = EXE_DIR / "output"
-OUTPUT_SINGLE   = OUTPUT_BASE / "单作品"
-OUTPUT_BATCH    = OUTPUT_BASE / "批量作品"
+OUTPUT_SINGLE   = OUTPUT_BASE / _PLATFORM / "单作品"
+OUTPUT_BATCH    = OUTPUT_BASE / _PLATFORM / "批量作品"
 OUTPUT_OWN      = OUTPUT_BATCH / "用户目录"     # 自己主页
 OUTPUT_OTHER    = OUTPUT_BATCH / "他人目录"     # 别人主页
 OUTPUT_HOMEPAGE = OUTPUT_OTHER                 # 向后兼容
+OUTPUT_MUSIC    = OUTPUT_BASE / _PLATFORM / "音乐"
 
 # API Server
 API_PORT = 8765

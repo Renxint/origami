@@ -3,27 +3,39 @@
 Origami v2 — 入口
 
 用法:
-    python -m src.main server            启动 API Server
+    python -m src.main server             启动 API Server
     python -m src.main server --port 8765 指定端口
-    python -m src.main cli single <url>   命令行单视频下载 (M3)
-    python -m src.main cli batch <url>    命令行批量下载 (M3)
+    python -m src.main cli <mode> <url>   命令行下载
+    python -m src.main login              扫码登录
 """
 
 import sys
 import os
+import re
+import time
 import warnings
 
-# 静默 playwright 关闭时的 EPIPE 噪音
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
-# 确保项目根在 sys.path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# ── 安全输出：过滤 emoji ──
+_EMOJI_RE = re.compile(
+    "[" "\U0001F300-\U0001F9FF" "\U0001FA00-\U0001FAFF"
+    "\U00002702-\U000027B0" "\U000024C2-\U0001F251"
+    "\U0001F900-\U0001F9FF" "\U0001F600-\U0001F64F"
+    "\U0001F680-\U0001F6FF" "\U0001F1E0-\U0001F1FF"
+    "\U00002600-\U000026FF" "\U00002B50-\U00002B55"
+    "\U0001F004-\U0001F0CF" "]+", flags=re.UNICODE)
+
+def _s(s, n=0):
+    r = _EMOJI_RE.sub("", str(s))
+    return r[:n] if n and len(r) > n else r
+
 
 def cmd_server(args: list[str]):
-    """启动本地 HTTP + WebSocket API Server"""
     from src.server import run_server
     port = 0
     for i, a in enumerate(args):
@@ -33,445 +45,417 @@ def cmd_server(args: list[str]):
 
 
 def cmd_cli(args: list[str]):
-    """命令行下载"""
+    MODES = "single | batch | like | collection | music"
     if not args:
-        print("用法: python -m src.main cli <single|batch> <url>")
-        print()
-        print("  例: python -m src.main cli single \"https://v.douyin.com/xxx/\"")
-        print("  例: python -m src.main cli batch  \"https://www.douyin.com/user/MS4wLjAB...\"")
-        print()
-        print("  可选参数:")
-        print("    --count N       批量下载数量 (默认全部)")
-        print("    --dir  PATH     保存目录")
-        print("    --images 1,3,5  单作品图集：只下载指定序号 (如 1,3,5-8)")
+        print(f"用法: python -m src.main cli <{MODES}> <url>")
+        for m, desc in [("single","单作品"),("batch","批量主页"),("like","喜欢列表"),
+                        ("collection","收藏列表"),("music","收藏音乐")]:
+            print(f"  {m:<12} {desc}")
+        print("\n  可选参数:  --count N  --dir PATH  --images 1,3,5")
         return
 
-    mode = args[0]
-    url = ""
-    count = 0
-    save_dir = ""
-
+    mode = args[0]; url = ""; count = 0; save_dir = ""
     i = 1
     while i < len(args):
-        if args[i] == "--count" and i + 1 < len(args):
-            count = int(args[i + 1]); i += 2
-        elif args[i] == "--dir" and i + 1 < len(args):
-            save_dir = args[i + 1]; i += 2
-        elif not url:
-            url = args[i]; i += 1
-        else:
-            i += 1
+        if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
+        elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
+        elif not url: url = args[i]; i += 1
+        else: i += 1
 
-    if not url:
-        print("请提供链接")
-        return
+    if not url: return print("请提供链接")
 
-    if mode == "single":
-        _cli_single(url, save_dir, args)
-    elif mode == "batch":
-        _cli_batch(url, count, save_dir)
-    else:
-        print(f"未知模式: {mode}，可用: single | batch")
+    if mode == "single": _cli_single(url, save_dir, args)
+    elif mode == "batch": _cli_batch(url, count, save_dir)
+    elif mode == "like": _cli_like(url, count, save_dir)
+    elif mode == "collection": _cli_collection(url, count, save_dir)
+    elif mode == "music": _cli_music(url, count, save_dir)
+    else: print(f"未知模式: {mode}，可用: {MODES}")
 
+
+# ══════════ CLI — 单作品 ══════════
 
 def _cli_single(url: str, save_dir: str = "", args: list = None):
-    """CLI 单视频下载"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
     from src.utils import clean_name
     from src.environ import OUTPUT_SINGLE
 
-    # 解析 --images 参数
     img_filter = None
     if args:
         for j, a in enumerate(args):
-            if a == "--images" and j + 1 < len(args):
-                img_filter = _parse_image_range(args[j + 1])
-                break
+            if a == "--images" and j+1 < len(args):
+                img_filter = _parse_image_range(args[j+1]); break
 
     out = Path(save_dir) if save_dir else OUTPUT_SINGLE
     out.mkdir(parents=True, exist_ok=True)
 
-    print(f"[*] 解析链接: {url[:60]}...")
+    print(f"[*] 解析链接: {_s(url, 60)}...")
     adapter = DouyinAdapter()
     item_id = adapter.resolve_url(url)
     print(f"[OK] 视频ID: {item_id}")
 
     print("[*] 获取作品数据...")
     media = adapter.fetch_media(item_id)
-    type_emoji = {"video": "🎬", "image": "🖼️", "gallery": "🖼️", "note": "📝"}
-    emoji = type_emoji.get(media.item_type, "📦")
-    type_cn = {"video": "视频", "image": "单图", "gallery": f"图集({len(media.media_urls)}图)", "note": "文章"}
-    cn = type_cn.get(media.item_type, media.item_type)
-    print(f"[OK] {media.title[:40]}  by {media.author}")
-    print(f"     {emoji} {cn}")
+    tag = {"video":"[视频]","image":"[图片]","gallery":f"[图集 x{len(media.media_urls)}]","note":"[文章]"}.get(media.item_type,"[?]")
+    print(f"[OK] {_s(media.title, 40)}  by {_s(media.author)}")
+    print(f"     {tag}")
+    if img_filter:
+        print(f"     筛选: {len(img_filter)}/{len(media.media_urls)} 张")
 
-    selected = list(enumerate(media.media_urls))
-    if img_filter is not None:
-        selected = [(i, u) for i, u in selected if i in img_filter]
-        print(f"     筛选: {len(selected)}/{len(media.media_urls)} 张")
-
-    # 建子目录（和 GUI 一致：作者（标题）/）
     safe_author = clean_name(media.author, 20)
     safe_title = clean_name(media.title or item_id, 40)
     post_dir = out / f"{safe_author}（{safe_title}）"
     post_dir.mkdir(parents=True, exist_ok=True)
 
     if media.item_type == "note":
-        # 文章：保存文本内容
-        text = media.text_content or media.title
-        (post_dir / "article.md").write_text(
-            f"# {media.title or item_id}\n\n> 作者：{media.author}\n\n{text}", encoding="utf-8")
-        print(f"[OK] 文章已保存: {post_dir / 'article.md'}")
-        print(f"     字数: {len(text)}")
+        (post_dir / "article.txt").write_text(media.text_content or media.title, encoding="utf-8")
+        print(f"[OK] 文章已保存: {_s(str(post_dir / 'article.txt'))}")
+        print(f"     字数: {len(media.text_content)}")
     else:
+        selected = list(enumerate(media.media_urls))
+        if img_filter: selected = [(i,u) for i,u in selected if i in img_filter]
+        aweme = media.extra.get("aweme", {})
+        images = aweme.get("images") or []
         for idx, (i, murl) in enumerate(selected):
             ext = ".mp4" if media.item_type == "video" else ".jpg"
             label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
-            fname = f"{label}{ext}"
+            img_data = images[i] if i < len(images) else {}
+            is_live = img_data.get("live_photo_type",0) == 1
+            live_tag = "_实况" if is_live else ""
+            fname = f"{label}{live_tag}{ext}"
             fpath = post_dir / fname
             print(f"[*] 下载 {idx+1}/{len(selected)}: {fname}...")
             ok = download_file(murl, fpath)
-            tag = "OK" if ok else "FAIL"
-            print(f"[{tag}] {fpath}")
-
-        # 写描述文件
+            print(f"[{'OK' if ok else 'FAIL'}] {_s(str(fpath))}")
+            if is_live:
+                lv = img_data.get("video") or {}
+                live_url = next((u for url_lst in (
+                    lv.get("play_addr",{}).get("url_list",[]),
+                    lv.get("play_addr_h264",{}).get("url_list",[]),
+                    lv.get("download_addr",{}).get("url_list",[]),
+                ) for u in (url_lst or [])), None)
+                if live_url:
+                    lpath = post_dir / f"{label}{live_tag}.mp4"
+                    print(f"[*] 实况视频: {label}{live_tag}.mp4...")
+                    lok = download_file(live_url, lpath)
+                    print(f"[{'OK' if lok else 'FAIL'}] {_s(str(lpath))}")
         (post_dir / "desc.txt").write_text(media.title or item_id, encoding="utf-8")
-    print(f"[DONE] 保存到: {post_dir}")
+
+    print(f"[DONE] 保存到: {_s(str(post_dir))}")
 
 
-def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_url):
-    """写 主页简介.md + 下载头像/封面（完全对齐 GUI _write_profile）"""
-    import time as _t
-    import requests as _r
-    from src.environ import USER_AGENT as _UA
-
-    nickname = author.nickname or profile.get("nickname", "")
-    unique_id = profile.get("unique_id", "")
-    short_id = profile.get("short_id", "")
-    uid = profile.get("uid", "")
-    bio = profile.get("desc", "")
-    gender_map = {0: "未设置", 1: "男", 2: "女"}
-    gender = gender_map.get(profile.get("gender", 0), "")
-    age = profile.get("age", -1)
-    region = "-".join(filter(None, [
-        profile.get("country", ""), profile.get("province", ""),
-        profile.get("city", ""), profile.get("district", ""),
-    ])) or "N/A"
-    ip_location = profile.get("ip_location", "")
-    school = profile.get("school", "")
-    verify = profile.get("custom_verify", "") or profile.get("enterprise_verify_reason", "")
-    tags = profile.get("personal_tags", [])
-    birthday_hidden = profile.get("birthday_hide_level", 0)
-    secret = profile.get("secret", 0)
-
-    def _fmt(n):
-        if n is None or n < 0: return "N/A"
-        if n >= 10000: return f"{n/10000:.1f}万"
-        return str(n)
-
-    lines = [
-        f"# {nickname}", "",
-        "## 基本信息", "",
-        f"| 项目 | 内容 |", f"|------|------|",
-        f"| 抖音号 | {unique_id or short_id or 'N/A'} |",
-        f"| UID | {uid} |",
-        f"| 性别 | {gender} |",
-        f"| 年龄 | {age if age > 0 else 'N/A'} |",
-        f"| 地区 | {region} |",
-    ]
-    if ip_location: lines.append(f"| IP属地 | {ip_location} |")
-    if school: lines.append(f"| 学校 | {school} |")
-    if bio: lines.append(f"| 简介 | {bio} |")
-    if tags: lines.append(f"| 标签 | {', '.join(tags)} |")
-    lines.append(f"| 认证 | {verify or '无'} |")
-    if birthday_hidden: lines.append("| 生日 | 已隐藏 |")
-    if secret: lines.append("| 私密账号 | 是 |")
-
-    lines.extend(["", "## 数据统计", "",
-        f"| 项目 | 数值 |", f"|------|------|",
-        f"| 作品 | {author.post_count} |",
-        f"| 粉丝 | {_fmt(author.follower_count)} |",
-        f"| 关注 | {_fmt(profile.get('following_count', 0))} |",
-        f"| 获赞 | {_fmt(profile.get('favoriting_count', 0))} |",
-        f"| 被赞 | {_fmt(profile.get('total_favorited', 0))} |",
-    ])
-
-    lines.extend(["", "## 下载信息", ""])
-    if source_url: lines.append(f"- 主页链接: {source_url}")
-    lines.append(f"- sec_uid: {profile.get('sec_uid', '')}")
-    lines.append(f"- 下载日期: {_t.strftime('%Y-%m-%d %H:%M:%S')}")
-    if avatar_url: lines.append(f"- 头像: {avatar_url}")
-    if cover_url: lines.append(f"- 封面: {cover_url}")
-
-    # 下载头像/封面（需要 Cookie + Referer）
-    _dl_headers = {
-        "User-Agent": _UA,
-        "Referer": "https://www.douyin.com/",
-    }
-    from src.cookie import load_cookie
-    _ck = load_cookie()
-    if _ck:
-        _dl_headers["Cookie"] = _ck
-
-    lines.append("")
-    if avatar_url:
-        try:
-            r = _r.get(avatar_url, headers=_dl_headers, timeout=15)
-            (data_dir / "avatar.jpg").write_bytes(r.content)
-            lines.append("*(头像已保存)*")
-        except Exception as e:
-            lines.append(f"*(头像下载失败: {e})*")
-    if cover_url:
-        try:
-            r = _r.get(cover_url, headers=_dl_headers, timeout=15)
-            (data_dir / "cover.jpg").write_bytes(r.content)
-            lines.append("*(封面已保存)*")
-        except Exception as e:
-            lines.append(f"*(封面下载失败: {e})*")
-
-    (data_dir / "主页简介.md").write_text("\n".join(lines), encoding="utf-8")
-
-
-def _parse_image_range(spec: str) -> set:
-    """解析 --images 参数: '1,3,5-8' → {0, 2, 4, 5, 6, 7}（转为 0-based）"""
-    result = set()
-    for part in spec.split(","):
-        part = part.strip()
-        if "-" in part:
-            a, b = part.split("-", 1)
-            for n in range(int(a.strip()), int(b.strip()) + 1):
-                result.add(n - 1)  # 转为 0-based
-        else:
-            result.add(int(part) - 1)
-    return result
-
+# ══════════ CLI — 批量 ══════════
 
 def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
-    """CLI 批量下载"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
-    from src.utils import clean_name
+    from src.utils import clean_name, pick_best_video_url
     from src.environ import OUTPUT_OTHER, USER_AGENT
-    import time, re, requests as _r
+    import hashlib, requests as _r, json as _json
 
     out = Path(save_dir) if save_dir else OUTPUT_OTHER
     out.mkdir(parents=True, exist_ok=True)
-
     adapter = DouyinAdapter()
 
-    # 从口令文本中提取链接并解析短链
-    print(f"[*] 解析主页: {url[:60]}...")
-    # 1. 提取短链或完整URL
-    short_patterns = [
-        r'https?://v\.douyin\.com/[A-Za-z0-9_\-/]+',
-        r'https?://(?:www\.)?douyin\.com/user/MS4wLjAB[A-Za-z0-9_\-]+',
-        r'https?://(?:www\.)?iesdouyin\.com/share/user/MS4wLjAB[A-Za-z0-9_\-]+',
-    ]
+    print(f"[*] 解析主页: {_s(url, 60)}...")
+    short_pats = [r'https?://v\.douyin\.com/[A-Za-z0-9_\-/]+',
+                  r'https?://(?:www\.)?douyin\.com/user/MS4wLjAB[A-Za-z0-9_\-]+',
+                  r'https?://(?:www\.)?iesdouyin\.com/share/user/MS4wLjAB[A-Za-z0-9_\-]+']
     found = ""
-    for pat in short_patterns:
+    for pat in short_pats:
         m = re.search(pat, url)
-        if m:
-            found = m.group(0)
-            break
-    if not found:
-        print("[ERROR] 未识别抖音主页链接")
-        return
-
-    # 2. 短链 → 302 解析
+        if m: found = m.group(0); break
+    if not found: return print("[ERROR] 未识别抖音主页链接")
     if "v.douyin.com" in found:
-        s = _r.Session()
-        s.headers.update({"User-Agent": USER_AGENT})
-        r = s.get(found, allow_redirects=True, timeout=15, stream=True)
-        r.close()
-        found = r.url
-        print(f"[*] 短链解析: {found[:60]}...")
-
+        s = _r.Session(); s.headers.update({"User-Agent": USER_AGENT})
+        r = s.get(found, allow_redirects=True, timeout=15, stream=True); r.close()
+        found = r.url; print(f"[*] 短链解析: {_s(found, 60)}...")
     sec_uid = adapter.resolve_user_url(found)
     print(f"[OK] sec_uid: {sec_uid[:30]}...")
 
     print("[*] 获取作者信息...")
     author = adapter.fetch_author(sec_uid)
     name = clean_name(author.nickname or sec_uid)
-    print(f"[OK] {author.nickname}  作品: {author.post_count}  粉丝: {author.follower_count}")
-
-    author_dir = out / name
-    author_dir.mkdir(parents=True, exist_ok=True)
-    data_dir = author_dir / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    # 写主页简介 + 下载头像/封面
+    print(f"[OK] {author.nickname}  作品:{author.post_count}  粉丝:{author.follower_count}")
+    author_dir = out / name; data_dir = author_dir / "data"; data_dir.mkdir(parents=True, exist_ok=True)
     profile = author.extra.get("profile", {})
-    from src.api import _get_avatar
-    avatar_url = _get_avatar(profile)
-    # cover_url 可能是 string / list[dict] / dict → 统一提取
-    cover_url = ""
-    for _ck in ("cover_url", "white_cover_url"):
-        _cv = profile.get(_ck, "")
-        if isinstance(_cv, str) and _cv.startswith("http"):
-            cover_url = _cv; break
-        if isinstance(_cv, list) and _cv:
-            _cu = (_cv[0].get("url_list") or [""])[0] if isinstance(_cv[0], dict) else ""
-            if _cu: cover_url = _cu; break
-        if isinstance(_cv, dict):
-            _cu = (_cv.get("url_list") or [""])[0]
-            if _cu: cover_url = _cu; break
-    _write_profile_md(data_dir, author, profile, avatar_url, cover_url, found)
+    _write_profile_md(data_dir, author, profile, "", "", found)
 
     print("[*] 翻页获取作品列表...")
-    all_items = []
-    cursor = 0
-    page = 0
-    while page < 100:
+    all_items = []; cursor = 0; page = 0
+    while True:
         data = adapter.fetch_posts(sec_uid, max_cursor=cursor, count=18)
         items = data.get("items", [])
-        if not items:
-            break
-        all_items.extend(items)
-        page += 1
+        if not items: break
+        all_items.extend(items); page += 1
         print(f"  页{page}: +{len(items)}  累计{len(all_items)}")
-        if max_count and len(all_items) >= max_count:
-            all_items = all_items[:max_count]
-            break
-        if not data.get("has_more"):
-            break
+        if max_count and len(all_items) >= max_count: all_items = all_items[:max_count]; break
+        if not data.get("has_more"): break
         cursor = data.get("next_cursor", 0)
-        time.sleep(0.5)
-
-    # 标记原始序号（翻页顺序，0=最新）
-    for _i, _it in enumerate(all_items):
-        _it.extra["_orig_idx"] = _i
-
+        if not cursor: break; time.sleep(0.2)
+    for _i, _it in enumerate(all_items): _it.extra["_orig_idx"] = _i
     print(f"[OK] 共 {len(all_items)} 个作品")
 
-    # 对齐 GUI 扁平结构：{pos}_{hash}_{index}.jpg
-    # 编号基于作者实际作品总数，而非本次下载数量
-    import hashlib
-    import json as _json
-    from src.utils import pick_best_video_url
-
-    # 加载/创建下载追踪
     tracker_file = data_dir / ".downloaded.json"
     downloaded_ids = set()
     if tracker_file.exists():
-        try:
-            downloaded_ids = set(_json.loads(tracker_file.read_text(encoding="utf-8")))
-        except Exception:
-            pass
+        try: downloaded_ids = set(_json.loads(tracker_file.read_text(encoding="utf-8")))
+        except: pass
 
-    stats = {"ok": 0, "fail": 0, "skip": 0}
+    stats = {"ok":0,"fail":0,"skip":0}
     _orig_total = author.post_count or len(all_items)
-
     for i, item in enumerate(all_items):
-        aweme_id = item.item_id
-        desc = clean_name(item.title or aweme_id, 30)
+        aweme_id = item.item_id; desc = clean_name(item.title or aweme_id, 30)
         short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
         _oi = item.extra.get("_orig_idx", i)
-        pos = f"{_orig_total - _oi:04d}_{short}_"  # GUI 格式
-        num = f"{i+1:03d}"
-
-        # 跳过已下载
+        pos = f"{_orig_total - _oi:04d}_{short}_"; num = f"{i+1:03d}"
         if aweme_id in downloaded_ids:
-            any_file = any(author_dir.glob(f"*_{short}_*"))
-            if any_file:
-                stats["skip"] += 1
-                print(f"[{num}/{len(all_items)}] [跳过] {item.title[:30]}")
-                continue
-            else:
-                downloaded_ids.discard(aweme_id)
-
-        print(f"[{num}/{len(all_items)}] {item.title[:30]}...")
-
-        # 获取无水印详情
-        try:
-            media = adapter.fetch_media(aweme_id)
-        except Exception:
-            media = item
-
-        downloaded = False
-        aweme = media.extra.get("aweme", {})
-        video = aweme.get("video")
-        images = aweme.get("images") or []
-
+            if any(author_dir.glob(f"*_{short}_*")): stats["skip"] += 1; continue
+            else: downloaded_ids.discard(aweme_id)
+        print(f"[{num}/{len(all_items)}] {_s(desc, 30)}...")
+        try: media = adapter.fetch_media(aweme_id)
+        except: media = item
+        downloaded = False; aw = media.extra.get("aweme",{})
+        video = aw.get("video"); images = aw.get("images") or []
         if video and not images:
             url = pick_best_video_url(video)
-            if url and download_file(url, author_dir / f"{pos}{desc}.mp4"):
-                stats["ok"] += 1
-                downloaded = True
-            else:
-                stats["fail"] += 1
+            if url and download_file(url, author_dir / f"{pos}{desc}.mp4"): stats["ok"] += 1; downloaded = True
+            else: stats["fail"] += 1
         elif images:
             for j, img in enumerate(images):
-                urls = img.get("url_list", [])
-                img_url = urls[-1] if urls else ""
-                if img_url and download_file(img_url, author_dir / f"{pos}{j+1}.jpg"):
-                    stats["ok"] += 1
-                    downloaded = True
-                else:
-                    stats["fail"] += 1
-        elif media.media_urls:
-            for j, murl in enumerate(media.media_urls):
-                ext = ".mp4" if media.item_type == "video" else ".jpg"
-                if download_file(murl, author_dir / f"{pos}{j+1}{ext}"):
-                    stats["ok"] += 1
-                    downloaded = True
-                else:
-                    stats["fail"] += 1
-
-        if downloaded:
-            downloaded_ids.add(aweme_id)
-        else:
-            print(f"  [无资源]")
-
-    # 保存追踪
+                urls = img.get("url_list",[])
+                img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
+                if img_url and download_file(img_url, author_dir / f"{pos}{j+1}.jpg"): stats["ok"] += 1; downloaded = True
+                else: stats["fail"] += 1
+        if downloaded: downloaded_ids.add(aweme_id)
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
 
-    # 写作品目录
     lines = [f"# {name}", "", f"共 {len(all_items)} 个作品", ""]
     for idx, it in enumerate(all_items):
-        aw = it.extra.get("aweme", {})
-        d = clean_name(it.title or it.item_id)
-        v = aw.get("video")
-        imgs = aw.get("images") or []
+        aw = it.extra.get("aweme",{}); d = clean_name(it.title or it.item_id)
+        v = aw.get("video"); imgs = aw.get("images") or []
         typ = "视频" if (v and not imgs) else f"图集({len(imgs)}图)" if imgs else "未知"
         lines.append(f"{idx+1}. [{typ}] {d}")
     (author_dir / f"作品目录_{time.strftime('%Y%m%d_%H%M%S')}.md").write_text("\n".join(lines), encoding="utf-8")
-
     print(f"[DONE] 视频:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
-    print(f"       保存到: {author_dir}")
+    print(f"       保存到: {_s(str(author_dir))}")
 
+
+# ══════════ CLI — like / collection ══════════
+
+def _cli_like(url, max_count=0, save_dir=""):
+    _cli_list_download(url, max_count, save_dir, "like", "喜欢")
+
+def _cli_collection(url, max_count=0, save_dir=""):
+    _cli_list_download(url, max_count, save_dir, "collection", "收藏")
+
+def _cli_list_download(url, max_count, save_dir, mode, tag):
+    from pathlib import Path
+    from src.platforms.douyin import DouyinAdapter
+    from src.downloader import download_file
+    from src.utils import clean_name, pick_best_video_url
+    from src.environ import OUTPUT_OTHER
+    import hashlib, json as _json
+
+    out = Path(save_dir) if save_dir else OUTPUT_OTHER
+    out.mkdir(parents=True, exist_ok=True)
+    adapter = DouyinAdapter()
+    sec_uid = _resolve_user_url(url)
+    print(f"[*] sec_uid: {sec_uid[:30]}...")
+
+    all_items = []; cursor = 0; page = 0
+    while True:
+        data = adapter.fetch_likes(sec_uid, max_cursor=cursor, count=18) if mode == "like" \
+               else adapter.fetch_favorites(sec_uid, max_cursor=cursor, count=18)
+        items = data.get("items", [])
+        if not items: break
+        all_items.extend(items); page += 1
+        total = len(all_items)
+        print(f"  页{page}: +{len(items)}  累计{total}")
+        if max_count and total >= max_count: all_items = all_items[:max_count]; break
+        if not data.get("has_more"): break
+        cursor = data.get("next_cursor", 0)
+        if not cursor: break; time.sleep(0.2)
+    print(f"[OK] 共 {len(all_items)} 个{tag}")
+
+    try: author_info = adapter.fetch_author(sec_uid); author_name = clean_name(author_info.nickname or sec_uid[:12], 30)
+    except: author_name = clean_name(sec_uid[:12], 12)
+    author_dir = out / author_name / tag; data_dir = author_dir / "data"; data_dir.mkdir(parents=True, exist_ok=True)
+
+    tracker_file = data_dir / ".downloaded.json"
+    downloaded_ids = set()
+    if tracker_file.exists():
+        try: downloaded_ids = set(_json.loads(tracker_file.read_text(encoding="utf-8")))
+        except: pass
+
+    stats = {"ok":0,"fail":0,"skip":0}
+    for i, item in enumerate(all_items):
+        aweme_id = item.item_id
+        if aweme_id in downloaded_ids: stats["skip"] += 1; continue
+        short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
+        desc = clean_name(item.title or aweme_id, 30)
+        print(f"[{i+1:03d}/{len(all_items)}] {_s(desc, 30)}...")
+        downloaded = False; aw = item.extra.get("aweme",{})
+        video = aw.get("video"); images = aw.get("images") or []
+        if video and not images:
+            url = pick_best_video_url(video)
+            if url and download_file(url, author_dir / f"{i+1:04d}_{short}_{desc}.mp4"): stats["ok"] += 1; downloaded = True
+            else: stats["fail"] += 1
+        elif images:
+            for j, img in enumerate(images):
+                urls = img.get("url_list",[])
+                img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
+                if img_url and download_file(img_url, author_dir / f"{i+1:04d}_{short}_{j+1:02d}.jpg"): stats["ok"] += 1; downloaded = True
+                else: stats["fail"] += 1
+        if downloaded: downloaded_ids.add(aweme_id)
+    tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
+    print(f"[DONE] {tag}:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
+    print(f"       保存到: {_s(str(author_dir))}")
+
+
+# ══════════ CLI — music ══════════
+
+def _cli_music(url, max_count=0, save_dir=""):
+    from pathlib import Path
+    from src.platforms.douyin import DouyinAdapter
+    from src.downloader import download_file
+    from src.utils import clean_name
+    from src.environ import OUTPUT_MUSIC
+
+    adapter = DouyinAdapter()
+    sec_uid = _resolve_user_url(url)
+    print(f"[*] sec_uid: {sec_uid[:30]}...")
+    try: author_info = adapter.fetch_author(sec_uid); author_name = clean_name(author_info.nickname or sec_uid[:12], 30)
+    except: author_name = clean_name(sec_uid[:12], 12)
+    out = (Path(save_dir) if save_dir else OUTPUT_MUSIC) / author_name / "音乐"
+    out.mkdir(parents=True, exist_ok=True)
+
+    all_items = []; cursor = 0; page = 0
+    while True:
+        data = adapter.fetch_music(sec_uid, max_cursor=cursor, count=18)
+        items = data.get("items", [])
+        if not items: break
+        all_items.extend(items); page += 1
+        total = len(all_items)
+        print(f"  页{page}: +{len(items)}  累计{total}")
+        if max_count and total >= max_count: all_items = all_items[:max_count]; break
+        if not data.get("has_more"): break
+        cursor = data.get("next_cursor", 0)
+        if not cursor: break; time.sleep(0.2)
+    print(f"[OK] 共 {len(all_items)} 首音乐")
+
+    ok = 0
+    for i, m in enumerate(all_items):
+        title = clean_name(m.get("title", m.get("music_id","")), 40)
+        murl = m.get("url","")
+        if not murl: continue
+        ext = ".mp3" if "mp3" in murl.lower() else ".m4a"
+        fname = f"{i+1:03d}_{title}{ext}"
+        fpath = out / fname
+        print(f"[{i+1}/{len(all_items)}] {_s(fname, 60)}...")
+        if download_file(murl, fpath): ok += 1
+    print(f"[DONE] 音乐:{ok}/{len(all_items)}  保存到: {_s(str(out))}")
+
+
+# ══════════ 用户 ID 解析 ══════════
+
+def _resolve_user_url(url: str) -> str:
+    import requests as _r
+    from src.platforms.douyin import DouyinAdapter
+    from src.environ import USER_AGENT
+    adapter = DouyinAdapter()
+    if "/user/self" in url:
+        own_id = adapter.get_own_author_id()
+        if own_id: return own_id
+        raise ValueError("无法获取自己的用户 ID，请检查 Cookie")
+    try: return adapter.resolve_url(url)
+    except: pass
+    if "v.douyin.com" in url:
+        s = _r.Session(); s.headers.update({"User-Agent": USER_AGENT})
+        r = s.get(url, allow_redirects=True, timeout=15, stream=True); r.close(); url = r.url
+    for pat in [r'sec_user_id=([A-Za-z0-9_\-]+)', r'/user/(MS4wLjAB[A-Za-z0-9_\-]+)']:
+        m = re.search(pat, url)
+        if m: return m.group(1)
+    raise ValueError(f"无法从链接中提取用户 ID: {url[:60]}")
+
+
+# ══════════ 辅助 ══════════
+
+def _parse_image_range(spec: str) -> set:
+    result = set()
+    for part in spec.split(","):
+        part = part.strip()
+        if "-" in part:
+            a, b = part.split("-", 1)
+            for n in range(int(a.strip()), int(b.strip())+1): result.add(n-1)
+        else: result.add(int(part)-1)
+    return result
+
+
+def _write_profile_md(data_dir, author, profile, avatar_url, cover_url, source_url):
+    import requests as _r
+    from src.environ import USER_AGENT as _UA
+    nickname = author.nickname or profile.get("nickname","")
+    unique_id = profile.get("unique_id",""); short_id = profile.get("short_id","")
+    uid = profile.get("uid",""); bio = profile.get("desc","")
+    gender = {0:"未设置",1:"男",2:"女"}.get(profile.get("gender",0),"")
+    age = profile.get("age",-1)
+    region = "-".join(filter(None,[profile.get("country",""),profile.get("province",""),profile.get("city",""),profile.get("district","")])) or "N/A"
+    ip_location = profile.get("ip_location",""); school = profile.get("school","")
+    verify = profile.get("custom_verify","") or profile.get("enterprise_verify_reason","")
+    tags = profile.get("personal_tags",[])
+    def _fmt(n):
+        if n is None or n<0: return "N/A"
+        if n>=10000: return f"{n/10000:.1f}万"
+        return str(n)
+    lines = [f"# {nickname}","","## 基本信息","",f"| 项目 | 内容 |",f"|------|------|",
+             f"| 抖音号 | {unique_id or short_id or 'N/A'} |",f"| UID | {uid} |",
+             f"| 性别 | {gender} |",f"| 年龄 | {age if age>0 else 'N/A'} |",f"| 地区 | {region} |"]
+    if ip_location: lines.append(f"| IP属地 | {ip_location} |")
+    if school: lines.append(f"| 学校 | {school} |")
+    if bio: lines.append(f"| 简介 | {bio} |")
+    if tags: lines.append(f"| 标签 | {', '.join(tags)} |")
+    lines.append(f"| 认证 | {verify or '无'} |")
+    lines.extend(["","## 数据统计","",f"| 项目 | 数值 |",f"|------|------|",
+                  f"| 作品 | {author.post_count} |",f"| 粉丝 | {_fmt(author.follower_count)} |",
+                  f"| 关注 | {_fmt(profile.get('following_count',0))} |",
+                  f"| 获赞 | {_fmt(profile.get('favoriting_count',0))} |",
+                  f"| 被赞 | {_fmt(profile.get('total_favorited',0))} |","","## 下载信息",""])
+    if source_url: lines.append(f"- 主页链接: {source_url}")
+    lines.append(f"- sec_uid: {profile.get('sec_uid','')}")
+    lines.append(f"- 下载日期: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    if avatar_url: lines.append(f"- 头像: {avatar_url}")
+    if cover_url: lines.append(f"- 封面: {cover_url}")
+    _dl_headers = {"User-Agent": _UA, "Referer": "https://www.douyin.com/"}
+    from src.cookie import load_cookie; _ck = load_cookie()
+    if _ck: _dl_headers["Cookie"] = _ck
+    lines.append("")
+    if avatar_url:
+        try: r = _r.get(avatar_url, headers=_dl_headers, timeout=15); (data_dir/"avatar.jpg").write_bytes(r.content); lines.append("*(头像已保存)*")
+        except Exception as e: lines.append(f"*(头像下载失败: {e})*")
+    if cover_url:
+        try: r = _r.get(cover_url, headers=_dl_headers, timeout=15); (data_dir/"cover.jpg").write_bytes(r.content); lines.append("*(封面已保存)*")
+        except Exception as e: lines.append(f"*(封面下载失败: {e})*")
+    (data_dir/"主页简介.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+# ══════════ 登录 ══════════
 
 def cmd_login():
-    """扫码登录 — Playwright 有头浏览器，cookie 可靠读取"""
     from src.cookie import save_cookie, load_cookie
     from src.signer import BrowserFinder
     from playwright.sync_api import sync_playwright
-    import time
-
     browser_path = BrowserFinder.find()
-    if not browser_path:
-        print("[!] 未找到可用浏览器，请安装 Chrome 或 Edge")
-        return
-
-    print("正在打开浏览器...")
-    print("请在浏览器中扫码登录抖音，成功后自动关闭")
-
+    if not browser_path: return print("[!] 未找到可用浏览器，请安装 Chrome 或 Edge")
+    print("正在打开浏览器...\n请在浏览器中扫码登录抖音，成功后自动关闭")
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            executable_path=browser_path,
-            headless=False,
-            args=["--no-sandbox"],
-        )
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 800},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36",
-        )
-        page = context.new_page()
-        page.goto("https://www.douyin.com/")
-
-        # 轮询 Cookie
+        browser = p.chromium.launch(executable_path=browser_path, headless=False,
+            args=["--no-sandbox"])
+        context = browser.new_context(viewport={"width":1280,"height":800},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36")
+        page = context.new_page(); page.goto("https://www.douyin.com/")
         for _ in range(120):
             time.sleep(1)
             try:
@@ -479,61 +463,41 @@ def cmd_login():
                 parts = [f"{c['name']}={c['value']}" for c in cookies]
                 cs = "; ".join(parts)
                 if "sessionid=" in cs and "ttwid=" in cs:
-                    save_cookie(cs)
-                    print(f"[OK] 登录成功！Cookie 已保存 ({len(cs)} 字符)")
-                    break
-            except Exception:
-                pass
-        else:
-            print("[!] 登录超时")
-
+                    save_cookie(cs); print(f"[OK] 登录成功！Cookie 已保存 ({len(cs)} 字符)"); break
+            except: pass
+        else: print("[!] 登录超时")
         browser.close()
 
 
 def cmd_dev(args: list[str]):
-    """开发辅助命令"""
     if not args:
-        print("dev 子命令:")
-        print("  dev check-cookie    检查登录状态")
-        print("  dev test-signer     测试 Playwright 浏览器发现")
-        return
+        print("dev 子命令:  check-cookie  test-signer"); return
     sub = args[0]
     if sub == "check-cookie":
         from src.cookie import load_cookie, validate_cookie
         cookie = load_cookie()
-        print(f"Cookie 长度: {len(cookie)}")
-        print(f"Cookie 有效: {validate_cookie(cookie)}")
-        if cookie:
-            print(f"Cookie 前 80 字符: {cookie[:80]}...")
-    elif sub == "test-signer":
-        print("signer 测试将在 M2 实现")
-    else:
-        print(f"未知 dev 命令: {sub}")
+        print(f"Cookie 长度: {len(cookie)}\nCookie 有效: {validate_cookie(cookie)}")
+        if cookie: print(f"前 80 字符: {cookie[:80]}...")
+    elif sub == "test-signer": print("signer 测试将在 M2 实现")
+    else: print(f"未知 dev 命令: {sub}")
 
+
+# ══════════ 入口 ══════════
 
 def main():
     if len(sys.argv) < 2:
         print("Origami v2 — 用法:")
-        print("  python -m src.main login        扫码登录（首次使用）")
+        print("  python -m src.main login        扫码登录")
         print("  python -m src.main server       启动 API Server")
         print("  python -m src.main cli <mode>   命令行下载")
         print("  python -m src.main dev <cmd>    开发工具")
         return
-
-    cmd = sys.argv[1]
-    rest = sys.argv[2:]
-
-    if cmd == "server":
-        cmd_server(rest)
-    elif cmd == "cli":
-        cmd_cli(rest)
-    elif cmd == "login":
-        cmd_login()
-    elif cmd == "dev":
-        cmd_dev(rest)
-    else:
-        print(f"未知命令: {cmd}")
-        print("可用: server | cli | login | dev")
+    cmd = sys.argv[1]; rest = sys.argv[2:]
+    if cmd == "server": cmd_server(rest)
+    elif cmd == "cli": cmd_cli(rest)
+    elif cmd == "login": cmd_login()
+    elif cmd == "dev": cmd_dev(rest)
+    else: print(f"未知命令: {cmd}\n可用: server | cli | login | dev")
 
 
 if __name__ == "__main__":

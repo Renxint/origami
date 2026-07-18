@@ -100,25 +100,69 @@ class DouyinAdapter(PlatformAdapter):
         images = aweme.get("images") or []
         media_type = aweme.get("media_type", 0)  # 4=视频, 68=图文
 
-        if media_type == 68:
-            # 图文/文章：media_type=68
+        # 判断是否为文章/笔记：media_type=68(图文) 43(文本+音乐) 或 video无bit_rate(无视频流)
+        def _extract_note_text(aw):
+            # 1. article_info — 文章详情
+            ai = aw.get("article_info", {})
+            if isinstance(ai, dict):
+                # markdown 格式正文（优先）
+                ac_raw = ai.get("article_content", "")
+                if isinstance(ac_raw, str) and ac_raw:
+                    try:
+                        ac_obj = json.loads(ac_raw)
+                        body = ac_obj.get("markdown") or ac_obj.get("long_article_abstract", "")
+                        if body: return body
+                    except Exception:
+                        pass
+                # 标题和元信息
+                ai_title = ai.get("article_title", "")
+                if ai_title and not ai_title in ("",):
+                    return ai_title  # 只有标题没有正文时
+            # 2. content / preview_title / desc
+            for key in ("content", "preview_title", "desc"):
+                c = aw.get(key, "")
+                if isinstance(c, str) and c.strip():
+                    return c
+            # 3. text_extra（字幕列表）
+            te = aw.get("text_extra") or []
+            if isinstance(te, list) and te:
+                parts = [t.get("text", "") if isinstance(t, dict) else str(t) for t in te]
+                text = "\n\n".join(p for p in parts if p.strip())
+                if text: return text
+            return ""
+
+        has_real_video = video and (video.get("bit_rate") or video.get("play_addr_h264"))
+        is_note = (media_type in (68, 43)
+                   or (video and not has_real_video and not images))
+
+        if is_note:
             item_type = "note"
-            content = aweme.get("content") or aweme.get("text_extra") or ""
-            if isinstance(content, str):
-                text_content = content
-            elif isinstance(content, list):
-                text_content = "\n\n".join(
-                    t.get("text", "") if isinstance(t, dict) else str(t)
-                    for t in content
-                )
-            if not text_content:
-                text_content = aweme.get("desc", "")
+            body = _extract_note_text(aweme) or aweme.get("desc", "")
+            # 拼接完整文章：标题 + 元信息 + 正文
+            ai = aweme.get("article_info", {})
+            art_title = ai.get("article_title", "") or aweme.get("preview_title", "") or desc
+            read_time = ai.get("read_time", 0)
+            create_time = aweme.get("create_time", 0)
+            date_str = ""
+            if create_time:
+                import datetime
+                date_str = datetime.datetime.fromtimestamp(create_time).strftime("%Y-%m-%d")
+            header = f"# {art_title}\n\n"
+            if date_str or read_time:
+                meta_parts = []
+                if date_str: meta_parts.append(date_str)
+                if read_time: meta_parts.append(f"阅读需要{read_time}分钟")
+                header += "> " + " · ".join(meta_parts) + "\n\n"
+            header += f"> 作者：{author}\n\n"
+            text_content = header + body
             for img in images:
                 urls = img.get("url_list", [])
-                img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
-                if img_url:
-                    media_urls.append(img_url)
-        elif video:
+                img_url = next((u for u in urls if "webp" in u.lower()), None) \
+                       or next((u for u in urls if "jpeg" in u.lower()), None) \
+                       or next((u for u in urls if "jpg" in u.lower()), None) \
+                       or (urls[0] if urls else "")
+                if img_url: media_urls.append(img_url)
+        elif has_real_video:
             url = pick_best_video_url(video)
             if url:
                 media_urls.append(url)
@@ -128,7 +172,10 @@ class DouyinAdapter(PlatformAdapter):
                 item_type = "gallery"
                 for img in images:
                     urls = img.get("url_list", [])
-                    img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
+                    img_url = next((u for u in urls if "webp" in u.lower()), None) \
+                       or next((u for u in urls if "jpeg" in u.lower()), None) \
+                       or next((u for u in urls if "jpg" in u.lower()), None) \
+                       or (urls[0] if urls else "")
                     if img_url:
                         media_urls.append(img_url)
             if not media_urls:
@@ -137,7 +184,10 @@ class DouyinAdapter(PlatformAdapter):
             item_type = "gallery"
             for img in images:
                 urls = img.get("url_list", [])
-                img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
+                img_url = next((u for u in urls if "webp" in u.lower()), None) \
+                       or next((u for u in urls if "jpeg" in u.lower()), None) \
+                       or next((u for u in urls if "jpg" in u.lower()), None) \
+                       or (urls[0] if urls else "")
                 if img_url:
                     media_urls.append(img_url)
 
@@ -285,6 +335,42 @@ class DouyinAdapter(PlatformAdapter):
             "has_more": bool(data.get("has_more", 0)),
             "next_cursor": data.get("max_cursor", 0),
             "total": None,
+        }
+
+    def fetch_music(self, author_id: str, cookie: str = "",
+                    max_cursor: int = 0, count: int = 18) -> dict:
+        """翻页获取收藏的音乐列表"""
+        import requests as _r
+        cookie = cookie or self._load_cookie()
+        params = (
+            f"sec_user_id={author_id}&max_cursor={max_cursor}&count={count}"
+            f"&aid=6383&device_platform=webapp&version_code=290100"
+            f"&version_name=29.1.0&cookie_enabled=true"
+        )
+        url = f"https://www.douyin.com/aweme/v1/web/music/listcollection/?{params}"
+        resp = _r.get(url, headers={
+            "User-Agent": USER_AGENT,
+            "Cookie": cookie,
+            "Referer": "https://www.douyin.com/",
+        }, timeout=20)
+        data = resp.json()
+        music_list = data.get("mc_list", []) or data.get("music_list", [])
+        items = []
+        for m in music_list:
+            music_info = m.get("music_info", m)
+            play = music_info.get("play_url", {}) or {}
+            urls = play.get("url_list", [])
+            items.append({
+                "music_id": music_info.get("id_str", ""),
+                "title": music_info.get("title", ""),
+                "author": music_info.get("author", ""),
+                "url": urls[0] if urls else "",
+                "duration": music_info.get("duration", 0),
+            })
+        return {
+            "items": items,
+            "has_more": bool(data.get("has_more", 0)),
+            "next_cursor": data.get("max_cursor", 0) or data.get("cursor", 0),
         }
 
     def get_own_author_id(self, cookie: str = "") -> str:

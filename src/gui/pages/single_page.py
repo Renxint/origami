@@ -352,8 +352,7 @@ class SingleDownloadThread(QThread):
                 )
             if note_text:
                 _ensure_dir()
-                (post_dir / "article.md").write_text(
-                    f"# {desc}\n\n> 作者：{author}\n\n{note_text}", encoding="utf-8")
+                (post_dir / "article.txt").write_text(note_text, encoding="utf-8")
                 self.log.emit(f"[文章] 已保存 {len(note_text)} 字")
                 _tick()
         if not video and not images and not note_text:
@@ -368,8 +367,7 @@ class SingleDownloadThread(QThread):
                 )
             if note_text:
                 _ensure_dir()
-                (post_dir / "article.md").write_text(
-                    f"# {desc}\n\n> 作者：{author}\n\n{note_text}", encoding="utf-8")
+                (post_dir / "article.txt").write_text(note_text, encoding="utf-8")
                 self.log.emit(f"[文章] 已保存 {len(note_text)} 字")
                 _tick()
             elif _dir_created:
