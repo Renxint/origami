@@ -381,26 +381,46 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
         try: downloaded_ids = set(_json.loads(tracker_file.read_text(encoding="utf-8")))
         except: pass
 
+    # 收集下载任务
     stats = {"ok":0,"fail":0,"skip":0}
+    tasks = []
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
         if aweme_id in downloaded_ids: stats["skip"] += 1; continue
         short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
         desc = clean_name(item.title or aweme_id, 30)
-        print(f"[{i+1:03d}/{len(all_items)}] {_s(desc, 30)}...")
-        downloaded = False; aw = item.extra.get("aweme",{})
+        aw = item.extra.get("aweme",{})
         video = aw.get("video"); images = aw.get("images") or []
         if video and not images:
             url = pick_best_video_url(video)
-            if url and download_file(url, author_dir / f"{i+1:04d}_{short}_{desc}.mp4"): stats["ok"] += 1; downloaded = True
-            else: stats["fail"] += 1
+            if url: tasks.append((url, author_dir / f"{i+1:04d}_{short}_{desc}.mp4", aweme_id))
         elif images:
             for j, img in enumerate(images):
                 urls = img.get("url_list",[])
                 img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
-                if img_url and download_file(img_url, author_dir / f"{i+1:04d}_{short}_{j+1:02d}.jpg"): stats["ok"] += 1; downloaded = True
-                else: stats["fail"] += 1
-        if downloaded: downloaded_ids.add(aweme_id)
+                if img_url: tasks.append((img_url, author_dir / f"{i+1:04d}_{short}_{j+1:02d}.jpg", aweme_id))
+                is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
+                if is_live:
+                    lv = img.get("video") or {}
+                    live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
+                    if live_url: tasks.append((live_url, author_dir / f"{i+1:04d}_{short}_{j+1:02d}_实况.mp4", aweme_id))
+
+    # 多线程并发下载
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading as _thr
+    _lock = _thr.Lock(); _done = [0]; _total = len(tasks)
+    print(f"[*] {_total} 个下载任务，并发执行...")
+    def _dl(t):
+        url, path, aid = t; ok = download_file(url, path)
+        with _lock:
+            _done[0] += 1
+            if ok: stats["ok"] += 1; downloaded_ids.add(aid)
+            else: stats["fail"] += 1
+            if _done[0] % 10 == 0 or _done[0] == _total:
+                print(f"  进度: {_done[0]}/{_total}")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
+
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
     print(f"[DONE] {tag}:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
     print(f"       保存到: {_s(str(author_dir))}")
@@ -437,17 +457,26 @@ def _cli_music(url, max_count=0, save_dir=""):
         if not cursor: break; time.sleep(0.2)
     print(f"[OK] 共 {len(all_items)} 首音乐")
 
-    ok = 0
+    tasks = []
     for i, m in enumerate(all_items):
         title = clean_name(m.get("title", m.get("music_id","")), 40)
         murl = m.get("url","")
         if not murl: continue
         ext = ".mp3" if "mp3" in murl.lower() else ".m4a"
-        fname = f"{i+1:03d}_{title}{ext}"
-        fpath = out / fname
-        print(f"[{i+1}/{len(all_items)}] {_s(fname, 60)}...")
-        if download_file(murl, fpath): ok += 1
-    print(f"[DONE] 音乐:{ok}/{len(all_items)}  保存到: {_s(str(out))}")
+        tasks.append((murl, out / f"{i+1:03d}_{title}{ext}"))
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading as _thr
+    _lock = _thr.Lock(); ok = [0]; _done = [0]; _total = len(tasks)
+    print(f"[*] {_total} 个下载任务，并发执行...")
+    def _dl(t):
+        url, path = t; result = download_file(url, path)
+        with _lock:
+            _done[0] += 1
+            if result: ok[0] += 1
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
+    print(f"[DONE] 音乐:{ok[0]}/{len(all_items)}  保存到: {_s(str(out))}")
 
 
 # ══════════ 平台识别 ══════════
