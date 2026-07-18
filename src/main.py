@@ -41,17 +41,19 @@ def cmd_server(args: list[str]):
 
 
 def cmd_cli(args: list[str]):
-    MODES = "single | batch | like | collection | music"
+    KNOWN_MODES = {"single","batch","like","collection","music"}
     if not args:
-        print(f"用法: python -m src.main cli <{MODES}> <url>")
-        for m, desc in [("single","单作品"),("batch","批量主页"),("like","喜欢列表"),
-                        ("collection","收藏列表"),("music","收藏音乐")]:
-            print(f"  {m:<12} {desc}")
+        print(f"用法: python -m src.main cli [<模式>] <链接>")
+        print(f"  模式（可选，不填则自动识别）: {' | '.join(sorted(KNOWN_MODES))}")
+        print(f"\n  例: python -m src.main cli \"https://v.douyin.com/xxx/\"")
+        print(f"  例: python -m src.main cli single \"https://v.douyin.com/xxx/\"")
+        print(f"  例: python -m src.main cli like \"https://www.douyin.com/user/self\"")
         print("\n  可选参数:  --count N  --dir PATH  --images 1,3,5")
         return
 
-    mode = args[0]; url = ""; count = 0; save_dir = ""
-    i = 1
+    # 解析参数
+    mode = args[0] if args[0] in KNOWN_MODES else ""; url = ""; count = 0; save_dir = ""
+    i = 1 if mode else 0
     while i < len(args):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
         elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
@@ -59,13 +61,45 @@ def cmd_cli(args: list[str]):
         else: i += 1
 
     if not url: return print("请提供链接")
+    # 从分享口令文本中提取链接
+    if "http" in url:
+        m = re.search(r'(https?://[^\s]+)', url)
+        if m: url = m.group(1).rstrip('.,;:!?）」)】')
+
+    # 平台识别
+    platform = _detect_platform(url)
+    if not platform:
+        return print(f"[ERROR] 未识别的平台链接: {_s(url, 60)}")
+    if platform != "douyin":
+        return print(f"[提示] {platform} 平台适配器尚未实现，仅支持抖音")
+
+    # 自动识别链接类型
+    if not mode:
+        # 短链 → 302 展开
+        resolved = url
+        if "v.douyin.com" in url:
+            import requests as _r
+            from src.environ import USER_AGENT
+            try:
+                s = _r.Session(); s.headers.update({"User-Agent": USER_AGENT})
+                r = s.get(url, allow_redirects=True, timeout=10, stream=True); r.close()
+                resolved = r.url
+            except Exception: pass
+        # 判断类型（顺序重要：先精确再模糊）
+        if "modal_id=" in resolved or "/video/" in resolved or "/note/" in resolved:
+            mode = "single"
+        elif "/user/" in resolved:
+            mode = "batch"
+        else:
+            mode = "single"  # 兜底当单作品
+        print(f"[*] 自动识别: {mode}")
 
     if mode == "single": _cli_single(url, save_dir, args)
     elif mode == "batch": _cli_batch(url, count, save_dir)
     elif mode == "like": _cli_like(url, count, save_dir)
     elif mode == "collection": _cli_collection(url, count, save_dir)
     elif mode == "music": _cli_music(url, count, save_dir)
-    else: print(f"未知模式: {mode}，可用: {MODES}")
+    else: print(f"未知模式: {mode}")
 
 
 # ══════════ CLI — 单作品 ══════════
@@ -88,7 +122,16 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
 
     print(f"[*] 解析链接: {_s(url, 60)}...")
     adapter = DouyinAdapter()
-    item_id = adapter.resolve_url(url)
+    # 尝试常规解析，失败则从 URL 参数提取
+    item_id = ""
+    try: item_id = adapter.resolve_url(url)
+    except Exception:
+        # 从 modal_id / video_id 参数提取
+        for key in ("modal_id", "video_id", "aweme_id", "item_id"):
+            m = re.search(rf'[?&]{key}=(\d+)', url)
+            if m: item_id = m.group(1); break
+    if not item_id:
+        return print(f"[ERROR] 无法解析链接: {_s(url, 60)}")
     print(f"[OK] 视频ID: {item_id}")
 
     print("[*] 获取作品数据...")
@@ -174,7 +217,7 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
     print("[*] 获取作者信息...")
     author = adapter.fetch_author(sec_uid)
     name = clean_name(author.nickname or sec_uid)
-    print(f"[OK] {author.nickname}  作品:{author.post_count}  粉丝:{author.follower_count}")
+    print(f"[OK] {_s(author.nickname)}  作品:{author.post_count}  粉丝:{author.follower_count}")
     author_dir = out / name; data_dir = author_dir / "data"; data_dir.mkdir(parents=True, exist_ok=True)
     profile = author.extra.get("profile", {})
     _write_profile_md(data_dir, author, profile, "", "", found)
@@ -400,6 +443,23 @@ def _cli_music(url, max_count=0, save_dir=""):
         print(f"[{i+1}/{len(all_items)}] {_s(fname, 60)}...")
         if download_file(murl, fpath): ok += 1
     print(f"[DONE] 音乐:{ok}/{len(all_items)}  保存到: {_s(str(out))}")
+
+
+# ══════════ 平台识别 ══════════
+
+def _detect_platform(url: str) -> str:
+    """识别链接所属平台，返回 'douyin' / 'bilibili' / 'weibo' / '' """
+    url_lower = url.lower()
+    # 抖音
+    if any(k in url_lower for k in ("douyin.com", "iesdouyin.com", "v.douyin.com")):
+        return "douyin"
+    # B站
+    if any(k in url_lower for k in ("bilibili.com", "b23.tv")):
+        return "bilibili"
+    # 微博
+    if any(k in url_lower for k in ("weibo.com", "t.cn")):
+        return "weibo"
+    return ""
 
 
 # ══════════ 用户 ID 解析 ══════════
