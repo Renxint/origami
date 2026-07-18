@@ -412,6 +412,19 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
             continue
         # 视频
         elif video and not images:
+            duration_ms = video.get("duration", 0) or 0  # 毫秒
+            # 超过 10 分钟 → 跳过，写信息文件
+            if duration_ms > 600000:
+                author_name_aw = aw.get("author", {}).get("nickname", "")
+                info = f"# {aw.get('desc', aweme_id)}\n\n"
+                info += f"> 作者：{author_name_aw}\n"
+                info += f"> 时长：{duration_ms // 60000} 分 {(duration_ms % 60000) // 1000} 秒\n"
+                info += f"> aweme_id：{aweme_id}\n"
+                info += f"> 类型：视频（超10分钟，已跳过下载）\n"
+                (author_dir / f"{prefix}_{desc}.md").write_text(info, encoding="utf-8")
+                stats["skip"] += 1; downloaded_ids.add(aweme_id)
+                catalog_lines.append(f"{idx}. [超10分] {item.title or aweme_id}")
+                continue
             url = pick_best_video_url(video)
             if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4", aweme_id))
             catalog_lines.append(f"{idx}. [视频] {item.title or aweme_id}")
