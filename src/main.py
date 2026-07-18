@@ -335,7 +335,8 @@ def _cli_like(url, max_count=0, save_dir=""):
     _cli_list_download(url, max_count, save_dir, "like", "喜欢")
 
 def _cli_collection(url, max_count=0, save_dir=""):
-    _cli_list_download(url, max_count, save_dir, "collection", "收藏")
+    """下载收藏列表（POST 端点，仅自己可见）"""
+    _cli_list_download(url, max_count, save_dir, "usercollection", "收藏")
 
 def _cli_list_download(url, max_count, save_dir, mode, tag):
     from pathlib import Path
@@ -353,8 +354,12 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
 
     all_items = []; cursor = 0; page = 0
     while True:
-        data = adapter.fetch_likes(sec_uid, max_cursor=cursor, count=18) if mode == "like" \
-               else adapter.fetch_favorites(sec_uid, max_cursor=cursor, count=18)
+        if mode == "like":
+            data = adapter.fetch_likes(sec_uid, max_cursor=cursor, count=18)
+        elif mode == "usercollection":
+            data = adapter.fetch_user_collection(cursor=cursor, count=18)
+        else:
+            data = adapter.fetch_favorites(sec_uid, max_cursor=cursor, count=18)
         items = data.get("items", [])
         if not items: break
         all_items.extend(items); page += 1

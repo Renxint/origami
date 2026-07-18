@@ -312,6 +312,40 @@ class DouyinAdapter(PlatformAdapter):
         api = DouyinAPI(cookie_string=cookie)
         return api.get_comments(aweme_id, cursor=cursor, count=count)
 
+    def fetch_user_collection(self, cookie: str = "",
+                               cursor: int = 0, count: int = 18) -> dict:
+        """翻页获取当前登录用户的收藏作品列表（POST，仅自己可见）"""
+        import requests as _r
+        cookie = cookie or self._load_cookie()
+        resp = _r.post(
+            "https://www.douyin.com/aweme/v1/web/aweme/listcollection/",
+            headers={
+                "User-Agent": USER_AGENT,
+                "Cookie": cookie,
+                "Referer": "https://www.douyin.com/",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data={"cursor": str(cursor), "count": str(count)},
+            timeout=20,
+        )
+        data = resp.json()
+        aweme_list = data.get("aweme_list", [])
+        items = []
+        for aw in aweme_list:
+            items.append(MediaItem(
+                platform="douyin",
+                item_id=aw.get("aweme_id", ""),
+                item_type="video" if aw.get("video") else ("image" if aw.get("images") else "unknown"),
+                title=aw.get("desc", ""),
+                author=aw.get("author", {}).get("nickname", ""),
+                extra={"aweme": aw},
+            ))
+        return {
+            "items": items,
+            "has_more": bool(data.get("has_more", 0)),
+            "next_cursor": data.get("max_cursor", 0) or data.get("cursor", 0),
+        }
+
     def fetch_favorites(self, favorite_id: str, cookie: str = "",
                         max_cursor: int = 0, count: int = 18) -> dict:
         """翻页获取收藏夹作品列表"""
