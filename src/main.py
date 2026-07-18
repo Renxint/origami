@@ -384,26 +384,56 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
     # 收集下载任务
     stats = {"ok":0,"fail":0,"skip":0}
     tasks = []
+    catalog_lines = []
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
         if aweme_id in downloaded_ids: stats["skip"] += 1; continue
         short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
         desc = clean_name(item.title or aweme_id, 30)
-        aw = item.extra.get("aweme",{})
+        # 用 fetch_media 获取完整数据（文章正文、视频高清链接、实况）
+        try:
+            media = adapter.fetch_media(aweme_id)
+            aw = media.extra.get("aweme", {})
+        except Exception:
+            aw = item.extra.get("aweme", {})
         video = aw.get("video"); images = aw.get("images") or []
-        if video and not images:
+        mt = aw.get("media_type", 0)
+        idx = f"{i+1:04d}"
+        prefix = f"{idx}_{short}"
+
+        # 文章
+        if mt in (68, 43) or (video and not video.get("bit_rate") and not images):
+            from src.platforms.douyin import DouyinAdapter as _DA
+            text = media.text_content if hasattr(media, 'text_content') and media.text_content else aw.get("desc", "")
+            fpath = author_dir / f"{prefix}_{desc}.txt"
+            fpath.write_text(text, encoding="utf-8")
+            stats["ok"] += 1; downloaded_ids.add(aweme_id)
+            catalog_lines.append(f"{idx}. [文章] {item.title or aweme_id}")
+            continue
+        # 视频
+        elif video and not images:
             url = pick_best_video_url(video)
-            if url: tasks.append((url, author_dir / f"{i+1:04d}_{short}_{desc}.mp4", aweme_id))
+            if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4", aweme_id))
+            catalog_lines.append(f"{idx}. [视频] {item.title or aweme_id}")
+        # 图集
         elif images:
+            live_count = 0
             for j, img in enumerate(images):
                 urls = img.get("url_list",[])
                 img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
-                if img_url: tasks.append((img_url, author_dir / f"{i+1:04d}_{short}_{j+1:02d}.jpg", aweme_id))
-                is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
-                if is_live:
-                    lv = img.get("video") or {}
-                    live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
-                    if live_url: tasks.append((live_url, author_dir / f"{i+1:04d}_{short}_{j+1:02d}_实况.mp4", aweme_id))
+                if img_url:
+                    is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
+                    live_tag = "_实况" if is_live else ""
+                    tasks.append((img_url, author_dir / f"{prefix}_{j+1:02d}{live_tag}.jpg", aweme_id))
+                    if is_live:
+                        live_count += 1
+                        lv = img.get("video") or {}
+                        live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
+                        if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4", aweme_id))
+            tag = f"图集({len(images)}图)" + (f" 含{live_count}实况" if live_count else "")
+            catalog_lines.append(f"{idx}. [{tag}] {item.title or aweme_id}")
+        else:
+            catalog_lines.append(f"{idx}. [未知] {item.title or aweme_id}")
 
     # 多线程并发下载
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -422,6 +452,11 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
         for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
 
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
+    # 写作品目录到 data
+    if catalog_lines:
+        (data_dir / f"作品目录_{time.strftime('%Y%m%d_%H%M%S')}.md").write_text(
+            f"# {author_name}\n\n共 {len(catalog_lines)} 个{tag}\n\n" + "\n".join(catalog_lines),
+            encoding="utf-8")
     print(f"[DONE] {tag}:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
     print(f"       保存到: {_s(str(author_dir))}")
 
