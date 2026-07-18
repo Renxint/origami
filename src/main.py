@@ -388,6 +388,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
     stats = {"ok":0,"fail":0,"skip":0}
     tasks = []
     catalog_lines = []
+    _total = len(all_items)
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
         if aweme_id in downloaded_ids: stats["skip"] += 1; continue
@@ -401,36 +402,35 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
             aw = item.extra.get("aweme", {})
         video = aw.get("video"); images = aw.get("images") or []
         mt = aw.get("media_type", 0)
-        idx = f"{i+1:04d}"
-        prefix = f"{idx}_{short}"
+        # 编号与批量一致：编号从总数递减，最新=最大编号
+        pos = f"{_total - i:04d}"
+        prefix = f"{pos}_{short}"
 
         # 文章
         if mt in (68, 43) or (video and not video.get("bit_rate") and not images):
-            from src.platforms.douyin import DouyinAdapter as _DA
             text = media.text_content if hasattr(media, 'text_content') and media.text_content else aw.get("desc", "")
-            fpath = author_dir / f"{prefix}_{desc}.txt"
-            fpath.write_text(text, encoding="utf-8")
+            (author_dir / f"{prefix}_{desc}.txt").write_text(text, encoding="utf-8")
             stats["ok"] += 1; downloaded_ids.add(aweme_id)
-            catalog_lines.append(f"{idx}. [文章] {item.title or aweme_id}")
+            catalog_lines.append(f"{pos}. [文章] {item.title or aweme_id}")
             continue
         # 视频
         elif video and not images:
-            duration_ms = video.get("duration", 0) or 0  # 毫秒
-            # 超过 10 分钟 → 跳过，写信息文件
-            if duration_ms > 600000:
+            duration_ms = video.get("duration", 0) or 0
+            if duration_ms > 1800000:  # 超 30 分钟跳过
                 author_name_aw = aw.get("author", {}).get("nickname", "")
+                mins = duration_ms // 60000; secs = (duration_ms % 60000) // 1000
                 info = f"# {aw.get('desc', aweme_id)}\n\n"
                 info += f"> 作者：{author_name_aw}\n"
-                info += f"> 时长：{duration_ms // 60000} 分 {(duration_ms % 60000) // 1000} 秒\n"
+                info += f"> 时长：{mins} 分 {secs} 秒\n"
                 info += f"> aweme_id：{aweme_id}\n"
-                info += f"> 类型：视频（超10分钟，已跳过下载）\n"
+                info += f"> 类型：视频（超30分钟，已跳过下载）\n"
                 (author_dir / f"{prefix}_{desc}.md").write_text(info, encoding="utf-8")
                 stats["skip"] += 1; downloaded_ids.add(aweme_id)
-                catalog_lines.append(f"{idx}. [超10分] {item.title or aweme_id}")
+                catalog_lines.append(f"{pos}. [超30分] {item.title or aweme_id}")
                 continue
             url = pick_best_video_url(video)
             if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4", aweme_id))
-            catalog_lines.append(f"{idx}. [视频] {item.title or aweme_id}")
+            catalog_lines.append(f"{pos}. [视频] {item.title or aweme_id}")
         # 图集
         elif images:
             live_count = 0
@@ -447,9 +447,9 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
                         live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
                         if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4", aweme_id))
             type_tag = f"图集({len(images)}图)" + (f" 含{live_count}实况" if live_count else "")
-            catalog_lines.append(f"{idx}. [{type_tag}] {item.title or aweme_id}")
+            catalog_lines.append(f"{pos}. [{type_tag}] {item.title or aweme_id}")
         else:
-            catalog_lines.append(f"{idx}. [未知] {item.title or aweme_id}")
+            catalog_lines.append(f"{pos}. [未知] {item.title or aweme_id}")
 
     # 多线程并发下载
     from concurrent.futures import ThreadPoolExecutor, as_completed
