@@ -371,9 +371,6 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
         if not cursor: break; time.sleep(0.2)
     print(f"[OK] 共 {len(all_items)} 个{tag}")
 
-    # 按时间倒序排列（最新在前），视频和图集混合后正确编号
-    all_items.sort(key=lambda it: int(it.extra.get("aweme", {}).get("create_time", 0) or 0), reverse=True)
-
     try: author_info = adapter.fetch_author(sec_uid); author_name = clean_name(author_info.nickname or sec_uid[:12], 30)
     except: author_name = clean_name(sec_uid[:12], 12)
     author_dir = out / author_name / tag; data_dir = author_dir / "data"; data_dir.mkdir(parents=True, exist_ok=True)

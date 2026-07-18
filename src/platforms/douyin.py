@@ -344,14 +344,17 @@ class DouyinAdapter(PlatformAdapter):
                 author=aw.get("author", {}).get("nickname", ""),
                 extra={"aweme": aw},
             ))
-        # 拉取 disabled 作品（图集/实况等，API 不返回在 aweme_list 中）
+        # 拉取 disabled 作品（图集/实况等，API 过滤掉的类型）
+        # 插在每页最前面——disabled 是较新的收藏，API 把它们从列表中剔除了
         disabled_ids = data.get("disabled_item_ids", []) or []
+        disabled_items = []
         for did in disabled_ids:
             try:
                 media = self.fetch_media(did, cookie)
-                items.append(media)
+                disabled_items.append(media)
             except Exception:
-                pass  # 作品已删除或不可访问，跳过
+                pass
+        items = disabled_items + items
         return {
             "items": items,
             "has_more": bool(data.get("has_more", 0)),
