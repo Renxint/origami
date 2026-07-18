@@ -216,21 +216,10 @@ class SingleDownloadThread(QThread):
         raise ValueError(f"无法解析: {url}")
 
     def _fetch(self, aweme_id: str, cookie: str) -> dict:
-        """通过常驻浏览器服务获取视频详情"""
-        from src.webview_api import call_server
-        for attempt in (1, 2):
-            data = call_server('video', aweme_id=aweme_id)
-            if "_error" not in data:
-                return data.get("aweme_detail", {})
-            err = data.get("_error", "")
-            if "browser" in err.lower() and attempt == 1:
-                self.log.emit("[>>] 重试中...")
-                time.sleep(3)
-                continue
-            if "not_logged_in" in err or "cookie" in err.lower():
-                self.cookie_expired.emit()
-            raise RuntimeError(err)
-        raise RuntimeError("获取视频数据失败")
+        """纯 HTTP 获取视频详情（不需要 Playwright）"""
+        from src.platforms.douyin import DouyinAdapter
+        adapter = DouyinAdapter()
+        return adapter._fetch_detail_http(aweme_id, cookie)
     def _download_aweme(self, aweme: dict, selected_indices: set = None):
         desc = aweme.get("desc", "") or aweme.get("aweme_id", "untitled")
         author = aweme.get("author", {}).get("nickname", "")
@@ -350,7 +339,42 @@ class SingleDownloadThread(QThread):
                     self.log.emit(f"[BGM] {title}")
                 _tick()
 
-        if _dir_created:
+        # 图文/文章：media_type=68
+        note_text = ""
+        if aweme.get("media_type") == 68:
+            content = aweme.get("content") or aweme.get("text_extra") or ""
+            if isinstance(content, str):
+                note_text = content
+            elif isinstance(content, list):
+                note_text = "\n\n".join(
+                    t.get("text", "") if isinstance(t, dict) else str(t)
+                    for t in content
+                )
+            if note_text:
+                _ensure_dir()
+                (post_dir / "article.md").write_text(
+                    f"# {desc}\n\n> 作者：{author}\n\n{note_text}", encoding="utf-8")
+                self.log.emit(f"[文章] 已保存 {len(note_text)} 字")
+                _tick()
+        if not video and not images and not note_text:
+            note_text = ""
+            content = aweme.get("content") or aweme.get("text_extra") or ""
+            if isinstance(content, str):
+                note_text = content
+            elif isinstance(content, list):
+                note_text = "\n\n".join(
+                    t.get("text", "") if isinstance(t, dict) else str(t)
+                    for t in content
+                )
+            if note_text:
+                _ensure_dir()
+                (post_dir / "article.md").write_text(
+                    f"# {desc}\n\n> 作者：{author}\n\n{note_text}", encoding="utf-8")
+                self.log.emit(f"[文章] 已保存 {len(note_text)} 字")
+                _tick()
+            elif _dir_created:
+                (post_dir / "desc.txt").write_text(desc, encoding="utf-8")
+        elif _dir_created:
             (post_dir / "desc.txt").write_text(desc, encoding="utf-8")
         self.finished.emit(True, f"完成! {author}")
 
@@ -440,6 +464,7 @@ class SinglePage(QWidget):
 
     def __init__(self):
         super().__init__()
+        self._built = False
         self._comments_ready.connect(self._apply_comments)
         self._dl_log_signal.connect(lambda msg: self.log_view.append(msg))
         self.thread = None
@@ -457,6 +482,10 @@ class SinglePage(QWidget):
         self._build()
 
     def _build(self):
+        # 防止重复构建（showEvent 每次切换页面都会触发）
+        if hasattr(self, '_built') and self._built:
+            return
+        self._built = True
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         layout.setContentsMargins(16, 16, 16, 16)

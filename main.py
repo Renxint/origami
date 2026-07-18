@@ -47,16 +47,6 @@ from src.environ import BASE_DIR, EXE_DIR, SETTINGS_FILE
 from src.settings.store import load as load_settings
 
 # 单实例和主窗口在 main() 内延迟导入，避免 QtNetwork 先于 WebEngine 加载
-# 兜底：任何退出都清理 sign-server 防止僵尸进程
-import atexit
-def _cleanup_sign_server():
-    try:
-        from src.webview_api import stop_server
-        stop_server()
-    except Exception:
-        pass
-atexit.register(_cleanup_sign_server)
-
 # 关闭时后台线程静默
 import threading as _threading
 def _thread_hook(args):
@@ -88,13 +78,6 @@ def main():
 
     # 启动前：检测更新并替换
     _startup_overwrite_if_needed()
-
-    # 清理上次强杀遗留的 sign-server 孤儿
-    try:
-        from src.webview_api import _kill_orphan_nodes
-        _kill_orphan_nodes()
-    except Exception:
-        pass
 
     # QApplication
     app = QApplication(sys.argv)
@@ -158,13 +141,6 @@ def main():
 
     window = MainWindow()
     window.show()
-    # sign-server 懒启动：首次下载时才拉起，避开与 QtWebEngine 登录同时启动 Chromium
-    from src.cookie import load_cookie
-    if load_cookie():
-        from PyQt6.QtCore import QTimer
-        from src.webview_api import start_server
-        QTimer.singleShot(3000, start_server)  # 已登录才预热，等 QtWebEngine 稳定
-    app.aboutToQuit.connect(_cleanup_sign_server)
     sys.exit(app.exec())
 
 

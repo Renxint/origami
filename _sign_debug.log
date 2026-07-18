@@ -1082,3 +1082,410 @@
 [02:56:19] fetch_video: 765196399875...
 [02:56:19] [daemon] POST /video?aweme_id=7651963998757279931 HTTP/1.1
 [02:56:19] daemon error: Unexpected end of JSON input
+[04:20:24] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[04:20:57] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[04:21:51] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[11:25:35] === start_server() called (playwright daemon) ===
+[11:25:35] SignerDaemon: starting on port 18765 (block=False)
+[11:25:35] daemon start: True
+[11:25:35] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[11:25:35] SignerDaemon: launching browser in daemon thread...
+[11:25:35] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[11:25:36] Step 1: first nav + SDK wait
+[11:25:41] Step 1: SDK init OK
+[11:25:41] Step 2: JS inject cookies + re-nav
+[11:25:42] Step 2: cookies injected via JS
+[11:25:45] Step 2: SDK re-init OK
+[11:25:46] Step 3: fingerprints injected
+[11:25:46] StealthBrowser: Ready (page=True)
+[11:25:46] SignerDaemon: serving on port 18765
+[11:26:02] fetch_video: 765787750051...
+[11:26:02] [daemon] POST /video?aweme_id=7657877500512714425 HTTP/1.1
+[11:27:47] fetch_video: 758809547220...
+[11:27:47] [daemon] POST /video?aweme_id=7588095472205951375 HTTP/1.1
+[11:32:23] SignerDaemon: stopped
+[02:49:35] === start_server() called (playwright daemon) ===
+[02:49:35] SignerDaemon: starting on port 18765 (block=False)
+[02:49:35] daemon start: True
+[02:49:35] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:49:35] SignerDaemon: launching browser in daemon thread...
+[02:49:35] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:49:36] Step 1: first nav + SDK wait
+[02:49:40] Step 1: SDK init OK
+[02:49:40] Step 2: JS inject cookies + re-nav
+[02:49:41] Step 2: cookies injected via JS
+[02:49:44] Step 2: SDK re-init OK
+[02:49:44] Step 3: fingerprints injected
+[02:49:44] StealthBrowser: Ready (page=True)
+[02:49:44] SignerDaemon: serving on port 18765
+[02:52:59] fetch_video: 762966357079...
+[02:52:59] [daemon] POST /video?aweme_id=7629663570796915557 HTTP/1.1
+[02:53:01] fetch_video: 746965178215...
+[02:53:01] [daemon] POST /video?aweme_id=7469651782155701541 HTTP/1.1
+[02:53:03] fetch_video: 738445851101...
+[02:53:04] [daemon] POST /video?aweme_id=7384458511012351247 HTTP/1.1
+[02:58:36] fetch_video: 763189052686...
+[02:58:36] [daemon] POST /video?aweme_id=7631890526862135473 HTTP/1.1
+[02:58:37] fetch_video: 761510638186...
+[02:58:37] [daemon] POST /video?aweme_id=7615106381863509690 HTTP/1.1
+[02:58:40] fetch_video: 758139779706...
+[02:58:40] [daemon] POST /video?aweme_id=7581397797065493817 HTTP/1.1
+[02:58:41] fetch_video: 751199060749...
+[02:58:41] [daemon] POST /video?aweme_id=7511990607490747707 HTTP/1.1
+[02:58:42] fetch_video: 741999680518...
+[02:58:42] [daemon] POST /video?aweme_id=7419996805187783962 HTTP/1.1
+[02:58:44] fetch_video: 741877476552...
+[02:58:44] [daemon] POST /video?aweme_id=7418774765520915746 HTTP/1.1
+[02:58:57] SignerDaemon: stopped
+[03:04:18] === start_server() called (playwright daemon) ===
+[03:04:18] SignerDaemon: starting on port 18765 (block=False)
+[03:04:18] daemon start: True
+[03:04:18] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[03:04:18] SignerDaemon: launching browser in daemon thread...
+[03:04:18] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[03:04:19] Step 1: first nav + SDK wait
+[03:04:23] Step 1: SDK init OK
+[03:04:23] Step 2: JS inject cookies + re-nav
+[03:04:24] Step 2: cookies injected via JS
+[03:04:25] SignerDaemon: stopped
+[03:08:08] call_server attempt 1: daemon not ready, starting...
+[03:08:08] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[03:08:08] SignerDaemon: launching browser in daemon thread...
+[03:08:08] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[03:08:09] Step 1: first nav + SDK wait
+[03:08:14] Step 1: SDK init OK
+[03:08:14] Step 2: JS inject cookies + re-nav
+[03:08:15] Step 2: cookies injected via JS
+[03:08:19] Step 2: SDK re-init OK
+[03:08:19] Step 3: fingerprints injected
+[03:08:19] StealthBrowser: Ready (page=True)
+[03:08:19] SignerDaemon: serving on port 18765
+[03:08:19] SignerDaemon: starting on port 18765 (block=True)
+[03:08:19] fetch_video: 755873220192...
+[03:08:19] [daemon] POST /video?aweme_id=7558732201925397786 HTTP/1.1
+[03:08:40] fetch_video: 747566991070...
+[03:08:40] [daemon] POST /video?aweme_id=7475669910706720057 HTTP/1.1
+[03:09:10] fetch_video: 742223649641...
+[03:09:10] [daemon] POST /video?aweme_id=7422236496419097897 HTTP/1.1
+[03:09:37] fetch_video: 755249756240...
+[03:09:37] [daemon] POST /video?aweme_id=7552497562404015379 HTTP/1.1
+[03:10:46] SignerDaemon: stopped
+[10:27:30] call_server attempt 1: daemon not ready, starting...
+[10:27:30] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[10:27:30] SignerDaemon: launching browser in daemon thread...
+[10:27:30] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[10:27:32] Step 1: first nav + SDK wait
+[10:27:36] Step 1: SDK init OK
+[10:27:36] Step 2: JS inject cookies + re-nav
+[10:27:37] Step 2: cookies injected via JS
+[10:27:41] Step 2: SDK re-init OK
+[10:27:41] Step 3: fingerprints injected
+[10:27:41] StealthBrowser: Ready (page=True)
+[10:27:41] SignerDaemon: serving on port 18765
+[10:27:41] SignerDaemon: starting on port 18765 (block=True)
+[10:27:41] fetch_video: 765822344042...
+[10:27:42] [daemon] POST /video?aweme_id=7658223440424319375 HTTP/1.1
+[10:27:44] fetch_video: 765781424134...
+[10:27:44] [daemon] POST /video?aweme_id=7657814241344970575 HTTP/1.1
+[10:28:07] fetch_video: 765662720332...
+[10:28:07] [daemon] POST /video?aweme_id=7656627203320326306 HTTP/1.1
+[10:48:36] SignerDaemon: stopped
+[00:06:27] SignerDaemon: stopped
+[00:07:02] call_server attempt 1: daemon not ready, starting...
+[00:07:02] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:07:02] SignerDaemon: launching browser in daemon thread...
+[00:07:02] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:07:03] Step 1: first nav + SDK wait
+[00:07:07] Step 1: SDK init OK
+[00:07:07] Step 2: JS inject cookies + re-nav
+[00:07:08] Step 2: cookies injected via JS
+[00:07:12] Step 2: SDK re-init OK
+[00:07:12] Step 3: fingerprints injected
+[00:07:12] StealthBrowser: Ready (page=True)
+[00:07:12] SignerDaemon: serving on port 18765
+[00:07:12] SignerDaemon: starting on port 18765 (block=True)
+[00:07:12] fetch_video: 765422590199...
+[00:07:12] [daemon] POST /video?aweme_id=7654225901992029625 HTTP/1.1
+[00:07:15] fetch_video: 762482927489...
+[00:07:15] [daemon] POST /video?aweme_id=7624829274898562278 HTTP/1.1
+[00:07:17] fetch_video: 764603436998...
+[00:07:17] [daemon] POST /video?aweme_id=7646034369982764746 HTTP/1.1
+[00:07:18] fetch_video: 765722004761...
+[00:07:18] [daemon] POST /video?aweme_id=7657220047617814662 HTTP/1.1
+[00:07:19] fetch_video: 764418027704...
+[00:07:20] [daemon] POST /video?aweme_id=7644180277048840866 HTTP/1.1
+[00:08:47] SignerDaemon: stopped
+[00:12:10] SignerDaemon: stopped
+[00:12:47] call_server attempt 1: daemon not ready, starting...
+[00:12:47] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:12:47] SignerDaemon: launching browser in daemon thread...
+[00:12:47] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:12:48] Step 1: first nav + SDK wait
+[00:12:52] Step 1: SDK init OK
+[00:12:52] Step 2: JS inject cookies + re-nav
+[00:12:53] Step 2: cookies injected via JS
+[00:12:57] Step 2: SDK re-init OK
+[00:12:57] Step 3: fingerprints injected
+[00:12:57] StealthBrowser: Ready (page=True)
+[00:12:57] SignerDaemon: starting on port 18765 (block=True)
+[00:12:57] SignerDaemon: serving on port 18765
+[00:12:57] fetch_video: 765379280684...
+[00:12:57] [daemon] POST /video?aweme_id=7653792806842500998 HTTP/1.1
+[00:12:57] daemon error: Unexpected end of JSON input
+[00:16:48] SignerDaemon: stopped
+[23:38:08] call_server attempt 1: daemon not ready, starting...
+[23:38:08] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[23:38:08] SignerDaemon: launching browser in daemon thread...
+[23:38:08] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[23:38:09] Step 1: first nav + SDK wait
+[23:38:13] Step 1: SDK init OK
+[23:38:13] Step 2: JS inject cookies + re-nav
+[23:38:14] Step 2: cookies injected via JS
+[23:38:17] Step 2: SDK re-init OK
+[23:38:18] Step 3: fingerprints injected
+[23:38:18] StealthBrowser: Ready (page=True)
+[23:38:18] SignerDaemon: serving on port 18765
+[23:38:18] SignerDaemon: starting on port 18765 (block=True)
+[23:38:18] fetch_video: 766014904345...
+[23:38:18] [daemon] POST /video?aweme_id=7660149043456421283 HTTP/1.1
+[23:38:56] fetch_video: 763450160584...
+[23:38:56] [daemon] POST /video?aweme_id=7634501605849213403 HTTP/1.1
+[23:40:12] fetch_video: 766370842419...
+[23:40:12] [daemon] POST /video?aweme_id=7663708424194549923 HTTP/1.1
+[23:41:50] fetch_video: 766335334024...
+[23:41:50] [daemon] POST /video?aweme_id=7663353340247774578 HTTP/1.1
+[23:42:30] fetch_video: 766335334024...
+[23:42:30] [daemon] POST /video?aweme_id=7663353340247774578 HTTP/1.1
+[23:43:27] SignerDaemon: stopped
+[23:47:37] call_server attempt 1: daemon not ready, starting...
+[23:47:37] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[23:47:37] SignerDaemon: launching browser in daemon thread...
+[23:47:37] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[23:47:38] Step 1: first nav + SDK wait
+[23:47:42] Step 1: SDK init OK
+[23:47:42] Step 2: JS inject cookies + re-nav
+[23:47:43] Step 2: cookies injected via JS
+[23:47:46] Step 2: SDK re-init OK
+[23:47:46] Step 3: fingerprints injected
+[23:47:46] StealthBrowser: Ready (page=True)
+[23:47:46] SignerDaemon: serving on port 18765
+[23:47:46] SignerDaemon: starting on port 18765 (block=True)
+[23:47:46] fetch_video: 765963593482...
+[23:47:46] [daemon] POST /video?aweme_id=7659635934828709093 HTTP/1.1
+[23:48:37] fetch_video: 766262175118...
+[23:48:37] [daemon] POST /video?aweme_id=7662621751184567785 HTTP/1.1
+[23:50:07] fetch_video: 765888985189...
+[23:50:07] [daemon] POST /video?aweme_id=7658889851890320485 HTTP/1.1
+[23:51:52] fetch_video: 763688715123...
+[23:51:52] [daemon] POST /video?aweme_id=7636887151239024099 HTTP/1.1
+[23:54:34] SignerDaemon: stopped
+[23:54:54] SignerDaemon: stopped
+[23:55:29] SignerDaemon: stopped
+[23:59:06] SignerDaemon: stopped
+[00:00:19] SignerDaemon: stopped
+[00:01:59] SignerDaemon: stopped
+[00:01:59] === start_server() called (playwright daemon) ===
+[00:01:59] SignerDaemon: starting on port 18765 (block=False)
+[00:01:59] daemon start: True
+[00:01:59] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:01:59] SignerDaemon: launching browser in daemon thread...
+[00:01:59] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:01:59] SignerDaemon: stopped
+[00:04:31] SignerDaemon: stopped
+[00:04:31] === start_server() called (playwright daemon) ===
+[00:04:31] SignerDaemon: starting on port 18765 (block=False)
+[00:04:31] daemon start: True
+[00:04:31] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:04:31] SignerDaemon: launching browser in daemon thread...
+[00:04:31] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:04:32] Step 1: first nav + SDK wait
+[00:04:36] Step 1: SDK init OK
+[00:04:36] Step 2: JS inject cookies + re-nav
+[00:04:37] Step 2: cookies injected via JS
+[00:04:40] Step 2: SDK re-init OK
+[00:04:40] Step 3: fingerprints injected
+[00:04:40] StealthBrowser: Ready (page=True)
+[00:04:40] SignerDaemon: serving on port 18765
+[00:06:20] fetch_video: 765898879601...
+[00:06:20] [daemon] POST /video?aweme_id=7658988796016926190 HTTP/1.1
+[00:06:22] fetch_video: 765713528283...
+[00:06:22] [daemon] POST /video?aweme_id=7657135282832061434 HTTP/1.1
+[00:06:23] fetch_video: 765608782467...
+[00:06:23] [daemon] POST /video?aweme_id=7656087824673088753 HTTP/1.1
+[00:06:24] fetch_video: 765010847084...
+[00:06:24] [daemon] POST /video?aweme_id=7650108470842785972 HTTP/1.1
+[00:06:26] fetch_video: 765006979699...
+[00:06:26] [daemon] POST /video?aweme_id=7650069796995258362 HTTP/1.1
+[00:14:04] SignerDaemon: stopped
+[00:15:03] SignerDaemon: stopped
+[00:18:02] SignerDaemon: stopped
+[00:20:48] call_server attempt 1: daemon not ready, starting...
+[00:20:48] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:20:48] SignerDaemon: launching browser in daemon thread...
+[00:20:48] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:20:49] Step 1: first nav + SDK wait
+[00:20:54] Step 1: SDK init OK
+[00:20:54] Step 2: JS inject cookies + re-nav
+[00:20:55] Step 2: cookies injected via JS
+[00:20:58] Step 2: SDK re-init OK
+[00:20:59] Step 3: fingerprints injected
+[00:20:59] StealthBrowser: Ready (page=True)
+[00:20:59] SignerDaemon: serving on port 18765
+[00:20:59] SignerDaemon: starting on port 18765 (block=True)
+[00:20:59] fetch_video: 764456887540...
+[00:20:59] [daemon] POST /video?aweme_id=7644568875409371561 HTTP/1.1
+[00:23:20] SignerDaemon: stopped
+[00:28:09] SignerDaemon: stopped
+[00:31:02] SignerDaemon: stopped
+[00:36:15] SignerDaemon: stopped
+[00:40:17] SignerDaemon: stopped
+[00:43:53] call_server attempt 1: daemon not ready, starting...
+[00:43:53] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:43:53] SignerDaemon: launching browser in daemon thread...
+[00:43:53] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:43:54] Step 1: first nav + SDK wait
+[00:43:59] Step 1: SDK init OK
+[00:43:59] Step 2: JS inject cookies + re-nav
+[00:43:59] Step 2: cookies injected via JS
+[00:44:03] Step 2: SDK re-init OK
+[00:44:03] Step 3: fingerprints injected
+[00:44:03] StealthBrowser: Ready (page=True)
+[00:44:03] SignerDaemon: serving on port 18765
+[00:44:03] SignerDaemon: starting on port 18765 (block=True)
+[00:44:03] fetch_video: 763688715123...
+[00:44:03] [daemon] POST /video?aweme_id=7636887151239024099 HTTP/1.1
+[00:44:14] fetch_video: 763949964870...
+[00:44:14] [daemon] POST /video?aweme_id=7639499648700967653 HTTP/1.1
+[00:44:23] fetch_video: 766366602445...
+[00:44:23] [daemon] POST /video?aweme_id=7663666024457368186 HTTP/1.1
+[00:44:31] fetch_video: 766336613832...
+[00:44:32] [daemon] POST /video?aweme_id=7663366138328531045 HTTP/1.1
+[00:44:48] fetch_video: 766335334024...
+[00:44:48] [daemon] POST /video?aweme_id=7663353340247774578 HTTP/1.1
+[00:45:00] SignerDaemon: stopped
+[00:46:26] call_server attempt 1: daemon not ready, starting...
+[00:46:26] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:46:26] SignerDaemon: launching browser in daemon thread...
+[00:46:26] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:46:27] Step 1: first nav + SDK wait
+[00:46:32] Step 1: SDK init OK
+[00:46:32] Step 2: JS inject cookies + re-nav
+[00:46:33] Step 2: cookies injected via JS
+[00:46:36] Step 2: SDK re-init OK
+[00:46:36] Step 3: fingerprints injected
+[00:46:36] StealthBrowser: Ready (page=True)
+[00:46:36] SignerDaemon: serving on port 18765
+[00:46:36] SignerDaemon: starting on port 18765 (block=True)
+[00:46:36] fetch_video: 766333179202...
+[00:46:36] [daemon] POST /video?aweme_id=7663331792023326641 HTTP/1.1
+[00:47:06] SignerDaemon: stopped
+[00:53:11] call_server attempt 1: daemon not ready, starting...
+[00:53:11] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:53:11] SignerDaemon: launching browser in daemon thread...
+[00:53:11] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:53:12] Step 1: first nav + SDK wait
+[00:53:18] Step 1: SDK init OK
+[00:53:18] Step 2: JS inject cookies + re-nav
+[00:53:18] Step 2: cookies injected via JS
+[00:53:21] Step 2: SDK re-init OK
+[00:53:21] Step 3: fingerprints injected
+[00:53:21] StealthBrowser: Ready (page=True)
+[00:53:21] SignerDaemon: serving on port 18765
+[00:53:21] SignerDaemon: starting on port 18765 (block=True)
+[00:53:21] fetch_video: 766333179202...
+[00:53:22] [daemon] POST /video?aweme_id=7663331792023326641 HTTP/1.1
+[00:53:49] fetch_video: 766333179202...
+[00:53:49] [daemon] POST /video?aweme_id=7663331792023326641 HTTP/1.1
+[00:54:32] SignerDaemon: stopped
+[00:58:00] call_server attempt 1: daemon not ready, starting...
+[00:58:00] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:58:00] SignerDaemon: launching browser in daemon thread...
+[00:58:00] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[00:58:01] Step 1: first nav + SDK wait
+[00:58:06] Step 1: SDK init OK
+[00:58:06] Step 2: JS inject cookies + re-nav
+[00:58:07] Step 2: cookies injected via JS
+[00:58:10] Step 2: SDK re-init OK
+[00:58:11] Step 3: fingerprints injected
+[00:58:11] StealthBrowser: Ready (page=True)
+[00:58:11] SignerDaemon: serving on port 18765
+[00:58:11] SignerDaemon: starting on port 18765 (block=True)
+[00:58:11] fetch_video: 766333179202...
+[00:58:11] [daemon] POST /video?aweme_id=7663331792023326641 HTTP/1.1
+[01:07:36] SignerDaemon: stopped
+[02:24:33] call_server attempt 1: daemon not ready, starting...
+[02:24:33] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:24:33] SignerDaemon: launching browser in daemon thread...
+[02:24:33] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:24:34] Step 1: first nav + SDK wait
+[02:24:38] Step 1: SDK init OK
+[02:24:38] Step 2: JS inject cookies + re-nav
+[02:24:39] Step 2: cookies injected via JS
+[02:24:42] Step 2: SDK re-init OK
+[02:24:42] Step 3: fingerprints injected
+[02:24:42] StealthBrowser: Ready (page=True)
+[02:24:42] SignerDaemon: serving on port 18765
+[02:24:42] SignerDaemon: starting on port 18765 (block=True)
+[02:24:42] fetch_video: 764003204159...
+[02:24:43] [daemon] POST /video?aweme_id=7640032041598198757 HTTP/1.1
+[02:25:01] call_api: https://www.douyin.com/aweme/v1/web/comment/list/?aweme_id=7640032041598198757...
+[02:25:01] [daemon] POST /call?url=https://www.douyin.com/aweme/v1/web/comment/list/?aweme_id=7640032041598198757&cursor=0&count=30&device_platform=webapp&aid=6383&channel=channel_pc_web&pc_client_type=1&version_code=290100&version_name=29.1.0&cookie_enabled=true HTTP/1.1
+[02:25:42] fetch_video: 765961600758...
+[02:25:42] [daemon] POST /video?aweme_id=7659616007580912930 HTTP/1.1
+[02:25:54] fetch_video: 766083053066...
+[02:25:54] [daemon] POST /video?aweme_id=7660830530660846886 HTTP/1.1
+[02:26:24] SignerDaemon: stopped
+[02:26:42] call_server attempt 1: daemon not ready, starting...
+[02:26:42] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:26:42] SignerDaemon: launching browser in daemon thread...
+[02:26:42] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:26:43] Step 1: first nav + SDK wait
+[02:26:47] Step 1: SDK init OK
+[02:26:47] Step 2: JS inject cookies + re-nav
+[02:26:48] Step 2: cookies injected via JS
+[02:26:51] Step 2: SDK re-init OK
+[02:26:51] Step 3: fingerprints injected
+[02:26:51] StealthBrowser: Ready (page=True)
+[02:26:51] SignerDaemon: starting on port 18765 (block=True)
+[02:26:51] SignerDaemon: serving on port 18765
+[02:26:51] fetch_video: 765118919029...
+[02:26:52] [daemon] POST /video?aweme_id=7651189190294937060 HTTP/1.1
+[02:26:55] SignerDaemon: stopped
+[02:27:56] call_server attempt 1: daemon not ready, starting...
+[02:27:56] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:27:56] SignerDaemon: launching browser in daemon thread...
+[02:27:56] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:27:57] Step 1: first nav + SDK wait
+[02:28:01] Step 1: SDK init OK
+[02:28:01] Step 2: JS inject cookies + re-nav
+[02:28:02] Step 2: cookies injected via JS
+[02:28:05] Step 2: SDK re-init OK
+[02:28:05] Step 3: fingerprints injected
+[02:28:05] StealthBrowser: Ready (page=True)
+[02:28:05] SignerDaemon: serving on port 18765
+[02:28:05] SignerDaemon: starting on port 18765 (block=True)
+[02:28:05] fetch_video: 765118919029...
+[02:28:06] [daemon] POST /video?aweme_id=7651189190294937060 HTTP/1.1
+[02:28:43] fetch_video: 766203775816...
+[02:28:44] [daemon] POST /video?aweme_id=7662037758164112294 HTTP/1.1
+[02:29:50] call_server attempt 1: daemon not ready, starting...
+[02:29:51] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:29:51] SignerDaemon: launching browser in daemon thread...
+[02:29:51] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:29:52] Step 1: first nav + SDK wait
+[02:29:56] Step 1: SDK init OK
+[02:29:56] Step 2: JS inject cookies + re-nav
+[02:29:57] Step 2: cookies injected via JS
+[02:30:00] Step 2: SDK re-init OK
+[02:30:00] Step 3: fingerprints injected
+[02:30:00] StealthBrowser: Ready (page=True)
+[02:30:00] SignerDaemon: serving on port 18766
+[02:30:00] SignerDaemon: starting on port 18766 (block=True)
+[02:30:00] fetch_video: 766203775816...
+[02:30:01] [daemon] POST /video?aweme_id=7662037758164112294 HTTP/1.1
+[02:30:12] SignerDaemon: stopped
+[02:33:50] _call_api: daemon not ready, starting...
+[02:33:50] BrowserFinder: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:33:50] SignerDaemon: launching browser in daemon thread...
+[02:33:50] StealthBrowser.start: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+[02:33:51] Step 1: first nav + SDK wait

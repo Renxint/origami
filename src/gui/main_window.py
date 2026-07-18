@@ -385,6 +385,9 @@ class MainWindow(QMainWindow):
             self._navigate_single(raw_clip)
 
     def _navigate_single(self, clip: str):
+        # 清理上一个作品的状态（仅当 _build 已完成时）
+        if hasattr(self.single_page, 'url_input'):
+            self.single_page._clear_all()
         self.stack.setCurrentIndex(2)
         # 只填入提取到的干净 URL
         clean_url = clip
@@ -393,6 +396,10 @@ class MainWindow(QMainWindow):
         if m:
             clean_url = m.group(0).rstrip('.,;:!?）」)】')
         self.single_page.url_input.setText(clean_url)
+        # 自动触发解析（先等 UI 刷新）
+        from PyQt6.QtCore import QTimer
+        if hasattr(self.single_page, '_auto_parse'):
+            QTimer.singleShot(150, self.single_page._auto_parse)
 
     # ── 导航 ──
 

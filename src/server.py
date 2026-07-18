@@ -478,7 +478,7 @@ def create_app() -> web.Application:
 
     # ── 首页重定向 ──
     async def index_redirect(request):
-        raise web.HTTPFound("/pages/home.html")
+        raise web.HTTPFound("/pages/splash.html")
     app.router.add_get("/", index_redirect)
 
     # ── 静态文件：ui/ → / ──

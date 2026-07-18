@@ -265,18 +265,16 @@ class BatchDownloadThread(QThread):
 
                 aweme = item.extra.get("aweme", {})
                 aweme_id = item.item_id
-                # 通过 sign-server 获取无水印详情（失败则用翻页数据兜底）
+                # 纯 HTTP 获取无水印详情（失败则用翻页数据兜底）
                 try:
-                    from src.webview_api import call_server
-                    fresh = call_server('video', aweme_id=aweme_id)
-                    if "_error" not in fresh:
-                        fresh_aweme = fresh.get("aweme_detail", {})
-                        if fresh_aweme:
-                            # 保留 _img_filter（翻页时设置的图集筛选标记）
-                            _filter = aweme.get("_img_filter")
-                            aweme = fresh_aweme
-                            if _filter is not None:
-                                aweme["_img_filter"] = _filter
+                    from src.platforms.douyin import DouyinAdapter
+                    fresh_aweme = DouyinAdapter()._fetch_detail_http(aweme_id, cookie)
+                    if fresh_aweme:
+                        # 保留 _img_filter（翻页时设置的图集筛选标记）
+                        _filter = aweme.get("_img_filter")
+                        aweme = fresh_aweme
+                        if _filter is not None:
+                            aweme["_img_filter"] = _filter
                 except Exception:
                     pass
                 desc = clean_name(item.title or aweme_id)
@@ -1385,7 +1383,7 @@ class BatchPage(QWidget):
             cursor = 0
             page = 0
             try:
-                while page < 100:
+                while True:
                     try:
                         data = {}
                         if mode == 'posts':
@@ -1425,13 +1423,16 @@ class BatchPage(QWidget):
                     page += 1
                     has_more = data.get("has_more", 0)
                     cursor = data.get("max_cursor", 0) or data.get("cursor", 0)
-                    if page == 1:
-                        self._bg_own_log.emit(f'[统计] 已加载 {total} 个{tag}...', '#64748B')
+                    # 每翻一页都输出日志 + 实时更新按钮数量
+                    self._bg_own_log.emit(f'[统计] 已加载 {total} 个{tag}...', '#64748B')
+                    cur_mode2 = 'posts' if self._sub_posts.isChecked() else 'likes'
+                    if cur_mode2 == mode:
+                        self._ui_callback.emit(lambda t=total: self._own_select_btn.setText(f"查看列表 ({t})"))
                     if not has_more:
                         break
                     if cursor == 0:
                         break
-                    time.sleep(0.3)
+                    time.sleep(0.2)
 
                 self._bg_own_log.emit(f'[统计] 共 {total} 个自己的{tag}', '#22C55E')
                 cur_mode = 'posts' if self._sub_posts.isChecked() else 'likes'

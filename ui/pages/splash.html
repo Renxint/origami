@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami</title>
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100%; height:100%; overflow:hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0c0c1a;
+    user-select:none; -webkit-font-smoothing:antialiased;
+  }
+
+  /* ══════ 背景层 ══════ */
+  .bg-scene {
+    position:fixed; inset:0; z-index:0;
+    background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a1a3e 0%, #0c0c1a 60%, #060610 100%);
+  }
+  /* 浮动光球 */
+  .bg-orb {
+    position:absolute; border-radius:50%; filter:blur(80px); opacity:.45;
+    animation: orb-drift 12s ease-in-out infinite alternate;
+  }
+  .bg-orb.a {
+    width:420px; height:420px;
+    background: radial-gradient(circle, rgba(129,140,248,.7), transparent);
+    top:-15%; left:-8%;
+    animation-delay: 0s;
+  }
+  .bg-orb.b {
+    width:360px; height:360px;
+    background: radial-gradient(circle, rgba(100,255,218,.5), transparent);
+    bottom:-12%; right:-6%;
+    animation-delay: -4s;
+  }
+  .bg-orb.c {
+    width:280px; height:280px;
+    background: radial-gradient(circle, rgba(244,114,182,.4), transparent);
+    top:45%; left:50%;
+    animation-delay: -8s;
+  }
+
+  @keyframes orb-drift {
+    0%   { transform:translate(0,0) scale(1); }
+    33%  { transform:translate(40px,-20px) scale(1.12); }
+    66%  { transform:translate(-30px,15px) scale(.92); }
+    100% { transform:translate(10px,-10px) scale(1.05); }
+  }
+
+  /* 网格纹理 */
+  .bg-grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, black 20%, transparent 70%);
+  }
+
+  /* 顶部光条 */
+  .bg-beam {
+    position:absolute; left:0; right:0; top:38%; height:1px;
+    background: linear-gradient(90deg,
+      transparent, rgba(129,140,248,.15), rgba(100,255,218,.35),
+      rgba(255,255,255,.5), rgba(244,114,182,.35),
+      rgba(129,140,248,.15), transparent);
+    filter:blur(1px);
+    animation: beam-pulse 3s ease-in-out infinite;
+  }
+  .bg-beam::after {
+    content:''; position:absolute; left:0; right:0; top:-20px; height:40px;
+    background: linear-gradient(180deg, transparent, rgba(129,140,248,.06), transparent);
+  }
+  @keyframes beam-pulse {
+    0%,100% { opacity:.6; }
+    50%     { opacity:1; }
+  }
+
+  /* ══════ 启动页容器 ══════ */
+  #splash {
+    position:fixed; inset:0; z-index:10;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1);
+  }
+  #splash.exiting { opacity:0; transform:scale(1.03); pointer-events:none; }
+
+  /* ══════ 标题 ══════ */
+  .splash-title {
+    font-size:clamp(48px,8vw,96px); font-weight:800; letter-spacing:-.04em;
+    color:#f0f0f5;
+    text-shadow: 0 2px 40px rgba(129,140,248,.25);
+    line-height:1;
+  }
+  .splash-title .hl {
+    background: linear-gradient(135deg, #818CF8 20%, #64FFDA 55%, #F472B6 85%);
+    -webkit-background-clip:text; background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+  .splash-title .char {
+    display:inline-block; opacity:0; transform:translateY(20px);
+    animation: charIn .55s cubic-bezier(.16,1,.3,1) forwards;
+  }
+  .splash-title .char:nth-child(1){ animation-delay: .5s; }
+  .splash-title .char:nth-child(2){ animation-delay: .58s; }
+  .splash-title .char:nth-child(3){ animation-delay: .66s; }
+  .splash-title .char:nth-child(4){ animation-delay: .74s; }
+  .splash-title .char:nth-child(5){ animation-delay: .82s; }
+  .splash-title .char:nth-child(6){ animation-delay: .90s; }
+  .splash-title .char:nth-child(7){ animation-delay: .98s; }
+
+  @keyframes charIn {
+    0%   { opacity:0; transform:translateY(20px); filter:blur(6px); }
+    100% { opacity:1; transform:translateY(0); filter:blur(0); }
+  }
+  @keyframes fadeUp {
+    0%   { opacity:0; transform:translateY(16px) scale(.9); }
+    100% { opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  /* ══════ 副标题 ══════ */
+  .splash-sub {
+    margin-top:14px; font-size:13px; font-weight:500; letter-spacing:.12em;
+    color:rgba(255,255,255,.40);
+    opacity:0; transform:translateY(8px);
+    animation: fadeUp 1s 1.35s cubic-bezier(.16,1,.3,1) forwards;
+  }
+
+  /* ══════ 进入按钮 ══════ */
+  .splash-enter-wrap {
+    margin-top:36px; opacity:0;
+    animation: fadeUp .8s 2.5s cubic-bezier(.16,1,.3,1) forwards;
+  }
+  .splash-enter {
+    padding:12px 48px; border-radius:999px;
+    border:1.5px solid rgba(129,140,248,.35);
+    background: rgba(129,140,248,.08);
+    color:rgba(255,255,255,.72);
+    font-family:inherit; font-size:14px; font-weight:600;
+    letter-spacing:.08em;
+    cursor:pointer;
+    transition: all .3s;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .splash-enter:hover {
+    background:rgba(129,140,248,.18);
+    border-color:rgba(129,140,248,.6);
+    color:#fff;
+    box-shadow:0 0 40px rgba(129,140,248,.20), 0 8px 24px rgba(0,0,0,.3);
+    transform:translateY(-1px);
+  }
+  .splash-enter:active { transform:scale(.97); }
+
+  /* ══════ 粒子 — CSS 实现 ══════ */
+  .particles {
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+  }
+  .particle {
+    position:absolute; border-radius:50%;
+    animation: particleRise linear infinite;
+  }
+  @keyframes particleRise {
+    0%   { transform:translateY(0) translateX(0); opacity:0; }
+    8%   { opacity:.9; }
+    85%  { opacity:.15; }
+    100% { transform:translateY(-105vh) translateX(var(--dx)); opacity:0; }
+  }
+
+  /* ══════ 响应式 ══════ */
+  @media(max-width:600px){
+    .splash-title { font-size:clamp(36px,10vw,52px); }
+    .splash-enter { padding:10px 36px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 背景场景 -->
+<div class="bg-scene">
+  <div class="bg-orb a"></div>
+  <div class="bg-orb b"></div>
+  <div class="bg-orb c"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-beam"></div>
+</div>
+
+<!-- CSS 粒子 -->
+<div class="particles" id="particles"></div>
+
+<!-- 启动页 -->
+<div id="splash">
+  <div class="splash-title">
+    <span class="char">O</span><span class="char">r</span><span class="char">i</span><span class="char">g</span><span class="char">a</span><span class="char hl">m</span><span class="char hl">i</span>
+  </div>
+
+  <div class="splash-sub">PERSONAL CONTENT ARCHIVE</div>
+
+  <div class="splash-enter-wrap">
+    <button class="splash-enter" id="enter-btn" onclick="enterApp()">进 入</button>
+  </div>
+</div>
+
+<script>
+  // ══════ CSS 粒子 ══════
+  (function(){
+    var container = document.getElementById('particles');
+    var colors = [
+      'rgba(200,210,255,.75)',
+      'rgba(180,200,255,.6)',
+      'rgba(255,220,240,.55)',
+      'rgba(160,240,220,.5)',
+      'rgba(220,200,255,.65)',
+      'rgba(255,255,255,.7)',
+    ];
+    for(var i=0;i<200;i++){
+      var p = document.createElement('div');
+      p.className = 'particle';
+      var size = 1 + Math.random()*4;
+      var col = colors[Math.floor(Math.random()*colors.length)];
+      p.style.cssText =
+        'width:'+size+'px;height:'+size+'px;'+
+        'left:'+(Math.random()*100)+'%;'+
+        'bottom:'+(-5-Math.random()*30)+'%;'+
+        'background:'+col+';'+
+        'box-shadow:0 0 '+(4+Math.random()*8)+'px '+col+';'+
+        '--dx:'+(Math.random()*60-30)+'px;'+
+        'animation-duration:'+(5+Math.random()*14)+'s;'+
+        'animation-delay:'+(Math.random()*8)+'s;';
+      container.appendChild(p);
+    }
+  })();
+
+  // ══════ 进入逻辑 ══════
+  var splash = document.getElementById('splash');
+  var ready = false;
+
+  setTimeout(function(){ ready=true; }, 2800);
+
+  window.enterApp = function(){
+    if(!ready) return;
+    splash.classList.add('exiting');
+    setTimeout(function(){
+      window.location.href = 'home.html';
+    }, 800);
+  };
+
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.code==='Space'){ e.preventDefault(); enterApp(); }
+  });
+</script>
+</body>
+</html>

@@ -223,8 +223,12 @@ class StealthBrowser:
             headless=self._headless,
             args=[
                 "--no-sandbox",
+                "--headless=new",
+                "--window-position=-32000,-32000",
                 "--disable-blink-features=AutomationControlled",
                 "--disable-gpu",
+                "--hide-scrollbars",
+                "--mute-audio",
             ],
         )
 
@@ -395,14 +399,15 @@ class StealthBrowser:
         except Exception:
             pass
         self._browser = None
+        self._page = None
+        self._sdk_ready = False
+        # Playwright stop 容易 EPIPE（Node 进程已死），单独 try + 延迟重试
         try:
             if self._playwright:
                 self._playwright.stop()
         except Exception:
             pass
         self._playwright = None
-        self._page = None
-        self._sdk_ready = False
 
 
 # ═══════════════════════════════════════════════════════════
@@ -585,6 +590,7 @@ class SignerDaemon:
 
     def stop(self):
         with self._lock:
+            self._running = False
             if self._server:
                 try:
                     self._server.shutdown()
@@ -594,10 +600,11 @@ class SignerDaemon:
             if self._browser:
                 try:
                     self._browser.close()
+                except OSError:
+                    pass  # EPIPE / broken pipe — Node 已死
                 except Exception:
                     pass
                 self._browser = None
-            self._running = False
             _debug_log("SignerDaemon: stopped")
 
 

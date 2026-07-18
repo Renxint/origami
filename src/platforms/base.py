@@ -18,12 +18,13 @@ class MediaItem:
     """单个媒体作品"""
     platform: str           # 平台标识: douyin / bilibili / weibo ...
     item_id: str            # 平台内唯一 ID
-    item_type: str          # video / image / audio / live / gallery
+    item_type: str          # video / image / audio / live / gallery / note
     title: str = ""
     author: str = ""
     author_id: str = ""
     cover_url: str = ""
     media_urls: list[str] = field(default_factory=list)   # 下载链接
+    text_content: str = ""                                 # 文章内容（note 类型）
     extra: dict = field(default_factory=dict)              # 平台特有字段
 
 
@@ -33,10 +34,25 @@ class AuthorInfo:
     platform: str
     author_id: str
     nickname: str = ""
+    unique_id: str = ""           # 抖音号
+    short_id: str = ""            # 短ID
+    uid: str = ""                 # 数字UID
     avatar_url: str = ""
+    cover_url: str = ""           # 主页封面
     bio: str = ""
     post_count: int = 0
     follower_count: int = 0
+    following_count: int = 0      # 关注数
+    favoriting_count: int = 0     # 喜欢数
+    total_favorited: int = 0      # 被赞总数
+    country: str = ""
+    province: str = ""
+    city: str = ""
+    ip_location: str = ""         # IP属地
+    gender: int = 0               # 0=未设置 1=男 2=女
+    age: int = -1                 # -1=未设置
+    verify: str = ""              # 认证信息
+    tags: list = field(default_factory=list)  # 个人标签
     extra: dict = field(default_factory=dict)
 
 

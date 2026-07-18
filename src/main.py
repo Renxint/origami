@@ -100,9 +100,9 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
 
     print("[*] 获取作品数据...")
     media = adapter.fetch_media(item_id)
-    type_emoji = {"video": "🎬", "image": "🖼️", "gallery": "🖼️"}
+    type_emoji = {"video": "🎬", "image": "🖼️", "gallery": "🖼️", "note": "📝"}
     emoji = type_emoji.get(media.item_type, "📦")
-    type_cn = {"video": "视频", "image": "单图", "gallery": f"图集({len(media.media_urls)}图)"}
+    type_cn = {"video": "视频", "image": "单图", "gallery": f"图集({len(media.media_urls)}图)", "note": "文章"}
     cn = type_cn.get(media.item_type, media.item_type)
     print(f"[OK] {media.title[:40]}  by {media.author}")
     print(f"     {emoji} {cn}")
@@ -118,18 +118,26 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
     post_dir = out / f"{safe_author}（{safe_title}）"
     post_dir.mkdir(parents=True, exist_ok=True)
 
-    for idx, (i, murl) in enumerate(selected):
-        ext = ".mp4" if media.item_type == "video" else ".jpg"
-        label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
-        fname = f"{label}{ext}"
-        fpath = post_dir / fname
-        print(f"[*] 下载 {idx+1}/{len(selected)}: {fname}...")
-        ok = download_file(murl, fpath)
-        tag = "OK" if ok else "FAIL"
-        print(f"[{tag}] {fpath}")
+    if media.item_type == "note":
+        # 文章：保存文本内容
+        text = media.text_content or media.title
+        (post_dir / "article.md").write_text(
+            f"# {media.title or item_id}\n\n> 作者：{media.author}\n\n{text}", encoding="utf-8")
+        print(f"[OK] 文章已保存: {post_dir / 'article.md'}")
+        print(f"     字数: {len(text)}")
+    else:
+        for idx, (i, murl) in enumerate(selected):
+            ext = ".mp4" if media.item_type == "video" else ".jpg"
+            label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
+            fname = f"{label}{ext}"
+            fpath = post_dir / fname
+            print(f"[*] 下载 {idx+1}/{len(selected)}: {fname}...")
+            ok = download_file(murl, fpath)
+            tag = "OK" if ok else "FAIL"
+            print(f"[{tag}] {fpath}")
 
-    # 写描述文件
-    (post_dir / "desc.txt").write_text(media.title or item_id, encoding="utf-8")
+        # 写描述文件
+        (post_dir / "desc.txt").write_text(media.title or item_id, encoding="utf-8")
     print(f"[DONE] 保存到: {post_dir}")
 
 

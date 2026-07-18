@@ -83,79 +83,44 @@ def _kill_sign_port():
 
 
 def start_server():
-    """启动 Playwright HTTP Daemon（独立线程，不在 Qt 线程内）"""
-    _debug_log("=== start_server() called (playwright daemon) ===")
-
-    signer = get_signer()
-    if signer.is_ready():
-        _debug_log("fast path: daemon already running")
-        return True
-
-    _kill_orphan_nodes()
-
-    cookie = _load_cookie_raw()
-    ok = signer.start(cookie_str=cookie)
-    _debug_log(f"daemon start: {ok}")
-    return ok
+    """已废弃：纯 HTTP 不需要 daemon。保留接口兼容。"""
+    return True
 
 
 def stop_server():
-    """关闭 HTTP Daemon + 浏览器"""
-    get_signer().stop()
+    """已废弃：纯 HTTP 不需要 daemon。保留接口兼容。"""
+    pass
 
 
 def call_server(endpoint: str, **params) -> dict:
-    """调用常驻服务端点（对齐旧 call_server，内置懒启动+重试）"""
-    signer = get_signer()
+    """纯 HTTP 调用抖音 API（替代旧 Playwright daemon）"""
+    from src.platforms.douyin import DouyinAdapter
+    cookie = _load_cookie_raw()
+    adapter = DouyinAdapter()
 
-    for attempt in (1, 2, 3):
-        if not signer.is_ready():
-            _debug_log(f"call_server attempt {attempt}: daemon not ready, starting...")
-            cookie = _load_cookie_raw()
-            signer.start(cookie_str=cookie, block=True)
-            if not signer.is_ready():
-                _debug_log("WARN: daemon did not become ready")
-                if attempt < 3:
-                    signer.stop()
-                    time.sleep(1)
-                    continue
-                return {"_error": "sign_server_timeout"}
-
+    if endpoint == "video":
+        aweme_id = params.get("aweme_id", "")
         try:
-            if endpoint == "video":
-                aweme_id = params.get("aweme_id", "")
-                r = _req.post(
-                    f"{_daemon_url()}/video?aweme_id={aweme_id}",
-                    timeout=60)
-                result = r.json()
-            elif endpoint == "call":
-                url = params.get("url", "")
-                r = _req.post(
-                    f"{_daemon_url()}/call?url={url}",
-                    timeout=30)
-                result = r.json()
-            else:
-                return {"_error": f"unknown endpoint: {endpoint}"}
-
-            if "_error" in result:
-                _debug_log(f"daemon error: {result['_error'][:200]}")
-                if "browser" in str(result.get("_error", "")).lower() and attempt < 3:
-                    _debug_log(f"retry {attempt+1}/3...")
-                    signer.stop()
-                    time.sleep(2)
-                    continue
-            return result
-
+            aweme = adapter._fetch_detail_http(aweme_id, cookie)
+            return {"aweme_detail": aweme}
         except Exception as e:
-            _debug_log(f"call_server HTTP failed: {e}")
-            if attempt < 3:
-                _debug_log(f"retry {attempt+1}/3...")
-                signer.stop()
-                time.sleep(1)
-                continue
             return {"_error": str(e)}
 
-    return {"_error": "sign_server_connection_failed"}
+    elif endpoint == "call":
+        url = params.get("url", "")
+        try:
+            import requests as _r
+            from src.environ import USER_AGENT
+            resp = _r.get(url, headers={
+                "User-Agent": USER_AGENT,
+                "Cookie": cookie,
+                "Referer": "https://www.douyin.com/",
+            }, timeout=30)
+            return resp.json()
+        except Exception as e:
+            return {"_error": str(e)}
+
+    return {"_error": f"unknown endpoint: {endpoint}"}
 
 
 # ═══════════════════════════════════════════════════════════

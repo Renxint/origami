@@ -79,24 +79,62 @@ class DouyinAdapter(PlatformAdapter):
     def fetch_media(self, item_id: str, cookie: str = "") -> MediaItem:
         """获取视频详情 + 无水印链接（需 sign-server）"""
         cookie = cookie or self._load_cookie()
-        aweme = self._call_sign_server(item_id, cookie)
+        aweme = self._fetch_detail_http(item_id, cookie)
 
         desc = aweme.get("desc", "") or item_id
-        author = aweme.get("author", {}).get("nickname", "")
+        author_info = aweme.get("author", {})
+        author = author_info.get("nickname", "")
+        author_id = author_info.get("sec_uid", "") or author_info.get("uid", "")
+        # 封面
+        cover_url = ""
+        cover = aweme.get("video", {}).get("cover", {}) or aweme.get("video", {}).get("origin_cover", {})
+        if cover:
+            covers = cover.get("url_list", [])
+            cover_url = covers[0] if covers else ""
 
         media_urls = []
         item_type = "video"
+        text_content = ""
 
         video = aweme.get("video")
-        if video:
+        images = aweme.get("images") or []
+        media_type = aweme.get("media_type", 0)  # 4=视频, 68=图文
+
+        if media_type == 68:
+            # 图文/文章：media_type=68
+            item_type = "note"
+            content = aweme.get("content") or aweme.get("text_extra") or ""
+            if isinstance(content, str):
+                text_content = content
+            elif isinstance(content, list):
+                text_content = "\n\n".join(
+                    t.get("text", "") if isinstance(t, dict) else str(t)
+                    for t in content
+                )
+            if not text_content:
+                text_content = aweme.get("desc", "")
+            for img in images:
+                urls = img.get("url_list", [])
+                img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
+                if img_url:
+                    media_urls.append(img_url)
+        elif video:
             url = pick_best_video_url(video)
             if url:
                 media_urls.append(url)
-                item_type = "video"
-
-        images = aweme.get("images") or []
-        if images:
-            item_type = "gallery" if video else "image"
+                item_type = "video" if not images else "video"
+            elif images:
+                # video 存在但无有效视频流（如 mp3 背景音乐）→ 降级为图集
+                item_type = "gallery"
+                for img in images:
+                    urls = img.get("url_list", [])
+                    img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
+                    if img_url:
+                        media_urls.append(img_url)
+            if not media_urls:
+                item_type = "video"  # 有 video 对象但没有可播放 URL
+        elif images:
+            item_type = "gallery"
             for img in images:
                 urls = img.get("url_list", [])
                 img_url = next((u for u in urls if "jpeg" in u.lower() or "jpg" in u.lower()), urls[0] if urls else "")
@@ -109,7 +147,10 @@ class DouyinAdapter(PlatformAdapter):
             item_type=item_type,
             title=desc,
             author=author,
+            author_id=author_id,
+            cover_url=cover_url,
             media_urls=media_urls,
+            text_content=text_content,
             extra={"aweme": aweme},
         )
 
@@ -125,14 +166,33 @@ class DouyinAdapter(PlatformAdapter):
         if not profile or profile.get("_error"):
             raise RuntimeError(profile.get("_error", "无法获取用户信息，请检查Cookie"))
 
+        # 性别映射
+        gender_map = {0: "未设置", 1: "男", 2: "女"}
+        gender = profile.get("gender", 0)
+
         return AuthorInfo(
             platform="douyin",
             author_id=author_id,
             nickname=profile.get("nickname", ""),
+            unique_id=profile.get("unique_id", ""),
+            short_id=profile.get("short_id", ""),
+            uid=profile.get("uid", ""),
             avatar_url=profile.get("avatar_url", ""),
+            cover_url=profile.get("cover_url", ""),
             bio=profile.get("desc", ""),
             post_count=profile.get("aweme_count", 0),
             follower_count=profile.get("follower_count", 0),
+            following_count=profile.get("following_count", 0),
+            favoriting_count=profile.get("favoriting_count", 0),
+            total_favorited=profile.get("total_favorited", 0),
+            country=profile.get("country", ""),
+            province=profile.get("province", ""),
+            city=profile.get("city", ""),
+            ip_location=profile.get("ip_location", ""),
+            gender=gender,
+            age=profile.get("age", -1),
+            verify=profile.get("custom_verify", "") or profile.get("enterprise_verify_reason", ""),
+            tags=profile.get("tags", []),
             extra={"profile": profile},
         )
 
@@ -248,22 +308,44 @@ class DouyinAdapter(PlatformAdapter):
     def _load_cookie(self) -> str:
         return load_cookie()
 
-    def _call_sign_server(self, aweme_id: str, cookie: str) -> dict:
-        """通过 Playwright 常驻浏览器获取视频签名数据（替代旧 Node.js bootstrap.js）"""
-        from src.webview_api import call_server
+    def _fetch_detail_http(self, aweme_id: str, cookie: str = "") -> dict:
+        """纯 HTTP 调用 aweme/detail 获取作品详情（不需要 Playwright）"""
+        import requests as _r
+        from src.environ import USER_AGENT
 
-        for attempt in (1, 2):
-            data = call_server("video", aweme_id=aweme_id)
-            if "_error" not in data:
-                return data.get("aweme_detail", {})
+        params = (
+            f"aweme_id={aweme_id}&aid=6383&device_platform=webapp"
+            f"&version_code=290100&version_name=29.1.0"
+            f"&cookie_enabled=true&screen_width=1920&screen_height=1080"
+            f"&browser_language=zh-CN&browser_platform=Win32"
+            f"&browser_name=Edge&browser_version=130.0.0.0"
+            f"&browser_online=true&engine_name=Blink&engine_version=130.0.0.0"
+            f"&os_name=Windows&os_version=10&cpu_core_num=12"
+            f"&device_memory=8&platform=PC&downlink=10"
+            f"&effective_type=4g&round_trip_time=100"
+        )
+        url = f"https://www.douyin.com/aweme/v1/web/aweme/detail/?{params}"
 
-            err = data.get("_error", "")
-            if "browser" in err.lower() and attempt == 1:
-                time.sleep(5)
-                continue
-            raise RuntimeError(err or "获取视频数据失败")
+        headers = {
+            "User-Agent": USER_AGENT,
+            "Cookie": cookie or self._load_cookie(),
+            "Referer": "https://www.douyin.com/",
+        }
+        try:
+            resp = _r.get(url, headers=headers, timeout=20)
+            data = resp.json()
+        except Exception as e:
+            raise RuntimeError(f"获取视频数据失败: {e}")
 
-        raise RuntimeError("获取视频数据失败")
+        status = data.get("status_code", -1)
+        if status != 0:
+            raise RuntimeError(
+                f"API 返回异常 status_code={status} msg={data.get('status_msg', '')}"
+            )
+        aweme = data.get("aweme_detail", {})
+        if not aweme:
+            raise RuntimeError("API 未返回作品数据，请检查 Cookie 是否有效")
+        return aweme
 
 
 # 注册

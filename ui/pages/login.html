@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="soft-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Origami · 登录</title>
+<link rel="stylesheet" href="../css/themes.css">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%;
+    background: #0A0A14;
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size:13px; -webkit-font-smoothing:antialiased;
+    user-select:none; overflow:hidden;
+  }
+
+  /* ═══════════ Mineradio 玻璃令牌 ═══════════ */
+  :root {
+    --home-accent: #818CF8;
+    --home-accent-rgb: 129,140,248;
+    --glass-bg: linear-gradient(142deg, rgba(18,21,26,.72), rgba(8,9,13,.84));
+    --glass-bg-focus: linear-gradient(142deg, rgba(28,24,36,.78), rgba(10,11,17,.90));
+    --glass-border: rgba(255,255,255, 0.085);
+    --glass-border-accent: rgba(var(--home-accent-rgb), .30);
+    --glass-shadow: 0 22px 64px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.060);
+    --glass-shadow-focus: 0 24px 72px rgba(0,0,0,.34), 0 0 0 1px rgba(var(--home-accent-rgb),.13), 0 0 42px rgba(var(--home-accent-rgb),.075), inset 0 1px 0 rgba(255,255,255,.080);
+    --glass-blur: blur(24px) saturate(1.12);
+  }
+
+  /* ═══════════ 布局 ═══════════ */
+  .app { width:100%; height:100%; display:flex; flex-direction:column; }
+
+  /* ═══════════ 顶栏 ═══════════ */
+  .topbar {
+    display:flex; align-items:center; padding:14px 20px;
+    flex-shrink:0;
+  }
+  .back-btn {
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    color:var(--text-disabled); font-size:13px; font-weight:600;
+    border:none; background:transparent; font-family:inherit;
+    padding:8px 14px; border-radius:10px;
+    transition: all .2s;
+  }
+  .back-btn:hover { color:var(--text-secondary); background:rgba(255,255,255,.04); }
+  .back-btn svg { width:16px; height:16px; }
+
+  /* ═══════════ 主内容 ═══════════ */
+  .main {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+
+  /* ═══════════ 玻璃登录卡片 ═══════════ */
+  .login-card {
+    width:min(520px, 92vw);
+    border-radius:24px;
+    background: var(--glass-bg);
+    border:1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    padding:36px 32px 28px;
+    display:flex; flex-direction:column; align-items:center;
+    transition: all .3s;
+    overflow:hidden;
+    position:relative;
+  }
+  /* 装饰渐变 */
+  .login-card::before {
+    content:''; position:absolute; inset:0; z-index:0;
+    background:
+      linear-gradient(130deg,
+        rgba(129,140,248,.06), transparent 44%,
+        rgba(100,255,218,.04) 68%, transparent);
+    pointer-events:none;
+  }
+  .login-card > * { position:relative; z-index:1; }
+
+  /* ═══════════ 平台选择 Tabs ═══════════ */
+  .login-tabs {
+    display:flex; gap:6px; margin-bottom:28px;
+    padding:4px; border-radius:999px;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(129,140,248,.10);
+    backdrop-filter: blur(14px);
+  }
+  .login-tab {
+    height:34px; padding:0 20px; border-radius:999px;
+    border:0; background:transparent;
+    color:rgba(255,255,255,.38); font-family:inherit;
+    font-size:12px; font-weight:650; letter-spacing:.6px;
+    cursor:pointer;
+    transition: all .22s;
+  }
+  .login-tab:hover { color:rgba(255,255,255,.72); }
+  .login-tab.active {
+    color:#eafffb;
+    background:rgba(129,140,248,.10);
+    box-shadow: inset 0 0 0 1px rgba(129,140,248,.20), 0 8px 22px rgba(129,140,248,.05);
+  }
+  .login-tab.disabled {
+    opacity:.35; cursor:not-allowed;
+  }
+
+  /* ═══════════ 二维码区域 ═══════════ */
+  .qr-shell {
+    width:180px; height:180px; border-radius:18px;
+    border:1.5px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.025);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:20px;
+    position:relative; overflow:hidden;
+    transition: border-color .25s;
+  }
+  .qr-placeholder {
+    text-align:center; color:rgba(255,255,255,.20);
+    font-size:42px; line-height:1;
+  }
+  .qr-placeholder-label {
+    font-size:10px; margin-top:4px;
+    color:rgba(255,255,255,.16);
+  }
+  .qr-shell.scanning {
+    border-color:rgba(129,140,248,.36);
+    box-shadow: 0 0 0 1px rgba(129,140,248,.08), 0 16px 42px rgba(129,140,248,.06);
+    animation: qr-glow 2.2s ease-in-out infinite alternate;
+  }
+  @keyframes qr-glow {
+    0%   { box-shadow:0 0 0 1px rgba(129,140,248,.06), 0 14px 36px rgba(129,140,248,.04); }
+    100% { box-shadow:0 0 0 1px rgba(129,140,248,.16), 0 22px 52px rgba(129,140,248,.10); }
+  }
+  /* 扫码成功勾 */
+  .qr-done {
+    position:absolute; inset:0; border-radius:18px;
+    background:rgba(74,222,128,.08);
+    display:none; align-items:center; justify-content:center;
+    font-size:48px; color:var(--success);
+    border:2px solid rgba(74,222,128,.24);
+  }
+  .qr-done.show { display:flex; }
+
+  /* ═══════════ 状态文字 ═══════════ */
+  .login-status {
+    font-size:12px; color:var(--text-secondary);
+    margin-bottom:18px; letter-spacing:.3px;
+    text-align:center;
+  }
+  .login-status.success { color:var(--success); }
+  .login-status.error { color:var(--error); }
+
+  /* ═══════════ 操作按钮 ═══════════ */
+  .login-actions {
+    display:flex; gap:10px;
+  }
+  .btn-glass {
+    height:38px; padding:0 22px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.03);
+    color:rgba(255,255,255,.58);
+    font-family:inherit; font-size:12px; font-weight:650;
+    letter-spacing:.5px; cursor:pointer;
+    transition: all .22s;
+  }
+  .btn-glass:hover {
+    background:rgba(255,255,255,.06); color:#fff;
+    border-color:rgba(255,255,255,.14);
+  }
+  .btn-glass.primary {
+    background:rgba(129,140,248,.14);
+    border-color:rgba(129,140,248,.28);
+    color:#e0e4ff;
+    box-shadow: 0 8px 28px rgba(129,140,248,.08);
+  }
+  .btn-glass.primary:hover {
+    background:rgba(129,140,248,.22);
+    border-color:rgba(129,140,248,.44);
+    box-shadow: 0 12px 36px rgba(129,140,248,.14);
+  }
+
+  /* ═══════════ 底部提示 ═══════════ */
+  .login-hint {
+    margin-top:20px; font-size:10px; color:var(--text-disabled);
+    text-align:center; line-height:1.6;
+  }
+  .login-hint a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack()">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      返回
+    </button>
+  </div>
+
+  <!-- 主内容 -->
+  <div class="main">
+    <div class="login-card">
+
+      <!-- 平台 Tabs -->
+      <div class="login-tabs" id="login-tabs">
+        <button class="login-tab active" onclick="switchLoginPlatform('douyin')">抖音</button>
+        <button class="login-tab disabled" disabled>B站</button>
+        <button class="login-tab disabled" disabled>微博</button>
+      </div>
+
+      <!-- 二维码区域 -->
+      <div class="qr-shell" id="qr-shell">
+        <div class="qr-placeholder">
+          <div>📱</div>
+          <div class="qr-placeholder-label">扫码登录</div>
+        </div>
+        <div class="qr-done" id="qr-done">✓</div>
+      </div>
+
+      <!-- 状态 -->
+      <div class="login-status" id="login-status">
+        点击下方按钮打开登录窗口
+      </div>
+
+      <!-- 操作按钮 -->
+      <div class="login-actions">
+        <button class="btn-glass primary" id="btn-login" onclick="startLogin()">
+          打开登录
+        </button>
+        <button class="btn-glass" id="btn-refresh" onclick="checkStatus()" style="display:none;">
+          刷新状态
+        </button>
+      </div>
+
+      <!-- 提示 -->
+      <div class="login-hint">
+        登录一次后 Cookie 将保存在本地<br>
+        不会上传到任何服务器
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  let loginPlatform = 'douyin';
+
+  function switchLoginPlatform(p) {
+    loginPlatform = p;
+    document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const status = document.getElementById('login-status');
+    const shell = document.getElementById('qr-shell');
+    if (p !== 'douyin') {
+      status.textContent = '该平台适配器尚未开放登录';
+      shell.classList.remove('scanning');
+    } else {
+      status.textContent = '点击下方按钮打开登录窗口';
+      shell.classList.remove('scanning');
+    }
+  }
+
+  async function startLogin() {
+    const status = document.getElementById('login-status');
+    const shell = document.getElementById('qr-shell');
+    const btn = document.getElementById('btn-login');
+
+    status.textContent = '正在打开登录窗口...';
+    status.className = 'login-status';
+    shell.classList.add('scanning');
+    btn.textContent = '登录中...';
+    btn.disabled = true;
+
+    try {
+      const r = await Origami.login();
+      if (r && r.ok) {
+        status.textContent = '登录成功！';
+        status.className = 'login-status success';
+        shell.classList.remove('scanning');
+        document.getElementById('qr-done').classList.add('show');
+        btn.textContent = '已登录';
+        btn.classList.add('done');
+
+        setTimeout(() => {
+          window.location.href = 'home.html';
+        }, 1200);
+      } else {
+        status.textContent = r && r.message ? r.message : '登录未完成，请重试';
+        status.className = 'login-status error';
+        btn.textContent = '重新登录';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      status.textContent = '登录失败: ' + (e.message || '网络错误');
+      status.className = 'login-status error';
+      shell.classList.remove('scanning');
+      btn.textContent = '重新登录';
+      btn.disabled = false;
+    }
+  }
+
+  async function checkStatus() {
+    const status = document.getElementById('login-status');
+    try {
+      const cs = await Origami.cookieStatus();
+      if (cs && cs.ok) {
+        status.textContent = '已登录，正在跳转...';
+        status.className = 'login-status success';
+        document.getElementById('qr-done').classList.add('show');
+        setTimeout(() => { window.location.href = 'home.html'; }, 800);
+      } else {
+        status.textContent = '尚未登录，请打开登录窗口';
+        status.className = 'login-status';
+      }
+    } catch (e) {
+      status.textContent = '检查状态失败';
+      status.className = 'login-status error';
+    }
+  }
+
+  function goBack() {
+    window.location.href = 'home.html';
+  }
+
+  // 页面加载时检查登录态
+  window.addEventListener('DOMContentLoaded', async function() {
+    try {
+      const cs = await Origami.cookieStatus();
+      if (cs && cs.ok) {
+        document.getElementById('login-status').textContent = '检测到已有登录状态';
+        document.getElementById('login-status').className = 'login-status success';
+        document.getElementById('qr-done').classList.add('show');
+        document.getElementById('btn-login').textContent = '已登录';
+      }
+    } catch (e) {}
+  });
+</script>
+
+</body>
+</html>
