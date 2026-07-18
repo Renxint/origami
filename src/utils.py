@@ -29,10 +29,11 @@ def pick_best_video_url(vdata: dict) -> str:
         best = max(bit_rates, key=lambda b: b.get("bit_rate", 0))
         return _first((best.get("play_addr") or {}).get("url_list") or [])
 
-    return (
-        _first((vdata.get("download_addr") or {}).get("url_list") or [])
-        or _first((vdata.get("play_addr") or {}).get("url_list") or [])
-    )
+    # 兜底：play_addr_h264 → download_addr → play_addr
+    for field in ("play_addr_h264", "download_addr", "play_addr"):
+        u = _first((vdata.get(field) or {}).get("url_list") or [])
+        if u: return u
+    return ""
 
 
 def pick_best_url(url_list: list, prefer: str = "jpeg") -> str:

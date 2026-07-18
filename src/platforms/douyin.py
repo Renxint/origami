@@ -250,9 +250,41 @@ class DouyinAdapter(PlatformAdapter):
         self, author_id: str, cookie: str = "",
         max_cursor: int = 0, count: int = 18
     ) -> dict:
-        """翻页获取作品列表（纯 HTTP，不需要签名）"""
-        from src.api import DouyinAPI
+        """翻页获取作品列表（优先 Playwright daemon，兜底纯 HTTP）"""
         cookie = cookie or self._load_cookie()
+        # 尝试 Playwright daemon（能翻更多页）
+        try:
+            from src.webview_api import _daemon_url
+            from urllib.parse import quote
+            import requests as _r
+            params = (f"sec_user_id={author_id}&max_cursor={max_cursor}&count={count}"
+                      f"&aid=6383&device_platform=webapp&version_code=290100"
+                      f"&version_name=29.1.0&cookie_enabled=true")
+            api_url = f"https://www.douyin.com/aweme/v1/web/aweme/post/?{params}"
+            resp = _r.post(f"{_daemon_url()}/call?url={quote(api_url)}", timeout=30)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("aweme_list"):
+                    aweme_list = data.get("aweme_list", [])
+                    items = []
+                    for aweme in aweme_list:
+                        items.append(MediaItem(
+                            platform="douyin", item_id=aweme.get("aweme_id", ""),
+                            item_type="video" if aweme.get("video") else ("image" if aweme.get("images") else "unknown"),
+                            title=aweme.get("desc", ""),
+                            author=aweme.get("author", {}).get("nickname", ""),
+                            extra={"aweme": aweme},
+                        ))
+                    return {
+                        "items": items,
+                        "has_more": bool(data.get("has_more", 0)),
+                        "next_cursor": data.get("max_cursor", 0),
+                    }
+        except Exception:
+            pass
+
+        # 兜底：纯 HTTP
+        from src.api import DouyinAPI
         api = DouyinAPI(cookie_string=cookie)
         data = api.get_user_posts(author_id, max_cursor=max_cursor, count=count)
 

@@ -117,7 +117,7 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
             ext = ".mp4" if media.item_type == "video" else ".jpg"
             label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
             img_data = images[i] if i < len(images) else {}
-            is_live = img_data.get("live_photo_type",0) == 1
+            is_live = img_data.get("live_photo_type",0) == 1 or bool(img_data.get("video"))
             live_tag = "_实况" if is_live else ""
             fname = f"{label}{live_tag}{ext}"
             fpath = post_dir / fname
@@ -211,9 +211,13 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
             if any(author_dir.glob(f"*_{short}_*")): stats["skip"] += 1; continue
             else: downloaded_ids.discard(aweme_id)
         print(f"[{num}/{len(all_items)}] {_s(desc, 30)}...")
-        try: media = adapter.fetch_media(aweme_id)
-        except: media = item
-        downloaded = False; aw = media.extra.get("aweme",{})
+        # 调 fetch_media 获取无水印 URL（CDN 链需即时使用）
+        try:
+            media = adapter.fetch_media(aweme_id)
+            aw = media.extra.get("aweme", {})
+        except Exception:
+            aw = item.extra.get("aweme", {})
+        downloaded = False
         video = aw.get("video"); images = aw.get("images") or []
         if video and not images:
             url = pick_best_video_url(video)
@@ -223,8 +227,18 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
             for j, img in enumerate(images):
                 urls = img.get("url_list",[])
                 img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
-                if img_url and download_file(img_url, author_dir / f"{pos}{j+1}.jpg"): stats["ok"] += 1; downloaded = True
+                is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
+                live_tag = "_实况" if is_live else ""
+                if img_url and download_file(img_url, author_dir / f"{pos}{j+1}{live_tag}.jpg"): stats["ok"] += 1; downloaded = True
                 else: stats["fail"] += 1
+                if is_live:
+                    lv = img.get("video") or {}
+                    live_url = next((u for url_lst in (
+                        lv.get("play_addr",{}).get("url_list",[]),
+                        lv.get("play_addr_h264",{}).get("url_list",[]),
+                        lv.get("download_addr",{}).get("url_list",[]),
+                    ) for u in (url_lst or [])), None)
+                    if live_url and download_file(live_url, author_dir / f"{pos}{j+1}{live_tag}.mp4"): stats["ok"] += 1; downloaded = True
         if downloaded: downloaded_ids.add(aweme_id)
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
 

@@ -314,7 +314,7 @@ class SingleDownloadThread(QThread):
                 )
                 if not img_url:
                     _tick(); continue
-                is_live = img.get("live_photo_type", 0) == 1
+                is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
                 tag = "_实况" if is_live else ""
                 ok = self._dl(img_url, post_dir / f"{j+1:02d}{tag}.jpg")
                 _tick()
