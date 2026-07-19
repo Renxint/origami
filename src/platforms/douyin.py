@@ -321,6 +321,8 @@ class DouyinAdapter(PlatformAdapter):
         """
         import requests as _r
         cookie = cookie or self._load_cookie()
+        # 用网页版参数（version 17.4.0 + 完整指纹）避免图集被过滤到 disabled
+        from src.api import WEBID, UIFID, VERIFY_FP, FP
         resp = _r.post(
             "https://www.douyin.com/aweme/v1/web/aweme/listcollection/",
             headers={
@@ -329,7 +331,24 @@ class DouyinAdapter(PlatformAdapter):
                 "Referer": "https://www.douyin.com/",
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            data={"cursor": str(cursor), "count": str(count)},
+            data={
+                "cursor": str(cursor), "count": str(count),
+                "device_platform": "webapp", "aid": "6383",
+                "channel": "channel_pc_web",
+                "version_code": "170400", "version_name": "17.4.0",
+                "cookie_enabled": "true",
+                "screen_width": "2560", "screen_height": "1440",
+                "browser_language": "zh-CN", "browser_platform": "Win32",
+                "browser_name": "Chrome", "browser_version": "149.0.0.0",
+                "browser_online": "true",
+                "engine_name": "Blink", "engine_version": "149.0.0.0",
+                "os_name": "Windows", "os_version": "10",
+                "cpu_core_num": "32", "device_memory": "16",
+                "platform": "PC", "downlink": "10",
+                "effective_type": "4g", "round_trip_time": "100",
+                "webid": WEBID, "uifid": UIFID,
+                "verifyFp": VERIFY_FP, "fp": FP,
+            },
             timeout=20,
         )
         data = resp.json()
@@ -344,17 +363,14 @@ class DouyinAdapter(PlatformAdapter):
                 author=aw.get("author", {}).get("nickname", ""),
                 extra={"aweme": aw},
             ))
-        # 拉取 disabled 作品（图集/实况等，API 过滤掉的类型）
-        # 插在每页最前面——disabled 是较新的收藏，API 把它们从列表中剔除了
+        # disabled 兜底（正常不会被过滤了，但保留兼容）
         disabled_ids = data.get("disabled_item_ids", []) or []
-        disabled_items = []
         for did in disabled_ids:
             try:
                 media = self.fetch_media(did, cookie)
-                disabled_items.append(media)
+                items.append(media)
             except Exception:
                 pass
-        items = disabled_items + items
         return {
             "items": items,
             "has_more": bool(data.get("has_more", 0)),
