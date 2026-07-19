@@ -48,15 +48,17 @@ def cmd_cli(args: list[str]):
         print(f"\n  例: python -m src.main cli \"https://v.douyin.com/xxx/\"")
         print(f"  例: python -m src.main cli single \"https://v.douyin.com/xxx/\"")
         print(f"  例: python -m src.main cli like \"https://www.douyin.com/user/self\"")
-        print("\n  可选参数:  --count N  --dir PATH  --images 1,3,5")
+        print("\n  可选参数:  --count N  --dir PATH  --include-long  --images 1,3,5")
         return
 
     # 解析参数
     mode = args[0] if args[0] in KNOWN_MODES else ""; url = ""; count = 0; save_dir = ""
+    include_long = False
     i = 1 if mode else 0
     while i < len(args):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
         elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
+        elif args[i] == "--include-long": include_long = True; i += 1
         elif not url: url = args[i]; i += 1
         else: i += 1
 
@@ -95,9 +97,9 @@ def cmd_cli(args: list[str]):
         print(f"[*] 自动识别: {mode}")
 
     if mode == "single": _cli_single(url, save_dir, args)
-    elif mode == "batch": _cli_batch(url, count, save_dir)
-    elif mode == "like": _cli_like(url, count, save_dir)
-    elif mode == "collection": _cli_collection(url, count, save_dir)
+    elif mode == "batch": _cli_batch(url, count, save_dir, include_long)
+    elif mode == "like": _cli_like(url, count, save_dir, include_long)
+    elif mode == "collection": _cli_collection(url, count, save_dir, include_long)
     elif mode == "music": _cli_music(url, count, save_dir)
     else: print(f"未知模式: {mode}")
 
@@ -186,7 +188,7 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
 
 # ══════════ CLI — 批量 ══════════
 
-def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
+def _cli_batch(url: str, max_count: int = 0, save_dir: str = "", include_long: bool = False):
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
@@ -331,14 +333,14 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = ""):
 
 # ══════════ CLI — like / collection ══════════
 
-def _cli_like(url, max_count=0, save_dir=""):
-    _cli_list_download(url, max_count, save_dir, "like", "喜欢")
+def _cli_like(url, max_count=0, save_dir="", include_long=False):
+    _cli_list_download(url, max_count, save_dir, "like", "喜欢", include_long)
 
-def _cli_collection(url, max_count=0, save_dir=""):
+def _cli_collection(url, max_count=0, save_dir="", include_long=False):
     """下载收藏列表（POST 端点，仅自己可见）"""
-    _cli_list_download(url, max_count, save_dir, "usercollection", "收藏")
+    _cli_list_download(url, max_count, save_dir, "usercollection", "收藏", include_long)
 
-def _cli_list_download(url, max_count, save_dir, mode, tag):
+def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
@@ -413,7 +415,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
         # 视频
         elif video and not images:
             duration_ms = video.get("duration", 0) or 0
-            if duration_ms > 1800000:  # 超 30 分钟跳过
+            if duration_ms > 1800000 and not include_long:  # 超 30 分钟跳过（--include-long 可下载）
                 author_name_aw = aw.get("author", {}).get("nickname", "")
                 mins = duration_ms // 60000; secs = (duration_ms % 60000) // 1000
                 info = f"# {aw.get('desc', aweme_id)}\n\n"
