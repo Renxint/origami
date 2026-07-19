@@ -467,6 +467,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
     # 写作品目录到 data
     if catalog_lines:
+        catalog_lines.reverse()  # 旧→新顺序
         (data_dir / f"作品目录_{time.strftime('%Y%m%d_%H%M%S')}.md").write_text(
             f"# {author_name}\n\n共 {len(catalog_lines)} 个{tag}\n\n" + "\n".join(catalog_lines),
             encoding="utf-8")
