@@ -509,6 +509,7 @@ def _cli_music(url, max_count=0, save_dir=""):
         if not data.get("has_more"): break
         cursor = data.get("next_cursor", 0)
         if not cursor: break; time.sleep(0.2)
+    _full_total = len(all_items)
     print(f"[OK] 共 {len(all_items)} 首音乐")
 
     tasks = []
@@ -517,7 +518,8 @@ def _cli_music(url, max_count=0, save_dir=""):
         murl = m.get("url","")
         if not murl: continue
         ext = ".mp3" if "mp3" in murl.lower() else ".m4a"
-        tasks.append((murl, out / f"{i+1:03d}_{title}{ext}"))
+        num = f"{_full_total - i:04d}"
+        tasks.append((murl, out / f"{num}_{title}{ext}"))
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
     import threading as _thr
