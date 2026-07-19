@@ -497,7 +497,7 @@ def _cli_music(url, max_count=0, save_dir=""):
     out = (Path(save_dir) if save_dir else OUTPUT_MUSIC) / author_name / "音乐"
     out.mkdir(parents=True, exist_ok=True)
 
-    all_items = []; cursor = 0; page = 0
+    all_items = []; cursor = 0; page = 0; _last_cursor = -1
     while True:
         data = adapter.fetch_music(sec_uid, max_cursor=cursor, count=18)
         items = data.get("items", [])
@@ -508,7 +508,9 @@ def _cli_music(url, max_count=0, save_dir=""):
         if max_count and total >= max_count: all_items = all_items[:max_count]; break
         if not data.get("has_more"): break
         cursor = data.get("next_cursor", 0)
-        if not cursor: break; time.sleep(0.2)
+        if not cursor or cursor == _last_cursor: break  # 去重保护
+        _last_cursor = cursor
+        time.sleep(0.2)
     _full_total = len(all_items)
     print(f"[OK] 共 {len(all_items)} 首音乐")
 
