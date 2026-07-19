@@ -390,7 +390,10 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     _total = len(all_items)
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
-        if aweme_id in downloaded_ids: stats["skip"] += 1; continue
+        if aweme_id in downloaded_ids:
+            stats["skip"] += 1
+            catalog_lines.append(f"{catalog_num}. [已下载] {item.title or aweme_id} ({aweme_id})")
+            continue
         short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
         desc = clean_name(item.title or aweme_id, 30)
         # 用 fetch_media 获取完整数据（文章正文、视频高清链接、实况）
@@ -410,7 +413,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
             text = media.text_content if hasattr(media, 'text_content') and media.text_content else aw.get("desc", "")
             (author_dir / f"{prefix}_{desc}.txt").write_text(text, encoding="utf-8")
             stats["ok"] += 1; downloaded_ids.add(aweme_id)
-            catalog_lines.append(f"{catalog_num}. [文章] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [文章] {item.title or aweme_id} ({aweme_id})")
             continue
         # 视频
         elif video and not images:
@@ -425,11 +428,11 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
                 info += f"> 类型：视频（超30分钟，已跳过下载）\n"
                 (author_dir / f"{prefix}_{desc}.md").write_text(info, encoding="utf-8")
                 stats["skip"] += 1; downloaded_ids.add(aweme_id)
-                catalog_lines.append(f"{catalog_num}. [超30分] {item.title or aweme_id}")
+                catalog_lines.append(f"{catalog_num}. [超30分] {item.title or aweme_id} ({aweme_id})")
                 continue
             url = pick_best_video_url(video)
             if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4", aweme_id))
-            catalog_lines.append(f"{catalog_num}. [视频] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [视频] {item.title or aweme_id} ({aweme_id})")
         # 图集
         elif images:
             live_count = 0
@@ -446,9 +449,9 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
                         live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
                         if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4", aweme_id))
             type_tag = f"图集({len(images)}图)" + (f" 含{live_count}实况" if live_count else "")
-            catalog_lines.append(f"{catalog_num}. [{type_tag}] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [{type_tag}] {item.title or aweme_id} ({aweme_id})")
         else:
-            catalog_lines.append(f"{catalog_num}. [未知] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [未知] {item.title or aweme_id} ({aweme_id})")
 
     # 多线程并发下载
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -467,12 +470,8 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
         for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
 
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
-    # 写作品目录到 data
-    if catalog_lines:
-        catalog_lines.reverse()  # 旧→新顺序
-        (data_dir / f"作品目录_{time.strftime('%Y%m%d_%H%M%S')}.md").write_text(
-            f"# {author_name}\n\n共 {len(catalog_lines)} 个{tag}\n\n" + "\n".join(catalog_lines),
-            encoding="utf-8")
+    # 写增量日志到 data/collection.log
+    _write_collection_log(data_dir, catalog_lines, downloaded_ids, author_name, tag)
     print(f"[DONE] {tag}:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
     print(f"       保存到: {_s(str(author_dir))}")
 
@@ -530,7 +529,52 @@ def _cli_music(url, max_count=0, save_dir=""):
     print(f"[DONE] 音乐:{ok[0]}/{len(all_items)}  保存到: {_s(str(out))}")
 
 
-# ══════════ 平台识别 ══════════
+# ══════════ 集合日志 ══════════
+
+def _write_collection_log(data_dir, catalog_lines, downloaded_ids, author_name, tag):
+    """写 collection.log：记录每次运行的增删 + 当前目录"""
+    log_file = data_dir / "collection.log"
+    catalog_lines.reverse()  # 旧→新
+
+    # 读上次的 ID 列表
+    prev_ids = set()
+    prev_catalog = []
+    if log_file.exists():
+        text = log_file.read_text(encoding="utf-8")
+        in_section = False
+        for line in text.split("\n"):
+            if line.startswith("## 当前目录"):
+                in_section = True; continue
+            if in_section and line.startswith("##"):
+                break
+            if in_section and line.strip():
+                m = re.search(r'\((\d+)\)', line)
+                if m: prev_ids.add(m.group(1))
+                prev_catalog.append(line)
+
+    # 本次 ID
+    cur_ids = {re.search(r'\((\d+)\)', l).group(1) for l in catalog_lines if re.search(r'\((\d+)\)', l)}
+    added = cur_ids - prev_ids
+    removed = prev_ids - cur_ids
+
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    out = [f"# {now} — {author_name} {tag}"]
+    if added:
+        out.append(f"\n## 新增 {len(added)} 个")
+        for l in catalog_lines:
+            if re.search(r'\((\d+)\)', l) and re.search(r'\((\d+)\)', l).group(1) in added:
+                out.append(l)
+    if removed:
+        out.append(f"\n## 移除 {len(removed)} 个")
+        for l in prev_catalog:
+            if re.search(r'\((\d+)\)', l) and re.search(r'\((\d+)\)', l).group(1) in removed:
+                out.append(l)
+    if not added and not removed:
+        out.append("\n## 无变化")
+    out.append(f"\n## 当前目录（共 {len(catalog_lines)} 个）")
+    out.extend(catalog_lines)
+
+    log_file.write_text("\n".join(out), encoding="utf-8")
 
 def _detect_platform(url: str) -> str:
     """识别链接所属平台，返回 'douyin' / 'bilibili' / 'weibo' / '' """
