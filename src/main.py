@@ -399,8 +399,8 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
             aw = item.extra.get("aweme", {})
         video = aw.get("video"); images = aw.get("images") or []
         mt = aw.get("media_type", 0)
-        # 编号与批量一致：编号从总数递减，最新=最大编号
-        pos = f"{_total - i:04d}"
+        # API 返回最新在前(i=0=最新)，编号递增：0001=最新
+        pos = f"{i + 1:04d}"
         prefix = f"{pos}_{short}"
 
         # 文章
