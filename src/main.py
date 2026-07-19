@@ -311,7 +311,7 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = "", include_long: b
             if _done[0] % 10 == 0 or _done[0] == _total_tasks:
                 print(f"  进度: {_done[0]}/{_total_tasks}")
 
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=20) as pool:
         futures = [pool.submit(_dl_one, t) for t in tasks]
         for f in as_completed(futures):
             f.result()  # 传播异常
@@ -367,11 +367,17 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
         all_items.extend(items); page += 1
         total = len(all_items)
         print(f"  页{page}: +{len(items)}  累计{total}")
-        if max_count and total >= max_count: all_items = all_items[:max_count]; break
         if not data.get("has_more"): break
         cursor = data.get("next_cursor", 0)
         if not cursor: break; time.sleep(0.2)
-    print(f"[OK] 共 {len(all_items)} 个{tag}")
+    _full_total = len(all_items)  # 全量总数
+    if max_count and _full_total > max_count:
+        all_items = all_items[:max_count]
+        print(f"[OK] 共 {_full_total} 个{tag}，本次下载 {len(all_items)} 个")
+    else:
+        print(f"[OK] 共 {len(all_items)} 个{tag}")
+
+    # 编号基准：全量总数（已翻完所有页）
 
     try: author_info = adapter.fetch_author(sec_uid); author_name = clean_name(author_info.nickname or sec_uid[:12], 30)
     except: author_name = clean_name(sec_uid[:12], 12)
@@ -387,14 +393,14 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     stats = {"ok":0,"fail":0,"skip":0}
     tasks = []
     catalog_lines = []
-    _total = len(all_items)
     for i, item in enumerate(all_items):
         aweme_id = item.item_id
+        short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
+        catalog_num = f"{_full_total - i:04d}"
         if aweme_id in downloaded_ids:
             stats["skip"] += 1
             catalog_lines.append(f"{catalog_num}. [已下载] {item.title or aweme_id} ({aweme_id})")
             continue
-        short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
         desc = clean_name(item.title or aweme_id, 30)
         # 用 fetch_media 获取完整数据（文章正文、视频高清链接、实况）
         try:
@@ -404,8 +410,6 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
             aw = item.extra.get("aweme", {})
         video = aw.get("video"); images = aw.get("images") or []
         mt = aw.get("media_type", 0)
-        # 编号前缀 0001=最旧, N=最新，资源管理器中按名称排序=收藏顺序
-        catalog_num = f"{_total - i:04d}"
         prefix = f"{catalog_num}_{short}"
 
         # 文章
@@ -466,7 +470,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
             else: stats["fail"] += 1
             if _done[0] % 10 == 0 or _done[0] == _total:
                 print(f"  进度: {_done[0]}/{_total}")
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=20) as pool:
         for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
 
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
@@ -524,7 +528,7 @@ def _cli_music(url, max_count=0, save_dir=""):
         with _lock:
             _done[0] += 1
             if result: ok[0] += 1
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=20) as pool:
         for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
     print(f"[DONE] 音乐:{ok[0]}/{len(all_items)}  保存到: {_s(str(out))}")
 
