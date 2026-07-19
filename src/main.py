@@ -399,9 +399,9 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
             aw = item.extra.get("aweme", {})
         video = aw.get("video"); images = aw.get("images") or []
         mt = aw.get("media_type", 0)
-        # 文件用哈希命名（稳定），目录编号 0001=最旧
-        prefix = short
-        catalog_num = f"{_total - i:04d}"  # 1=最旧, N=最新
+        # 编号前缀 0001=最旧, N=最新，资源管理器中按名称排序=收藏顺序
+        catalog_num = f"{_total - i:04d}"
+        prefix = f"{catalog_num}_{short}"
 
         # 文章
         if mt in (68, 43) or (video and not video.get("bit_rate") and not images):
