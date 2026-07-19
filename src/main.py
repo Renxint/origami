@@ -399,16 +399,16 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
             aw = item.extra.get("aweme", {})
         video = aw.get("video"); images = aw.get("images") or []
         mt = aw.get("media_type", 0)
-        # API 返回最新在前(i=0=最新)，编号递增：0001=最新
-        pos = f"{i + 1:04d}"
-        prefix = f"{pos}_{short}"
+        # 文件用哈希命名（稳定），目录编号 0001=最旧
+        prefix = short
+        catalog_num = f"{_total - i:04d}"  # 1=最旧, N=最新
 
         # 文章
         if mt in (68, 43) or (video and not video.get("bit_rate") and not images):
             text = media.text_content if hasattr(media, 'text_content') and media.text_content else aw.get("desc", "")
             (author_dir / f"{prefix}_{desc}.txt").write_text(text, encoding="utf-8")
             stats["ok"] += 1; downloaded_ids.add(aweme_id)
-            catalog_lines.append(f"{pos}. [文章] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [文章] {item.title or aweme_id}")
             continue
         # 视频
         elif video and not images:
@@ -423,11 +423,11 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
                 info += f"> 类型：视频（超30分钟，已跳过下载）\n"
                 (author_dir / f"{prefix}_{desc}.md").write_text(info, encoding="utf-8")
                 stats["skip"] += 1; downloaded_ids.add(aweme_id)
-                catalog_lines.append(f"{pos}. [超30分] {item.title or aweme_id}")
+                catalog_lines.append(f"{catalog_num}. [超30分] {item.title or aweme_id}")
                 continue
             url = pick_best_video_url(video)
             if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4", aweme_id))
-            catalog_lines.append(f"{pos}. [视频] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [视频] {item.title or aweme_id}")
         # 图集
         elif images:
             live_count = 0
@@ -444,9 +444,9 @@ def _cli_list_download(url, max_count, save_dir, mode, tag):
                         live_url = next((u for url_lst in (lv.get("play_addr",{}).get("url_list",[]), lv.get("play_addr_h264",{}).get("url_list",[])) for u in (url_lst or [])), None)
                         if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4", aweme_id))
             type_tag = f"图集({len(images)}图)" + (f" 含{live_count}实况" if live_count else "")
-            catalog_lines.append(f"{pos}. [{type_tag}] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [{type_tag}] {item.title or aweme_id}")
         else:
-            catalog_lines.append(f"{pos}. [未知] {item.title or aweme_id}")
+            catalog_lines.append(f"{catalog_num}. [未知] {item.title or aweme_id}")
 
     # 多线程并发下载
     from concurrent.futures import ThreadPoolExecutor, as_completed
