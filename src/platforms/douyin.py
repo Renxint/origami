@@ -472,6 +472,38 @@ class DouyinAdapter(PlatformAdapter):
             "total": None,
         }
 
+    def fetch_mix(self, mix_id: str, cookie: str = "",
+                  cursor: int = 0, count: int = 20) -> dict:
+        """翻页获取合集作品列表"""
+        import requests as _r
+        cookie = cookie or self._load_cookie()
+        params = (f"mix_id={mix_id}&cursor={cursor}&count={count}"
+                  f"&aid=6383&device_platform=webapp"
+                  f"&version_code=170400&version_name=17.4.0"
+                  f"&cookie_enabled=true")
+        url = f"https://www.douyin.com/aweme/v1/web/mix/aweme/?{params}"
+        resp = _r.get(url, headers={
+            "User-Agent": USER_AGENT, "Cookie": cookie,
+            "Referer": "https://www.douyin.com/",
+        }, timeout=20)
+        data = resp.json()
+        aweme_list = data.get("aweme_list", [])
+        items = []
+        for aw in aweme_list:
+            items.append(MediaItem(
+                platform="douyin",
+                item_id=aw.get("aweme_id", ""),
+                item_type="video" if aw.get("video") else ("image" if aw.get("images") else "unknown"),
+                title=aw.get("desc", ""),
+                author=aw.get("author", {}).get("nickname", ""),
+                extra={"aweme": aw},
+            ))
+        return {
+            "items": items,
+            "has_more": bool(data.get("has_more", 0)),
+            "next_cursor": data.get("cursor", 0),
+        }
+
     def fetch_music(self, author_id: str, cookie: str = "",
                     max_cursor: int = 0, count: int = 18) -> dict:
         """翻页获取收藏的音乐列表"""

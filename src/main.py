@@ -44,7 +44,7 @@ def cmd_server(args: list[str]):
 
 
 def cmd_cli(args: list[str]):
-    KNOWN_MODES = {"single","batch","like","collection","music","live"}
+    KNOWN_MODES = {"single","batch","like","collection","mix","music","live"}
     if not args:
         print(f"用法: python -m src.main cli [<模式>] <链接>")
         print(f"  模式（可选，不填则自动识别）: {' | '.join(sorted(KNOWN_MODES))}")
@@ -104,6 +104,7 @@ def cmd_cli(args: list[str]):
     elif mode == "batch": _cli_batch(url, count, save_dir, include_long)
     elif mode == "like": _cli_like(url, count, save_dir, include_long)
     elif mode == "collection": _cli_collection(url, count, save_dir, include_long)
+    elif mode == "mix": _cli_mix(url, count, save_dir, include_long)
     elif mode == "music": _cli_music(url, count, save_dir)
     elif mode == "live": _cli_live(url, count, save_dir, duration=duration)
     else: print(f"未知模式: {mode}")
@@ -350,10 +351,10 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
     from src.utils import clean_name, pick_best_video_url
-    from src.environ import OUTPUT_OTHER
+    from src.environ import OUTPUT_BASE
     import hashlib, json as _json
 
-    out = Path(save_dir) if save_dir else OUTPUT_OTHER
+    out = Path(save_dir) if save_dir else OUTPUT_BASE / "抖音" / "批量作品"
     out.mkdir(parents=True, exist_ok=True)
     adapter = DouyinAdapter()
     sec_uid = _resolve_user_url(url)
@@ -483,6 +484,101 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     _write_collection_log(data_dir, catalog_lines, downloaded_ids, author_name, tag)
     print(f"[DONE] {tag}:{stats['ok']}  失败:{stats['fail']}  跳过:{stats['skip']}")
     print(f"       保存到: {_s(str(author_dir))}")
+
+
+# ══════════ CLI — mix ══════════
+
+def _cli_mix(url, max_count=0, save_dir="", include_long=False):
+    """合集下载：从视频链接自动解析 mix_id"""
+    from pathlib import Path
+    from src.platforms.douyin import DouyinAdapter
+    from src.downloader import download_file
+    from src.utils import clean_name, pick_best_video_url
+    from src.environ import OUTPUT_BASE
+    import hashlib, json as _json
+
+    out = Path(save_dir) if save_dir else OUTPUT_BASE / "抖音" / "合集"
+    out.mkdir(parents=True, exist_ok=True)
+    adapter = DouyinAdapter()
+
+    # 先解析视频获取 mix_id
+    item_id = ""
+    try:
+        item_id = adapter.resolve_url(url)
+    except Exception:
+        for key in ("modal_id", "video_id", "aweme_id"):
+            m = re.search(rf'[?&]{key}=(\d+)', url)
+            if m: item_id = m.group(1); break
+    if not item_id: return print("[ERROR] 无法解析链接")
+
+    print(f"[*] 视频ID: {item_id}")
+    media = adapter.fetch_media(item_id)
+    mix_info = media.extra.get("aweme", {}).get("mix_info", {})
+    mix_id = mix_info.get("mix_id", "")
+    mix_name = mix_info.get("mix_name", "合集")
+    if not mix_id: return print("[ERROR] 该视频不包含合集信息")
+
+    print(f"[*] 合集: {mix_name} (mix_id={mix_id})")
+
+    # 翻页
+    all_items = []; cursor = 0
+    while True:
+        data = adapter.fetch_mix(mix_id, cursor=cursor, count=20)
+        items = data.get("items", [])
+        if not items: break
+        all_items.extend(items)
+        total = len(all_items)
+        print(f"  页{len(all_items)//20+1}: +{len(items)}  累计{total}")
+        if max_count and total >= max_count: all_items = all_items[:max_count]; break
+        if not data.get("has_more"): break
+        cursor = data.get("next_cursor", 0)
+        if not cursor: break
+
+    _full_total = len(all_items)
+    print(f"[OK] 共 {_full_total} 个作品")
+
+    author_dir = out / mix_name
+    author_dir.mkdir(parents=True, exist_ok=True)
+
+    # 收集下载任务
+    tasks = []
+    for i, item in enumerate(all_items):
+        aweme_id = item.item_id
+        short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
+        desc = clean_name(item.title or aweme_id, 30)
+        catalog_num = f"{_full_total - i:04d}"
+        prefix = f"{catalog_num}_{short}"
+        aw = item.extra.get("aweme", {})
+        video = aw.get("video"); images = aw.get("images") or []
+        if video and not images:
+            url = pick_best_video_url(video)
+            if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4"))
+        elif images:
+            for j, img in enumerate(images):
+                urls = img.get("url_list", [])
+                img_url = next((u for u in urls if "webp" in u.lower()), None) or next((u for u in urls if "jpeg" in u.lower()), None) or next((u for u in urls if "jpg" in u.lower()), None) or (urls[0] if urls else "")
+                if img_url:
+                    is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
+                    live_tag = "_实况" if is_live else ""
+                    tasks.append((img_url, author_dir / f"{prefix}_{j+1:02d}{live_tag}.jpg"))
+                    if is_live:
+                        lv = img.get("video") or {}
+                        live_url = next((u for url_lst in (lv.get("play_addr", {}).get("url_list", []), lv.get("play_addr_h264", {}).get("url_list", [])) for u in (url_lst or [])), None)
+                        if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4"))
+
+    # 多线程下载
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading as _thr
+    _lock = _thr.Lock(); ok = [0]; fail = [0]; _total = len(tasks)
+    print(f"[*] {_total} 个下载任务，并发执行...")
+    def _dl(t):
+        url, path = t; r = download_file(url, path)
+        with _lock:
+            if r: ok[0] += 1
+            else: fail[0] += 1
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
+    print(f"[DONE] OK:{ok[0]} FAIL:{fail[0]}  保存到: {_s(str(author_dir))}")
 
 
 # ══════════ CLI — live ══════════
