@@ -23,7 +23,7 @@ if ROOT not in sys.path:
 
 # 全局偏好（--image-format / --threads 会修改）
 _IMG_FORMAT = ["jpeg", "webp", "jpg"]
-_THREADS = 20
+_THREADS = 30
 
 # ── 安全输出：过滤 emoji ──
 
@@ -481,6 +481,24 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
             catalog_lines.append(f"{catalog_num}. [{type_tag}] {item.title or aweme_id} ({aweme_id})")
         else:
             catalog_lines.append(f"{catalog_num}. [未知] {item.title or aweme_id} ({aweme_id})")
+
+    # 预估大小（HEAD 请求 Content-Length）
+    _est_size = 0; _est_ok = 0
+    for _url, _path, *_ in tasks[:50]:  # 只采样前 50 个
+        try:
+            import requests as _r2
+            _h = _r2.head(_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+            if "Content-Length" in _h.headers:
+                _est_size += int(_h.headers["Content-Length"])
+                _est_ok += 1
+        except Exception: pass
+    if _est_ok > 0:
+        import math
+        _avg = _est_size / _est_ok
+        _total_est = _avg * len(tasks)
+        _units = [(1<<30,"GB"),(1<<20,"MB"),(1<<10,"KB")]
+        _size_str = next((f"{_total_est/s:.1f}{u}" for s,u in _units if _total_est >= s), f"{_total_est:.0f}B")
+        print(f"[*] 预估大小: ~{_size_str}（采样 {_est_ok}/{min(50,len(tasks))} 个）")
 
     # 多线程并发下载
     from concurrent.futures import ThreadPoolExecutor, as_completed
