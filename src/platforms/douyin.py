@@ -407,10 +407,20 @@ class DouyinAdapter(PlatformAdapter):
         """翻页获取收藏的音乐列表"""
         import requests as _r
         cookie = cookie or self._load_cookie()
+        from src.api import WEBID, UIFID, VERIFY_FP, FP
         params = (
-            f"sec_user_id={author_id}&max_cursor={max_cursor}&count={count}"
-            f"&aid=6383&device_platform=webapp&version_code=290100"
-            f"&version_name=29.1.0&cookie_enabled=true"
+            f"cursor={max_cursor}&count={count}"
+            f"&device_platform=webapp&aid=6383&channel=channel_pc_web"
+            f"&update_version_code=170400&pc_client_type=1&pc_libra_divert=Windows"
+            f"&support_h265=1&support_dash=1&cpu_core_num=32"
+            f"&version_code=170400&version_name=17.4.0"
+            f"&cookie_enabled=true&screen_width=2560&screen_height=1440"
+            f"&browser_language=zh-CN&browser_platform=Win32"
+            f"&browser_name=Chrome&browser_version=149.0.0.0"
+            f"&browser_online=true&engine_name=Blink&engine_version=149.0.0.0"
+            f"&os_name=Windows&os_version=10&device_memory=16"
+            f"&platform=PC&downlink=10&effective_type=4g&round_trip_time=50"
+            f"&webid={WEBID}&uifid={UIFID}&verifyFp={VERIFY_FP}&fp={FP}"
         )
         url = f"https://www.douyin.com/aweme/v1/web/music/listcollection/?{params}"
         resp = _r.get(url, headers={
