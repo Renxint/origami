@@ -472,6 +472,24 @@ class DouyinAdapter(PlatformAdapter):
             "total": None,
         }
 
+    def fetch_mix_list(self, sec_uid: str, cookie: str = "",
+                        cursor: int = 0, count: int = 18) -> list:
+        """获取用户的所有合集列表"""
+        import requests as _r
+        from src.api import WEBID, UIFID, VERIFY_FP, FP
+        cookie = cookie or self._load_cookie()
+        params = (f"sec_user_id={sec_uid}&cursor={cursor}&count={count}"
+                  f"&aid=6383&device_platform=webapp"
+                  f"&version_code=170400&version_name=17.4.0"
+                  f"&cookie_enabled=true&webid={WEBID}&uifid={UIFID}")
+        url = f"https://www.douyin.com/aweme/v1/web/series/list/?{params}"
+        resp = _r.get(url, headers={
+            "User-Agent": USER_AGENT, "Cookie": cookie,
+            "Referer": "https://www.douyin.com/",
+        }, timeout=20)
+        data = resp.json()
+        return data.get("series_infos", []) or []
+
     def fetch_mix(self, mix_id: str, cookie: str = "",
                   cursor: int = 0, count: int = 20) -> dict:
         """翻页获取合集作品列表"""

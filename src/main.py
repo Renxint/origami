@@ -489,7 +489,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
 # ══════════ CLI — mix ══════════
 
 def _cli_mix(url, max_count=0, save_dir="", include_long=False):
-    """合集下载：从视频链接自动解析 mix_id"""
+    """合集下载：支持视频链接（单合集）和主页链接（全部合集）"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
@@ -501,84 +501,93 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
     out.mkdir(parents=True, exist_ok=True)
     adapter = DouyinAdapter()
 
-    # 先解析视频获取 mix_id
+    # 判断链接类型：先尝试从视频提取 mix_id，失败则当主页链接
+    mix_ids = []
     item_id = ""
-    try:
-        item_id = adapter.resolve_url(url)
+    try: item_id = adapter.resolve_url(url)
     except Exception:
         for key in ("modal_id", "video_id", "aweme_id"):
             m = re.search(rf'[?&]{key}=(\d+)', url)
             if m: item_id = m.group(1); break
-    if not item_id: return print("[ERROR] 无法解析链接")
+    if item_id:
+        # 有视频ID → 尝试提取 mix_id
+        try:
+            print(f"[*] 视频ID: {item_id}")
+            media = adapter.fetch_media(item_id)
+            mix_info = media.extra.get("aweme", {}).get("mix_info", {})
+            mid = mix_info.get("mix_id", "")
+            if mid:
+                mix_ids = [(mid, mix_info.get("mix_name", "合集"))]
+        except Exception:
+            pass
+    if not mix_ids:
+        # 主页链接 → 获取所有合集
+        sec_uid = _resolve_user_url(url)
+        print(f"[*] sec_uid: {sec_uid[:30]}...")
+        series = adapter.fetch_mix_list(sec_uid)
+        if not series: return print("[提示] 该用户没有合集")
+        for s in series:
+            mix_ids.append((s.get("id", ""), s.get("name", "合集")))
+        print(f"[OK] 共 {len(mix_ids)} 个合集")
 
-    print(f"[*] 视频ID: {item_id}")
-    media = adapter.fetch_media(item_id)
-    mix_info = media.extra.get("aweme", {}).get("mix_info", {})
-    mix_id = mix_info.get("mix_id", "")
-    mix_name = mix_info.get("mix_name", "合集")
-    if not mix_id: return print("[ERROR] 该视频不包含合集信息")
+    # 遍历每个合集下载
+    for mid, mname in mix_ids:
+        print(f"\n[*] 合集: {mname} (mix_id={mid[:20]}...)")
+        all_items = []; cursor = 0
+        while True:
+            data = adapter.fetch_mix(mid, cursor=cursor, count=20)
+            items = data.get("items", [])
+            if not items: break
+            all_items.extend(items)
+            if max_count and len(all_items) >= max_count: all_items = all_items[:max_count]; break
+            if not data.get("has_more"): break
+            cursor = data.get("next_cursor", 0)
+            if not cursor: break
+        _full_total = len(all_items)
+        print(f"  {_full_total} 个作品")
 
-    print(f"[*] 合集: {mix_name} (mix_id={mix_id})")
+        author_dir = out / mname
+        author_dir.mkdir(parents=True, exist_ok=True)
 
-    # 翻页
-    all_items = []; cursor = 0
-    while True:
-        data = adapter.fetch_mix(mix_id, cursor=cursor, count=20)
-        items = data.get("items", [])
-        if not items: break
-        all_items.extend(items)
-        total = len(all_items)
-        print(f"  页{len(all_items)//20+1}: +{len(items)}  累计{total}")
-        if max_count and total >= max_count: all_items = all_items[:max_count]; break
-        if not data.get("has_more"): break
-        cursor = data.get("next_cursor", 0)
-        if not cursor: break
+        tasks = []
+        for i, item in enumerate(all_items):
+            aweme_id = item.item_id
+            short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
+            desc = clean_name(item.title or aweme_id, 30)
+            prefix = f"{_full_total - i:04d}_{short}"
+            aw = item.extra.get("aweme", {})
+            video = aw.get("video"); images = aw.get("images") or []
+            if video and not images:
+                u = pick_best_video_url(video)
+                if u: tasks.append((u, author_dir / f"{prefix}_{desc}.mp4"))
+            elif images:
+                for j, img in enumerate(images):
+                    urls = img.get("url_list", [])
+                    iu = next((u for u in urls if "webp" in u.lower()), None) or next((u for u in urls if "jpeg" in u.lower()), None) or next((u for u in urls if "jpg" in u.lower()), None) or (urls[0] if urls else "")
+                    if iu:
+                        is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
+                        lt = "_实况" if is_live else ""
+                        tasks.append((iu, author_dir / f"{prefix}_{j+1:02d}{lt}.jpg"))
+                        if is_live:
+                            lv = img.get("video") or {}
+                            lu = next((u for url_lst in (lv.get("play_addr", {}).get("url_list", []), lv.get("play_addr_h264", {}).get("url_list", [])) for u in (url_lst or [])), None)
+                            if lu: tasks.append((lu, author_dir / f"{prefix}_{j+1:02d}_实况.mp4"))
 
-    _full_total = len(all_items)
-    print(f"[OK] 共 {_full_total} 个作品")
+        if not tasks: continue
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading as _thr
+        _lock = _thr.Lock(); ok = [0]; fail = [0]
+        print(f"  {len(tasks)} 个任务...")
+        def _dl(t):
+            u, p = t; r = download_file(u, p)
+            with _lock:
+                if r: ok[0] += 1
+                else: fail[0] += 1
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
+        print(f"  OK:{ok[0]} FAIL:{fail[0]}")
 
-    author_dir = out / mix_name
-    author_dir.mkdir(parents=True, exist_ok=True)
-
-    # 收集下载任务
-    tasks = []
-    for i, item in enumerate(all_items):
-        aweme_id = item.item_id
-        short = hashlib.md5(str(aweme_id).encode()).hexdigest()[:4]
-        desc = clean_name(item.title or aweme_id, 30)
-        catalog_num = f"{_full_total - i:04d}"
-        prefix = f"{catalog_num}_{short}"
-        aw = item.extra.get("aweme", {})
-        video = aw.get("video"); images = aw.get("images") or []
-        if video and not images:
-            url = pick_best_video_url(video)
-            if url: tasks.append((url, author_dir / f"{prefix}_{desc}.mp4"))
-        elif images:
-            for j, img in enumerate(images):
-                urls = img.get("url_list", [])
-                img_url = next((u for u in urls if "webp" in u.lower()), None) or next((u for u in urls if "jpeg" in u.lower()), None) or next((u for u in urls if "jpg" in u.lower()), None) or (urls[0] if urls else "")
-                if img_url:
-                    is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
-                    live_tag = "_实况" if is_live else ""
-                    tasks.append((img_url, author_dir / f"{prefix}_{j+1:02d}{live_tag}.jpg"))
-                    if is_live:
-                        lv = img.get("video") or {}
-                        live_url = next((u for url_lst in (lv.get("play_addr", {}).get("url_list", []), lv.get("play_addr_h264", {}).get("url_list", [])) for u in (url_lst or [])), None)
-                        if live_url: tasks.append((live_url, author_dir / f"{prefix}_{j+1:02d}_实况.mp4"))
-
-    # 多线程下载
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    import threading as _thr
-    _lock = _thr.Lock(); ok = [0]; fail = [0]; _total = len(tasks)
-    print(f"[*] {_total} 个下载任务，并发执行...")
-    def _dl(t):
-        url, path = t; r = download_file(url, path)
-        with _lock:
-            if r: ok[0] += 1
-            else: fail[0] += 1
-    with ThreadPoolExecutor(max_workers=20) as pool:
-        for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
-    print(f"[DONE] OK:{ok[0]} FAIL:{fail[0]}  保存到: {_s(str(author_dir))}")
+    print(f"[DONE] 保存到: {_s(str(out))}")
 
 
 # ══════════ CLI — live ══════════
