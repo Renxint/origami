@@ -45,6 +45,12 @@ def download_file(
                 if chunk:
                     f.write(chunk)
         return True
+    except OSError as e:
+        if save_path.exists():
+            save_path.unlink()
+        if getattr(e, 'errno', 0) == 28:
+            print(f"[!] 磁盘空间不足，跳过: {save_path.name}")
+        return False
     except Exception:
         if save_path.exists():
             save_path.unlink()
