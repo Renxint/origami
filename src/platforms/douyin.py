@@ -256,7 +256,7 @@ class DouyinAdapter(PlatformAdapter):
         api = DouyinAPI(cookie_string=cookie)
         data = api.get_user_posts(author_id, max_cursor=max_cursor, count=count)
 
-        aweme_list = data.get("aweme_list", [])
+        aweme_list = data.get("aweme_list") or []
         items = []
         for aweme in aweme_list:
             items.append(MediaItem(
@@ -285,7 +285,7 @@ class DouyinAdapter(PlatformAdapter):
         from src.webview_api import get_user_likes
         data = get_user_likes(author_id, max_cursor=max_cursor, count=count)
 
-        aweme_list = data.get("aweme_list", [])
+        aweme_list = data.get("aweme_list") or []
         items = []
         for aweme in aweme_list:
             items.append(MediaItem(
@@ -352,7 +352,7 @@ class DouyinAdapter(PlatformAdapter):
             timeout=20,
         )
         data = resp.json()
-        aweme_list = data.get("aweme_list", [])
+        aweme_list = data.get("aweme_list") or []
         items = []
         for aw in aweme_list:
             items.append(MediaItem(
@@ -454,7 +454,7 @@ class DouyinAdapter(PlatformAdapter):
         cookie = cookie or self._load_cookie()
         api = DouyinAPI(cookie_string=cookie)
         data = api.get_favorite_items(favorite_id, max_cursor=max_cursor, count=count)
-        aweme_list = data.get("aweme_list", [])
+        aweme_list = data.get("aweme_list") or []
         items = []
         for aw in aweme_list:
             items.append(MediaItem(
@@ -505,7 +505,7 @@ class DouyinAdapter(PlatformAdapter):
             "Referer": "https://www.douyin.com/",
         }, timeout=20)
         data = resp.json()
-        aweme_list = data.get("aweme_list", [])
+        aweme_list = data.get("aweme_list") or []
         items = []
         for aw in aweme_list:
             items.append(MediaItem(

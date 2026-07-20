@@ -518,16 +518,25 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
             mid = mix_info.get("mix_id", "")
             if mid:
                 mix_ids = [(mid, mix_info.get("mix_name", "合集"))]
+            author_name = media.author or "合集"
         except Exception:
             pass
     if not mix_ids:
         # 主页链接 → 获取所有合集
         sec_uid = _resolve_user_url(url)
         print(f"[*] sec_uid: {sec_uid[:30]}...")
+        try:
+            ai = adapter.fetch_author(sec_uid)
+            author_name = clean_name(ai.nickname or sec_uid[:12], 30)
+        except Exception:
+            author_name = clean_name(sec_uid[:12], 12)
         series = adapter.fetch_mix_list(sec_uid)
         if not series: return print("[提示] 该用户没有合集")
         for s in series:
-            mix_ids.append((s.get("id", ""), s.get("name", "合集")))
+            sid = s.get("id") or s.get("series_id", "")
+            if not sid: continue
+            sname = s.get("name") or s.get("mix_name", "合集")
+            mix_ids.append((sid, sname))
         print(f"[OK] 共 {len(mix_ids)} 个合集")
 
     # 遍历每个合集下载
@@ -546,7 +555,7 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
         _full_total = len(all_items)
         print(f"  {_full_total} 个作品")
 
-        author_dir = out / mname
+        author_dir = out / author_name / mname
         author_dir.mkdir(parents=True, exist_ok=True)
 
         tasks = []
