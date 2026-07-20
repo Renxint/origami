@@ -523,13 +523,34 @@ def _cli_live(url, max_count=0, save_dir="", include_long=False):
 
     print(f"[*] 画质: {selected[0]}, 开始录制...")
     from src.downloader import download_file
-    fpath = out / f"live_{data['room_id']}.flv"
-    print(f"[*] 录制中: {_s(str(fpath))}... (Ctrl+C 停止)")
+    import subprocess, shutil
+    now = time.strftime("%Y%m%d_%H%M%S")
+    flv_path = out / f"live_{data['room_id']}_{now}.flv"
+    mp4_path = out / f"live_{data['room_id']}_{now}.mp4"
+    print(f"[*] 录制中: {_s(str(flv_path))}... (Ctrl+C 暂停/停止)")
     try:
-        download_file(selected[1], fpath)
-        print(f"[OK] 录制完成: {_s(str(fpath))}")
+        download_file(selected[1], flv_path)
     except KeyboardInterrupt:
-        print(f"[*] 已停止录制: {_s(str(fpath))}")
+        print(f"\n[*] 已暂停录制")
+
+    # 录制结束 → 生成 MP4
+    if flv_path.exists() and flv_path.stat().st_size > 0:
+        print(f"[*] 转换 MP4...")
+        try:
+            subprocess.run(
+                ["ffmpeg", "-i", str(flv_path), "-c", "copy", str(mp4_path), "-y"],
+                capture_output=True, timeout=120
+            )
+            if mp4_path.exists():
+                print(f"[OK] MP4: {_s(str(mp4_path))} ({mp4_path.stat().st_size//1024//1024}MB)")
+            else:
+                print(f"[!] MP4 转换失败，保留 FLV")
+        except FileNotFoundError:
+            print(f"[提示] 未安装 ffmpeg，跳过 MP4 转换")
+            print(f"[OK] FLV: {_s(str(flv_path))} ({flv_path.stat().st_size//1024//1024}MB)")
+        except Exception as e:
+            print(f"[!] 转换异常: {e}")
+            print(f"[OK] FLV: {_s(str(flv_path))}")
 
 
 # ══════════ CLI — music ══════════
