@@ -533,14 +533,13 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
         series = adapter.fetch_mix_list(sec_uid)
         if not series: return print("[提示] 该用户没有合集")
         for s in series:
-            sid = s.get("id") or s.get("series_id", "")
-            if not sid: continue
-            sname = s.get("name") or s.get("mix_name", "合集")
-            mix_ids.append((sid, sname))
+            mix_ids.append((s.get("id", ""), s.get("name", "合集"), s.get("total", 0)))
+        print(f"[OK] 共 {len(mix_ids)} 个合集")
         print(f"[OK] 共 {len(mix_ids)} 个合集")
 
     # 遍历每个合集下载
-    for mid, mname in mix_ids:
+    for item in mix_ids:
+        mid, mname = item[0], item[1]
         print(f"\n[*] 合集: {mname} (mix_id={mid[:20]}...)")
         all_items = []; cursor = 0
         while True:

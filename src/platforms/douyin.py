@@ -474,21 +474,29 @@ class DouyinAdapter(PlatformAdapter):
 
     def fetch_mix_list(self, sec_uid: str, cookie: str = "",
                         cursor: int = 0, count: int = 18) -> list:
-        """获取用户的所有合集列表"""
-        import requests as _r
-        from src.api import WEBID, UIFID, VERIFY_FP, FP
+        """获取用户的所有合集列表（扫描作品中的 mix_info）"""
         cookie = cookie or self._load_cookie()
-        params = (f"sec_user_id={sec_uid}&cursor={cursor}&count={count}"
-                  f"&aid=6383&device_platform=webapp"
-                  f"&version_code=170400&version_name=17.4.0"
-                  f"&cookie_enabled=true&webid={WEBID}&uifid={UIFID}")
-        url = f"https://www.douyin.com/aweme/v1/web/series/list/?{params}"
-        resp = _r.get(url, headers={
-            "User-Agent": USER_AGENT, "Cookie": cookie,
-            "Referer": "https://www.douyin.com/",
-        }, timeout=20)
-        data = resp.json()
-        return data.get("series_infos", []) or []
+        mix_ids = {}
+        cursor = 0
+        for _ in range(50):
+            data = self.fetch_posts(sec_uid, cookie, max_cursor=cursor, count=count)
+            items = data.get("items", [])
+            if not items: break
+            for it in items:
+                aw = it.extra.get("aweme", {})
+                mi = aw.get("mix_info", {})
+                mid = mi.get("mix_id", "")
+                if mid and mid not in mix_ids:
+                    mix_ids[mid] = {
+                        "id": mid, "name": mi.get("mix_name", "合集"),
+                        "total": 0,
+                    }
+                if mid:
+                    mix_ids[mid]["total"] += 1
+            if not data.get("has_more"): break
+            cursor = data.get("next_cursor", 0)
+            if not cursor: break
+        return list(mix_ids.values())
 
     def fetch_mix(self, mix_id: str, cookie: str = "",
                   cursor: int = 0, count: int = 20) -> dict:
