@@ -21,6 +21,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# 全局图片格式偏好（--image-format 会修改）
+_IMG_FORMAT = ["jpeg", "webp", "jpg"]
+
 # ── 安全输出：过滤 emoji ──
 
 def _can_encode_gbk(c):
@@ -32,6 +35,14 @@ def _s(s, n=0):
     # 过滤 GBK 不支持的字符
     r = ''.join(c for c in s if _can_encode_gbk(c))
     return r[:n] if n and len(r) > n else r
+
+def _pick_img(urls, fmt=None):
+    """从 url_list 选图片，默认 jpeg > webp > jpg，支持 --image-format"""
+    if fmt is None: fmt = _IMG_FORMAT
+    for f in fmt:
+        for u in (urls or []):
+            if f in u.lower(): return u
+    return (urls or [""])[0]
 
 
 def cmd_server(args: list[str]):
@@ -62,6 +73,11 @@ def cmd_cli(args: list[str]):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
         elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
         elif args[i] == "--duration" and i+1 < len(args): duration = int(args[i+1]); i += 2
+        elif args[i] == "--image-format" and i+1 < len(args):
+            fmt = args[i+1].lower().lstrip('.')
+            if fmt in ("webp","jpeg","jpg"):
+                global _IMG_FORMAT; _IMG_FORMAT = [fmt] + [f for f in ["jpeg","webp","jpg"] if f != fmt]
+            i += 2
         elif args[i] == "--include-long": include_long = True; i += 1
         elif not url: url = args[i]; i += 1
         else: i += 1
@@ -283,7 +299,7 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = "", include_long: b
         elif images:
             for j, img in enumerate(images):
                 urls = img.get("url_list",[])
-                img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
+                img_url = _pick_img(urls)
                 if img_url:
                     is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
                     live_tag = "_实况" if is_live else ""
@@ -448,7 +464,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
             live_count = 0
             for j, img in enumerate(images):
                 urls = img.get("url_list",[])
-                img_url = next((u for u in urls if "webp" in u.lower()),None) or next((u for u in urls if "jpeg" in u.lower()),None) or next((u for u in urls if "jpg" in u.lower()),None) or (urls[0] if urls else "")
+                img_url = _pick_img(urls)
                 if img_url:
                     is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
                     live_tag = "_实况" if is_live else ""
@@ -571,7 +587,7 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
             elif images:
                 for j, img in enumerate(images):
                     urls = img.get("url_list", [])
-                    iu = next((u for u in urls if "webp" in u.lower()), None) or next((u for u in urls if "jpeg" in u.lower()), None) or next((u for u in urls if "jpg" in u.lower()), None) or (urls[0] if urls else "")
+                    iu = _pick_img(urls)
                     if iu:
                         is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
                         lt = "_实况" if is_live else ""
