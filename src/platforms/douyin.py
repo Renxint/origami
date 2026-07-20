@@ -398,10 +398,17 @@ class DouyinAdapter(PlatformAdapter):
 
         stream_url = {}
         if sec_uid:
-            # 方式1：用户资料 → room_data
-            from src.api import DouyinAPI
-            api = DouyinAPI(cookie_string=cookie)
-            profile = api.get_user_profile(sec_uid)
+            # 方式1：用户资料 → room_data（需 17.4.0 参数）
+            import requests as _r2
+            resp = _r2.get(
+                f"https://www.douyin.com/aweme/v1/web/user/profile/other/"
+                f"?sec_user_id={sec_uid}&device_platform=webapp&aid=6383"
+                f"&version_code=170400&version_name=17.4.0"
+                f"&cookie_enabled=true&screen_width=2560&screen_height=1440"
+                f"&browser_name=Chrome&browser_version=149.0.0.0",
+                headers={"User-Agent": USER_AGENT, "Cookie": cookie,
+                         "Referer": "https://www.douyin.com/"}, timeout=15)
+            profile = resp.json().get("user", {})
             room_data_str = profile.get("room_data", "")
             if room_data_str and isinstance(room_data_str, str):
                 try:

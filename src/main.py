@@ -23,11 +23,14 @@ if ROOT not in sys.path:
 
 # ── 安全输出：过滤 emoji ──
 
+def _can_encode_gbk(c):
+    try: c.encode('gbk'); return True
+    except: return False
+
 def _s(s, n=0):
     s = str(s)
-    # 过滤 GBK 不支持的字符: emoji, 变体选择器, ZWJ
-    r = ''.join(c for c in s if ord(c) < 0x10000 and ord(c) not in (
-        0xFE0F, 0x200D, 0xFE00, 0xFE01, 0xFE02, 0xFE03, 0xFE04))
+    # 过滤 GBK 不支持的字符
+    r = ''.join(c for c in s if _can_encode_gbk(c))
     return r[:n] if n and len(r) > n else r
 
 
@@ -501,7 +504,7 @@ def _cli_live(url, max_count=0, save_dir="", include_long=False, duration=0):
     data = adapter.fetch_live(target)
     if not data["is_live"]:
         return print(f"[提示] 当前未在直播")
-    print(f"[OK] {data['nickname']} 正在直播 (room_id={data['room_id']})")
+    print(f"[OK] {_s(data['nickname'])} 正在直播 (room_id={data['room_id']})")
 
     streams = data["streams"]
     out = Path(save_dir) if save_dir else OUTPUT_MUSIC
