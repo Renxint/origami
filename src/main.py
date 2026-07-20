@@ -53,11 +53,12 @@ def cmd_cli(args: list[str]):
 
     # 解析参数
     mode = args[0] if args[0] in KNOWN_MODES else ""; url = ""; count = 0; save_dir = ""
-    include_long = False
+    include_long = False; duration = 0
     i = 1 if mode else 0
     while i < len(args):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
         elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
+        elif args[i] == "--duration" and i+1 < len(args): duration = int(args[i+1]); i += 2
         elif args[i] == "--include-long": include_long = True; i += 1
         elif not url: url = args[i]; i += 1
         else: i += 1
@@ -101,7 +102,7 @@ def cmd_cli(args: list[str]):
     elif mode == "like": _cli_like(url, count, save_dir, include_long)
     elif mode == "collection": _cli_collection(url, count, save_dir, include_long)
     elif mode == "music": _cli_music(url, count, save_dir)
-    elif mode == "live": _cli_live(url, count, save_dir)
+    elif mode == "live": _cli_live(url, count, save_dir, duration=duration)
     else: print(f"未知模式: {mode}")
 
 
@@ -483,7 +484,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
 
 # ══════════ CLI — live ══════════
 
-def _cli_live(url, max_count=0, save_dir="", include_long=False):
+def _cli_live(url, max_count=0, save_dir="", include_long=False, duration=0):
     """直播下载：支持主页链接和直播间链接"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
@@ -527,11 +528,23 @@ def _cli_live(url, max_count=0, save_dir="", include_long=False):
     now = time.strftime("%Y%m%d_%H%M%S")
     flv_path = out / f"live_{data['room_id']}_{now}.flv"
     mp4_path = out / f"live_{data['room_id']}_{now}.mp4"
-    print(f"[*] 录制中: {_s(str(flv_path))}... (Ctrl+C 暂停/停止)")
-    try:
-        download_file(selected[1], flv_path)
-    except KeyboardInterrupt:
-        print(f"\n[*] 已暂停录制")
+    if duration > 0:
+        print(f"[*] 录制中: {_s(str(flv_path))}... (时长 {duration} 秒)")
+        import threading, time as _time
+        _stop = [False]
+        def _dl():
+            try: download_file(selected[1], flv_path)
+            except Exception: pass
+        _t = threading.Thread(target=_dl, daemon=True); _t.start()
+        _time.sleep(duration)
+        _stop[0] = True
+        print(f"\n[*] 时长到，停止录制")
+    else:
+        print(f"[*] 录制中: {_s(str(flv_path))}... (Ctrl+C 停止)")
+        try:
+            download_file(selected[1], flv_path)
+        except KeyboardInterrupt:
+            print(f"\n[*] 已停止录制")
 
     # 录制结束 → 生成 MP4
     if flv_path.exists() and flv_path.stat().st_size > 0:
