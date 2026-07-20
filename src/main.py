@@ -491,7 +491,7 @@ def _cli_live(url, max_count=0, save_dir="", include_long=False, duration=0):
     """直播下载：支持主页链接和直播间链接"""
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
-    from src.environ import OUTPUT_MUSIC
+    from src.environ import OUTPUT_BASE
 
     adapter = DouyinAdapter()
     # 解析 sec_uid 或 room_id
@@ -507,7 +507,7 @@ def _cli_live(url, max_count=0, save_dir="", include_long=False, duration=0):
     print(f"[OK] {_s(data['nickname'])} 正在直播 (room_id={data['room_id']})")
 
     streams = data["streams"]
-    out = Path(save_dir) if save_dir else OUTPUT_MUSIC
+    out = Path(save_dir) if save_dir else OUTPUT_BASE / "抖音" / "直播"
     name = data["nickname"] or data["room_id"]
     out = out / name
     out.mkdir(parents=True, exist_ok=True)
