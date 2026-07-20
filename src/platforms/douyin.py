@@ -414,7 +414,10 @@ class DouyinAdapter(PlatformAdapter):
             stream_url = (room_data.get("stream_url", {}) or {}).get("flv_pull_url", {})
             user = profile
             room_id = user.get("room_id_str", "") or user.get("room_id", "")
-        elif room_id:
+            # 兜底：room_data 为空但 live_status=1 → 用 room_id 走 LIVE_INFO
+            if not stream_url and room_id and profile.get("live_status") == 1:
+                sec_uid = ""  # 跳到下面的 room_id 分支
+        if not sec_uid and room_id:
             # 方式2：直接查 LIVE_INFO
             url = f"https://live.douyin.com/webcast/room/web/enter/?aid=6383&device_platform=web&web_rid={room_id}"
             resp = _r.get(url, headers={
