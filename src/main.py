@@ -21,8 +21,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# 全局图片格式偏好（--image-format 会修改）
+# 全局偏好（--image-format / --threads 会修改）
 _IMG_FORMAT = ["jpeg", "webp", "jpg"]
+_THREADS = 20
 
 # ── 安全输出：过滤 emoji ──
 
@@ -67,7 +68,7 @@ def cmd_cli(args: list[str]):
 
     # 解析参数
     mode = args[0] if args[0] in KNOWN_MODES else ""; url = ""; count = 0; save_dir = ""
-    include_long = False; duration = 0
+    include_long = False; duration = 0; threads = 20
     i = 1 if mode else 0
     while i < len(args):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
@@ -78,6 +79,8 @@ def cmd_cli(args: list[str]):
             if fmt in ("webp","jpeg","jpg"):
                 global _IMG_FORMAT; _IMG_FORMAT = [fmt] + [f for f in ["jpeg","webp","jpg"] if f != fmt]
             i += 2
+        elif args[i] == "--threads" and i+1 < len(args):
+            global _THREADS; _THREADS = int(args[i+1]); i += 2
         elif args[i] == "--include-long": include_long = True; i += 1
         elif not url: url = args[i]; i += 1
         else: i += 1
@@ -333,7 +336,7 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = "", include_long: b
             if _done[0] % 10 == 0 or _done[0] == _total_tasks:
                 print(f"  进度: {_done[0]}/{_total_tasks}")
 
-    with ThreadPoolExecutor(max_workers=20) as pool:
+    with ThreadPoolExecutor(max_workers=_THREADS) as pool:
         futures = [pool.submit(_dl_one, t) for t in tasks]
         for f in as_completed(futures):
             f.result()  # 传播异常
@@ -492,7 +495,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
             else: stats["fail"] += 1
             if _done[0] % 10 == 0 or _done[0] == _total:
                 print(f"  进度: {_done[0]}/{_total}")
-    with ThreadPoolExecutor(max_workers=20) as pool:
+    with ThreadPoolExecutor(max_workers=_THREADS) as pool:
         for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
 
     tracker_file.write_text(_json.dumps(list(downloaded_ids), ensure_ascii=False), encoding="utf-8")
@@ -607,7 +610,7 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
             with _lock:
                 if r: ok[0] += 1
                 else: fail[0] += 1
-        with ThreadPoolExecutor(max_workers=20) as pool:
+        with ThreadPoolExecutor(max_workers=_THREADS) as pool:
             for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
         print(f"  OK:{ok[0]} FAIL:{fail[0]}")
 
@@ -750,7 +753,7 @@ def _cli_music(url, max_count=0, save_dir=""):
         with _lock:
             _done[0] += 1
             if result: ok[0] += 1
-    with ThreadPoolExecutor(max_workers=20) as pool:
+    with ThreadPoolExecutor(max_workers=_THREADS) as pool:
         for f in as_completed([pool.submit(_dl, t) for t in tasks]): f.result()
     print(f"[DONE] 音乐:{ok[0]}/{len(all_items)}  保存到: {_s(str(out))}")
 
