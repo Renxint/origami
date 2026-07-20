@@ -377,6 +377,66 @@ class DouyinAdapter(PlatformAdapter):
             "next_cursor": data.get("max_cursor", 0) or data.get("cursor", 0),
         }
 
+    def fetch_live(self, url_or_sec_uid: str, cookie: str = "") -> dict:
+        """获取直播间流地址。
+
+        支持两种输入：
+        1. 用户主页链接（含 sec_uid）→ 通过 profile 获取 room_data
+        2. 直播间链接 live.douyin.com/xxx → 提取 room_id 直接查 LIVE_INFO
+        """
+        import requests as _r, re
+        cookie = cookie or self._load_cookie()
+
+        # 判断输入类型
+        room_id = ""
+        sec_uid = ""
+        if "live.douyin.com" in url_or_sec_uid:
+            m = re.search(r'live\.douyin\.com/(\d+)', url_or_sec_uid)
+            if m: room_id = m.group(1)
+        elif "MS4wLjAB" in url_or_sec_uid:
+            sec_uid = url_or_sec_uid
+
+        stream_url = {}
+        if sec_uid:
+            # 方式1：用户资料 → room_data
+            from src.api import DouyinAPI
+            api = DouyinAPI(cookie_string=cookie)
+            profile = api.get_user_profile(sec_uid)
+            room_data_str = profile.get("room_data", "")
+            if room_data_str and isinstance(room_data_str, str):
+                try:
+                    import json
+                    room_data = json.loads(room_data_str)
+                except Exception:
+                    room_data = {}
+            else:
+                room_data = room_data_str if isinstance(room_data_str, dict) else {}
+            stream_url = (room_data.get("stream_url", {}) or {}).get("flv_pull_url", {})
+            user = profile
+            room_id = user.get("room_id_str", "") or user.get("room_id", "")
+        elif room_id:
+            # 方式2：直接查 LIVE_INFO
+            url = f"https://live.douyin.com/webcast/room/web/enter/?aid=6383&device_platform=web&web_rid={room_id}"
+            resp = _r.get(url, headers={
+                "User-Agent": USER_AGENT, "Cookie": cookie,
+                "Referer": "https://live.douyin.com/",
+            }, timeout=15)
+            data = resp.json()
+            inner = data.get("data", {}).get("data", [])
+            if isinstance(inner, list) and inner:
+                d0 = inner[0]
+                stream_url = (d0.get("stream_url", {}) or {}).get("flv_pull_url", {})
+                user = {"nickname": d0.get("title", ""), "room_id": room_id}
+            else:
+                user = {}
+
+        return {
+            "room_id": room_id,
+            "nickname": user.get("nickname", ""),
+            "streams": stream_url,  # {"HD1": "http://...flv", ...}
+            "is_live": bool(stream_url),
+        }
+
     def fetch_favorites(self, favorite_id: str, cookie: str = "",
                         max_cursor: int = 0, count: int = 18) -> dict:
         """翻页获取收藏夹作品列表"""

@@ -41,7 +41,7 @@ def cmd_server(args: list[str]):
 
 
 def cmd_cli(args: list[str]):
-    KNOWN_MODES = {"single","batch","like","collection","music"}
+    KNOWN_MODES = {"single","batch","like","collection","music","live"}
     if not args:
         print(f"用法: python -m src.main cli [<模式>] <链接>")
         print(f"  模式（可选，不填则自动识别）: {' | '.join(sorted(KNOWN_MODES))}")
@@ -101,6 +101,7 @@ def cmd_cli(args: list[str]):
     elif mode == "like": _cli_like(url, count, save_dir, include_long)
     elif mode == "collection": _cli_collection(url, count, save_dir, include_long)
     elif mode == "music": _cli_music(url, count, save_dir)
+    elif mode == "live": _cli_live(url, count, save_dir)
     else: print(f"未知模式: {mode}")
 
 
@@ -480,6 +481,57 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     print(f"       保存到: {_s(str(author_dir))}")
 
 
+# ══════════ CLI — live ══════════
+
+def _cli_live(url, max_count=0, save_dir="", include_long=False):
+    """直播下载：支持主页链接和直播间链接"""
+    from pathlib import Path
+    from src.platforms.douyin import DouyinAdapter
+    from src.environ import OUTPUT_MUSIC
+
+    adapter = DouyinAdapter()
+    # 解析 sec_uid 或 room_id
+    if "live.douyin.com" in url:
+        target = url
+    else:
+        target = _resolve_user_url(url)
+
+    print(f"[*] 检测直播状态...")
+    data = adapter.fetch_live(target)
+    if not data["is_live"]:
+        return print(f"[提示] 当前未在直播")
+    print(f"[OK] {data['nickname']} 正在直播 (room_id={data['room_id']})")
+
+    streams = data["streams"]
+    out = Path(save_dir) if save_dir else OUTPUT_MUSIC
+    name = data["nickname"] or data["room_id"]
+    out = out / name
+    out.mkdir(parents=True, exist_ok=True)
+
+    # 选最高画质
+    quality_order = ["FULL_HD1", "HD1", "SD1", "SD2"]
+    selected = None
+    for q in quality_order:
+        if q in streams:
+            selected = (q, streams[q])
+            break
+    if not selected and streams:
+        selected = list(streams.items())[0]
+
+    if not selected:
+        return print("[ERROR] 无可用流地址")
+
+    print(f"[*] 画质: {selected[0]}, 开始录制...")
+    from src.downloader import download_file
+    fpath = out / f"live_{data['room_id']}.flv"
+    print(f"[*] 录制中: {_s(str(fpath))}... (Ctrl+C 停止)")
+    try:
+        download_file(selected[1], fpath)
+        print(f"[OK] 录制完成: {_s(str(fpath))}")
+    except KeyboardInterrupt:
+        print(f"[*] 已停止录制: {_s(str(fpath))}")
+
+
 # ══════════ CLI — music ══════════
 
 def _cli_music(url, max_count=0, save_dir=""):
@@ -494,7 +546,7 @@ def _cli_music(url, max_count=0, save_dir=""):
     print(f"[*] sec_uid: {sec_uid[:30]}...")
     try: author_info = adapter.fetch_author(sec_uid); author_name = clean_name(author_info.nickname or sec_uid[:12], 30)
     except: author_name = clean_name(sec_uid[:12], 12)
-    out = (Path(save_dir) if save_dir else OUTPUT_MUSIC) / author_name / "音乐"
+    out = (Path(save_dir) if save_dir else OUTPUT_MUSIC) / author_name
     out.mkdir(parents=True, exist_ok=True)
 
     all_items = []; cursor = 0; page = 0; _last_cursor = -1
