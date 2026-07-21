@@ -27,8 +27,6 @@
   }
   .sb-logo {
     width:34px; height:34px; border-radius:8px;
-    background: linear-gradient(135deg, var(--accent), #64FFDA);
-    color:#0A0A14; font-weight:900; font-size:15px;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; margin-bottom:12px;
     transition: transform .2s;
@@ -184,10 +182,39 @@
 
   .progress-bar {
     height:4px; border-radius:2px; background:var(--bg-hover);
-    overflow:hidden; display:none;
+    overflow:hidden; display:none; position:relative;
   }
   .progress-bar.show { display:block; }
-  .progress-fill { height:100%; background:var(--accent); transition:width .3s; width:0%; }
+  /* 不确定进度条——光条扫描 */
+  .progress-sweep {
+    position:absolute; top:0; left:0; width:40%; height:100%;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: sweep 1.4s ease-in-out infinite;
+    border-radius:2px;
+  }
+  @keyframes sweep {
+    0% { left:-40%; } 100% { left:100%; }
+  }
+  /* 按钮脉冲 */
+  .btn-downloading { animation: btnPulse 1.5s ease-in-out infinite; }
+  @keyframes btnPulse {
+    0%,100% { opacity:1; } 50% { opacity:.7; }
+  }
+  /* 完成脉冲 */
+  .btn-done {
+    background:var(--success) !important; animation: donePop .5s ease;
+  }
+  @keyframes donePop {
+    0% { transform:scale(1); } 50% { transform:scale(1.05); } 100% { transform:scale(1); }
+  }
+  /* 打开文件夹滑入 */
+  .btn-slide-in {
+    animation: slideIn .35s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes slideIn {
+    from { opacity:0; transform:translateX(12px); }
+    to { opacity:1; transform:translateX(0); }
+  }
 
   /* 空态 */
   .empty-state {
@@ -204,7 +231,7 @@
 <div class="app">
   <!-- 侧边栏 -->
   <aside class="sidebar">
-    <div class="sb-logo">O</div>
+    <div class="sb-logo"><img src="../assets/logo.png" alt="O" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div>
     <button class="sb-item active" title="首页">⌂</button>
     <button class="sb-item" title="订阅">★</button>
     <button class="sb-item" title="主页备份">☁</button>
@@ -268,7 +295,7 @@
 
       <!-- 进度 -->
       <div class="progress-bar" id="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
+        <div class="progress-sweep"></div>
       </div>
 
       <!-- 日志 -->
@@ -287,7 +314,6 @@
   const previewArea = document.getElementById('preview-area');
   const log = document.getElementById('log');
   const progressBar = document.getElementById('progress-bar');
-  const progressFill = document.getElementById('progress-fill');
   let currentMedia = null;
   let selectedIndices = new Set();
 
@@ -428,10 +454,14 @@
     if (!currentMedia) return;
     const btn = document.getElementById('btn-download');
     btn.disabled = true;
+    btn.classList.add('btn-downloading');
     btn.textContent = '下载中...';
     progressBar.classList.add('show');
-    progressFill.style.width = '0%';
     addLog(`[下载] 开始...`);
+
+    // 脉动文字
+    var dots = 0;
+    var dotTimer = setInterval(() => { dots=(dots+1)%4; btn.textContent='下载中'+'.'.repeat(dots); }, 400);
 
     // 传原始链接 + 筛选序号给后端
     const url = input.value.trim();
@@ -443,21 +473,27 @@
       opts.images = Array.from(selectedIndices).sort((a,b)=>a-b).map(i=>i+1).join(',');
     }
     Origami.download(url, '', opts).then(r => {
-      progressFill.style.width = '100%';
+      clearInterval(dotTimer);
+      progressBar.classList.remove('show');
+      btn.classList.remove('btn-downloading');
+      btn.classList.add('btn-done');
       btn.disabled = false;
       btn.textContent = '完成 ✓';
-      progressBar.classList.remove('show');
       addLog(`[OK] 下载完成`);
       saveDir = r.save_dir || '';
       var acts = document.querySelector('.author-acts');
       if (!document.getElementById('btn-open-folder')) {
         var ob = document.createElement('button');
-        ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost';
+        ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost btn-slide-in';
         ob.textContent = '📂 打开文件夹';
         ob.onclick = function(){ Origami.openFolder(saveDir); };
         acts.insertBefore(ob, btn);
       }
+      setTimeout(() => btn.classList.remove('btn-done'), 2000);
     }).catch(e => {
+      clearInterval(dotTimer);
+      progressBar.classList.remove('show');
+      btn.classList.remove('btn-downloading');
       btn.disabled = false;
       btn.textContent = '重试';
       addLog(`[!] 失败: ${e.message}`);
