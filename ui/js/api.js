@@ -86,7 +86,7 @@ const Origami = {
     fetchMedia: (itemId) => api('/api/fetch-media', { item_id: itemId }),
 
     // 下载（进度通过 WS 推送）
-    download: (url, saveDir) => api('/api/download', { url, save_dir: saveDir }),
+    download: (url, saveDir, opts) => api('/api/download', { url, save_dir: saveDir, images: (opts||{}).images || '' }),
 
     // 作者
     fetchAuthor: (url) => api('/api/fetch-author', { url }),

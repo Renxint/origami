@@ -435,10 +435,16 @@
     let done = 0;
     addLog(`[下载] 开始 (${total} 个)...`);
 
-    // 传原始抖音链接给后端下载
+    // 传原始链接 + 筛选序号给后端
     const url = input.value.trim();
+    const total = (currentMedia.media_urls || []).length;
+    const isPartial = selectedIndices.size < total && selectedIndices.size > 0;
     var saveDir = '';
-    Origami.download(url, '').then(r => {
+    var opts = {};
+    if (isPartial) {
+      opts.images = Array.from(selectedIndices).sort((a,b)=>a-b).map(i=>i+1).join(',');
+    }
+    Origami.download(url, '', opts).then(r => {
       progressFill.style.width = '100%';
       btn.disabled = false;
       btn.textContent = '完成 ✓';

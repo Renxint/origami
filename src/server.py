@@ -369,6 +369,15 @@ async def api_download(request: web.Request):
         save_dir = save_dir / safe_author
         save_dir.mkdir(parents=True, exist_ok=True)
 
+        # 图片筛选（如 "1,3,5"）
+        img_filter = None
+        img_raw = body.get("images", "")
+        if img_raw:
+            img_filter = set()
+            for part in img_raw.split(","):
+                try: img_filter.add(int(part.strip()) - 1)
+                except: pass
+
         downloaded = []
         total = len(media.media_urls)
         push_event({"event": "download_start", "title": media.title,
@@ -376,6 +385,8 @@ async def api_download(request: web.Request):
 
         safe_title = clean_name(media.title or item_id, 40)
         for i, murl in enumerate(media.media_urls):
+            if img_filter and i not in img_filter:
+                continue
             ext = ".mp4" if media.item_type == "video" else ".jpg"
             is_video = media.item_type == "video"
             if is_video:
