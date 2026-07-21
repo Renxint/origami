@@ -6,6 +6,7 @@
 <title>Origami</title>
 <link rel="icon" href="../assets/logo.png" type="image/png">
 <link rel="stylesheet" href="../css/themes.css">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body {
@@ -35,10 +36,11 @@
   .sb-item {
     width:38px; height:38px; border-radius:8px;
     display:flex; align-items:center; justify-content:center;
-    cursor:pointer; font-size:17px; color:var(--text-disabled);
+    cursor:pointer; color:var(--text-disabled);
     transition: all .18s; position:relative;
     background:transparent; border:none;
   }
+  .sb-item i, .sb-item svg { width:18px; height:18px; }
   .sb-item:hover { color:var(--text-secondary); background:var(--bg-hover); }
   .sb-item.active { color:var(--accent); background:var(--bg-hover); }
   .sb-spacer { flex:1; }
@@ -232,12 +234,12 @@
   <!-- 侧边栏 -->
   <aside class="sidebar">
     <div class="sb-logo"><img src="../assets/logo.png" alt="O" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div>
-    <button class="sb-item active" title="首页" style="font-size:14px;font-weight:700;">H</button>
-    <button class="sb-item" title="订阅" style="font-size:14px;font-weight:700;">S</button>
-    <button class="sb-item" title="主页备份" style="font-size:14px;font-weight:700;">B</button>
-    <button class="sb-item" title="直播" style="font-size:14px;font-weight:700;">L<span class="sb-badge"></span></button>
+    <button class="sb-item active" title="首页"><i data-lucide="home"></i></button>
+    <button class="sb-item" title="订阅"><i data-lucide="rss"></i></button>
+    <button class="sb-item" title="主页备份"><i data-lucide="cloud-download"></i></button>
+    <button class="sb-item" title="直播"><i data-lucide="radio"></i><span class="sb-badge"></span></button>
     <div class="sb-spacer"></div>
-    <button class="sb-item" title="设置" style="font-size:14px;font-weight:700;">*</button>
+    <button class="sb-item" title="设置" onclick="openSettings()"><i data-lucide="settings"></i></button>
   </aside>
 
   <!-- 主区域 -->
@@ -257,18 +259,18 @@
       <!-- 输入框 -->
       <div class="input-wrap">
         <div class="input-box">
-          <span>[>]</span>
+          <i data-lucide="link"></i>
           <input type="text" id="url-input"
                  placeholder="粘贴链接，自动识别平台和类型..."
                  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-          <button class="input-clear" id="input-clear" onclick="clearInput()">x</button>
+          <button class="input-clear" id="input-clear" onclick="clearInput()"><i data-lucide="x"></i></button>
           <span class="platform-badge" id="platform-badge"></span>
         </div>
       </div>
 
       <!-- 空态提示 -->
       <div class="empty-state" id="empty-state">
-        <div class="empty-icon">[v]</div>
+        <div class="empty-icon"><i data-lucide="arrow-down" style="width:36px;height:36px;opacity:.4;"></i></div>
         <div class="empty-text">粘贴抖音链接开始</div>
         <div class="empty-hint">支持视频、图集、文章、主页、直播间</div>
       </div>
@@ -403,7 +405,7 @@
       previewArea.innerHTML = `
         <div class="preview-title">[视频]</div>
         <div class="preview-video">
-          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '[视频]'}
+          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '<i data-lucide=\"video\"></i>'}
         </div>`;
       selectedIndices.add(0);
     } else if (m.item_type === 'note') {
@@ -431,6 +433,7 @@
           `).join('')}
         </div>`;
     }
+    setTimeout(lucide.createIcons, 50);
   }
 
   window.toggleAll = function() {
@@ -506,7 +509,8 @@
       if (!document.getElementById('btn-open-folder')) {
         var ob = document.createElement('button');
         ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost btn-slide-in';
-        ob.textContent = '[>] 打开文件夹';
+        ob.innerHTML = '<i data-lucide=\"folder-open\" style=\"width:14px;height:14px;\"></i> 打开文件夹';
+        lucide.createIcons();
         ob.onclick = function(){ Origami.openFolder(saveDir); };
         acts.insertBefore(ob, btn);
       }
@@ -540,6 +544,7 @@
 
   // ── 启动 ──
   window.addEventListener('DOMContentLoaded', async () => {
+    lucide.createIcons();
     try {
       const cs = await Origami.cookieStatus();
       if (cs && cs.ok) {
