@@ -210,14 +210,22 @@ async def api_fetch_media(request: web.Request):
         from src.cookie import load_cookie
         adapter = DouyinAdapter()
         media = adapter.fetch_media(item_id, load_cookie())
+        aweme = media.extra.get("aweme", {})
+        author_info = aweme.get("author", {})
+        avatar = author_info.get("avatar_thumb", {}).get("url_list", [""])[0] \
+              or author_info.get("avatar_medium", {}).get("url_list", [""])[0] \
+              or ""
         return json_response({
             "ok": True,
             "item_id": media.item_id,
             "item_type": media.item_type,
             "title": media.title,
             "author": media.author,
-            "media_urls": media.media_urls,
+            "author_id": media.author_id,
+            "author_avatar": avatar,
             "cover_url": media.cover_url,
+            "media_urls": media.media_urls,
+            "text_content": media.text_content,
         })
     except Exception as e:
         return error_response(str(e), 500)

@@ -70,7 +70,7 @@
   .topbar-status.off { background:var(--text-disabled); }
 
   /* ══════ 内容区 ══════ */
-  .content { flex:1; display:flex; flex-direction:column; overflow-y:auto; padding:20px 24px; gap:16px; }
+  .content { flex:1; display:flex; flex-direction:column; overflow-y:auto; padding:20px 24px; gap:16px; max-width:900px; margin:0 auto; width:100%; }
 
   /* ══════ 输入框 ══════ */
   .input-wrap { flex-shrink:0; }
@@ -351,8 +351,11 @@
     const card = document.getElementById('author-card');
     card.style.display = 'flex';
     document.getElementById('author-name').textContent = m.author || '-';
-    document.getElementById('author-meta').textContent = (m.extra || {}).signature || '';
+    document.getElementById('author-meta').textContent = '';
     document.getElementById('author-desc').textContent = truncate(m.title, 50);
+    // 头像
+    var av = document.getElementById('author-av');
+    av.innerHTML = m.author_avatar ? '<img src=\"'+m.author_avatar+'\" onerror=\"this.style.display=none\">' : '';
 
     previewArea.innerHTML = '';
     selectedIndices = new Set();
@@ -416,7 +419,6 @@
     progressBar.classList.add('show');
     progressFill.style.width = '0%';
 
-    // 模拟下载（实际应调用 Origami.download）
     let total = selectedIndices.size || 1;
     let done = 0;
     addLog(`[下载] 开始 (${total} 个)...`);
@@ -432,6 +434,16 @@
           btn.disabled = false;
           btn.textContent = '完成 ✓';
           progressBar.classList.remove('show');
+          // 显示打开文件夹按钮
+          var acts = document.querySelector('.author-acts');
+          if (!document.getElementById('btn-open-folder')) {
+            var ob = document.createElement('button');
+            ob.id = 'btn-open-folder';
+            ob.className = 'btn btn-ghost';
+            ob.textContent = '📂 打开文件夹';
+            ob.onclick = function(){ Origami.openFolder(''); };
+            acts.insertBefore(ob, btn);
+          }
         }
       }).catch(e => {
         done++;
