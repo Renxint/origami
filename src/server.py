@@ -386,7 +386,7 @@ async def api_download(request: web.Request):
         push_event({"event": "download_done", "title": media.title,
                      "files": downloaded, "save_dir": str(save_dir)})
         return {"ok": True, "title": media.title, "author": media.author,
-                "files": downloaded}
+                "files": downloaded, "save_dir": str(save_dir)}
 
     try:
         result = await loop.run_in_executor(None, _do_download)

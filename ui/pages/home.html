@@ -425,18 +425,20 @@
 
     // 传原始抖音链接给后端下载
     const url = input.value.trim();
+    var saveDir = '';
     Origami.download(url, '').then(r => {
       progressFill.style.width = '100%';
       btn.disabled = false;
       btn.textContent = '完成 ✓';
       progressBar.classList.remove('show');
       addLog(`[OK] 下载完成`);
+      saveDir = r.save_dir || '';
       var acts = document.querySelector('.author-acts');
       if (!document.getElementById('btn-open-folder')) {
         var ob = document.createElement('button');
         ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost';
         ob.textContent = '📂 打开文件夹';
-        ob.onclick = function(){ Origami.openFolder(''); };
+        ob.onclick = function(){ Origami.openFolder(saveDir); };
         acts.insertBefore(ob, btn);
       }
     }).catch(e => {
