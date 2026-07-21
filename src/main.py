@@ -73,6 +73,7 @@ def cmd_cli(args: list[str]):
     while i < len(args):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
         elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
+        elif args[i] == "--output" and i+1 < len(args): save_dir = args[i+1]; i += 2
         elif args[i] == "--duration" and i+1 < len(args): duration = int(args[i+1]); i += 2
         elif args[i] == "--image-format" and i+1 < len(args):
             fmt = args[i+1].lower().lstrip('.')
