@@ -431,15 +431,12 @@
     btn.textContent = '下载中...';
     progressBar.classList.add('show');
     progressFill.style.width = '0%';
-
-    let total = selectedIndices.size || 1;
-    let done = 0;
-    addLog(`[下载] 开始 (${total} 个)...`);
+    addLog(`[下载] 开始...`);
 
     // 传原始链接 + 筛选序号给后端
     const url = input.value.trim();
-    const total = (currentMedia.media_urls || []).length;
-    const isPartial = selectedIndices.size < total && selectedIndices.size > 0;
+    const mediaTotal = (currentMedia.media_urls || []).length;
+    const isPartial = selectedIndices.size < mediaTotal && selectedIndices.size > 0;
     var saveDir = '';
     var opts = {};
     if (isPartial) {
