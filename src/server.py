@@ -374,10 +374,15 @@ async def api_download(request: web.Request):
         push_event({"event": "download_start", "title": media.title,
                      "author": media.author, "item_type": media.item_type, "total": total})
 
+        safe_title = clean_name(media.title or item_id, 40)
         for i, murl in enumerate(media.media_urls):
             ext = ".mp4" if media.item_type == "video" else ".jpg"
-            label = f"{i+1:02d}" if total > 9 else str(i+1)
-            fname = f"{clean_name(media.title or item_id, 30)}_{label}{ext}"
+            is_video = media.item_type == "video"
+            if is_video:
+                fname = f"{safe_title}{ext}"
+            else:
+                label = f"{i+1:02d}" if total > 9 else str(i+1)
+                fname = f"{safe_title}-{label}{ext}"
             fpath = save_dir / fname
             push_event({"event": "log", "level": "info",
                          "msg": f"[{i+1}/{total}] {fname}"})
