@@ -417,7 +417,9 @@
       selectedIndices = new Set(urls.map((_,i) => i));
       previewArea.innerHTML = `
         <div class="preview-title">
-          🖼 图集 <span class="count">${urls.length} 张 · 点击取消选择</span>
+          🖼 图集 <span class="count">${urls.length} 张</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-ghost" style="padding:2px 10px;font-size:11px;" id="btn-toggle-all" onclick="toggleAll()">全不选</button>
         </div>
         <div class="preview-grid" id="preview-grid">
           ${urls.map((u, i) => `
@@ -431,6 +433,21 @@
     }
   }
 
+  window.toggleAll = function() {
+    const urls = currentMedia?.media_urls || [];
+    const allSelected = selectedIndices.size === urls.length;
+    if (allSelected) {
+      selectedIndices.clear();
+      document.querySelectorAll('.preview-img').forEach(el => el.classList.add('deselected'));
+      document.getElementById('btn-toggle-all').textContent = '全选';
+    } else {
+      urls.forEach((_,i) => selectedIndices.add(i));
+      document.querySelectorAll('.preview-img').forEach(el => el.classList.remove('deselected'));
+      document.getElementById('btn-toggle-all').textContent = '全不选';
+    }
+    updateBtn();
+  };
+
   window.toggleImg = function(idx) {
     const el = document.querySelector(`.preview-img[data-idx="${idx}"]`);
     if (selectedIndices.has(idx)) {
@@ -440,6 +457,10 @@
       selectedIndices.add(idx);
       el.classList.remove('deselected');
     }
+    // 更新切换按钮状态
+    const urls = currentMedia?.media_urls || [];
+    const tb = document.getElementById('btn-toggle-all');
+    if (tb) tb.textContent = selectedIndices.size === urls.length ? '全不选' : '全选';
     updateBtn();
   };
 
