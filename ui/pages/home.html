@@ -317,6 +317,8 @@
   async function resolveUrl() {
     const url = input.value.trim();
     if (!url) return;
+    // 重置 UI
+    resetResult();
     addLog('[解析] ' + truncate(url, 60));
     try {
       const r = await Origami.resolveUrl(url);
@@ -330,6 +332,16 @@
     } catch (e) {
       addLog('[!] 解析失败: ' + e.message);
     }
+  }
+
+  function resetResult() {
+    document.getElementById('btn-download').disabled = false;
+    document.getElementById('btn-download').textContent = '下载选中';
+    progressBar.classList.remove('show');
+    var ob = document.getElementById('btn-open-folder');
+    if (ob) ob.remove();
+    previewArea.innerHTML = '';
+    document.getElementById('author-card').style.display = 'none';
   }
 
   async function fetchMedia(itemId) {
