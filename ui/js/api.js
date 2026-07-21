@@ -105,7 +105,9 @@ const Origami = {
 
     // 文件操作
     browseFolder: () => api('/api/browse-folder'),
-    openFolder: (path) => api('/api/open-folder', { path }),
+    openFolder: (path) => api('/api/open-folder', { path: path || '' }),
+    // 本人资料
+    ownProfile: () => api('/api/own-profile'),
 
     // WebSocket 事件
     onEvent,

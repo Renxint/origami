@@ -405,16 +405,45 @@ async def api_browse_folder(request: web.Request):
 async def api_open_folder(request: web.Request):
     body = await read_body(request)
     path = body.get("path", "")
-    if path and Path(path).exists():
+    if not path:
+        path = str(EXE_DIR / "output" / "抖音")
+    target = Path(path)
+    # 如果精确路径不存在，尝试父目录
+    if not target.exists():
+        # 找最近存在的父目录
+        p = target
+        while p != p.parent and not p.exists():
+            p = p.parent
+        if p.exists():
+            target = p
+    if target.exists():
         import subprocess, platform
         if platform.system() == "Windows":
-            os.startfile(path)
+            os.startfile(str(target))
         elif platform.system() == "Darwin":
-            subprocess.run(["open", path])
+            subprocess.run(["open", str(target)])
         else:
-            subprocess.run(["xdg-open", path])
-        return json_response({"ok": True})
+            subprocess.run(["xdg-open", str(target)])
+        return json_response({"ok": True, "path": str(target)})
     return error_response("path not found", 404)
+
+# ── GET /api/own-profile ──
+async def api_own_profile(request: web.Request):
+    try:
+        from src.cookie import load_cookie
+        from src.api import DouyinAPI
+        api = DouyinAPI(cookie_string=load_cookie())
+        sec = api.get_own_sec_uid()
+        if not sec:
+            return json_response({"ok": False, "message": "未登录"})
+        profile = api.get_user_profile(sec)
+        return json_response({
+            "ok": True,
+            "nickname": profile.get("nickname", ""),
+            "avatar": profile.get("avatar_url", ""),
+        })
+    except Exception as e:
+        return json_response({"ok": False, "message": str(e)})
 
 # ── WebSocket /ws/events ──
 async def ws_events(request: web.Request):
@@ -482,6 +511,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/download",      api_download)
     app.router.add_post("/api/browse-folder", api_browse_folder)
     app.router.add_post("/api/open-folder",   api_open_folder)
+    app.router.add_get("/api/own-profile",  api_own_profile)
     app.router.add_get("/ws/events",         ws_events)
 
     # ── 首页重定向 ──
