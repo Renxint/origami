@@ -365,6 +365,8 @@ async def api_download(request: web.Request):
         media = adapter.fetch_media(item_id, load_cookie())
 
         save_dir = Path(body.get("save_dir") or str(OUTPUT_SINGLE))
+        safe_author = clean_name(media.author, 20)
+        save_dir = save_dir / safe_author
         save_dir.mkdir(parents=True, exist_ok=True)
 
         downloaded = []
@@ -374,7 +376,8 @@ async def api_download(request: web.Request):
 
         for i, murl in enumerate(media.media_urls):
             ext = ".mp4" if media.item_type == "video" else ".jpg"
-            fname = f"{clean_name(media.title or item_id, 30)}_{i+1}{ext}"
+            label = f"{i+1:02d}" if total > 9 else str(i+1)
+            fname = f"{clean_name(media.title or item_id, 30)}_{label}{ext}"
             fpath = save_dir / fname
             push_event({"event": "log", "level": "info",
                          "msg": f"[{i+1}/{total}] {fname}"})
