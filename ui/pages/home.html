@@ -232,12 +232,12 @@
   <!-- 侧边栏 -->
   <aside class="sidebar">
     <div class="sb-logo"><img src="../assets/logo.png" alt="O" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div>
-    <button class="sb-item active" title="首页">⌂</button>
-    <button class="sb-item" title="订阅">★</button>
-    <button class="sb-item" title="主页备份">☁</button>
-    <button class="sb-item" title="直播"><span class="sb-badge"></span></button>
+    <button class="sb-item active" title="首页" style="font-size:14px;font-weight:700;">H</button>
+    <button class="sb-item" title="订阅" style="font-size:14px;font-weight:700;">S</button>
+    <button class="sb-item" title="主页备份" style="font-size:14px;font-weight:700;">B</button>
+    <button class="sb-item" title="直播" style="font-size:14px;font-weight:700;">L<span class="sb-badge"></span></button>
     <div class="sb-spacer"></div>
-    <button class="sb-item" title="设置" onclick="openSettings()">⚙</button>
+    <button class="sb-item" title="设置" style="font-size:14px;font-weight:700;">*</button>
   </aside>
 
   <!-- 主区域 -->
@@ -257,18 +257,18 @@
       <!-- 输入框 -->
       <div class="input-wrap">
         <div class="input-box">
-          <span>🔗</span>
+          <span>[>]</span>
           <input type="text" id="url-input"
                  placeholder="粘贴链接，自动识别平台和类型..."
                  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-          <button class="input-clear" id="input-clear" onclick="clearInput()">✕</button>
+          <button class="input-clear" id="input-clear" onclick="clearInput()">x</button>
           <span class="platform-badge" id="platform-badge"></span>
         </div>
       </div>
 
       <!-- 空态提示 -->
       <div class="empty-state" id="empty-state">
-        <div class="empty-icon">↓</div>
+        <div class="empty-icon">[v]</div>
         <div class="empty-text">粘贴抖音链接开始</div>
         <div class="empty-hint">支持视频、图集、文章、主页、直播间</div>
       </div>
@@ -401,14 +401,14 @@
 
     if (m.item_type === 'video') {
       previewArea.innerHTML = `
-        <div class="preview-title">📹 视频</div>
+        <div class="preview-title">[视频]</div>
         <div class="preview-video">
-          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '🎬'}
+          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '[视频]'}
         </div>`;
       selectedIndices.add(0);
     } else if (m.item_type === 'note') {
       previewArea.innerHTML = `
-        <div class="preview-title">📝 文章</div>
+        <div class="preview-title">[文章]</div>
         <div class="preview-note">${escapeHtml(m.text_content || m.title)}</div>`;
       selectedIndices.add(0);
     } else {
@@ -417,7 +417,7 @@
       selectedIndices = new Set(urls.map((_,i) => i));
       previewArea.innerHTML = `
         <div class="preview-title">
-          🖼 图集 <span class="count">${urls.length} 张</span>
+          [图集] <span class="count">${urls.length} 张</span>
           <span style="flex:1"></span>
           <button class="btn btn-ghost" style="padding:2px 10px;font-size:11px;" id="btn-toggle-all" onclick="toggleAll()">全不选</button>
         </div>
@@ -426,7 +426,7 @@
             <div class="preview-img" data-idx="${i}" onclick="toggleImg(${i})">
               <img src="${u}" loading="lazy" onerror="this.parentElement.querySelector('.fallback').style.display='block';this.style.display='none'">
               <span class="fallback" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:18px;color:var(--text-disabled)">${i+1}</span>
-              <span class="check">✓</span>
+              <span class="check">V</span>
             </div>
           `).join('')}
         </div>`;
@@ -499,14 +499,14 @@
       btn.classList.remove('btn-downloading');
       btn.classList.add('btn-done');
       btn.disabled = false;
-      btn.textContent = '完成 ✓';
+      btn.textContent = '完成';
       addLog(`[OK] 下载完成`);
       saveDir = r.save_dir || '';
       var acts = document.querySelector('.author-acts');
       if (!document.getElementById('btn-open-folder')) {
         var ob = document.createElement('button');
         ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost btn-slide-in';
-        ob.textContent = '📂 打开文件夹';
+        ob.textContent = '[>] 打开文件夹';
         ob.onclick = function(){ Origami.openFolder(saveDir); };
         acts.insertBefore(ob, btn);
       }
