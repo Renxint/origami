@@ -423,32 +423,26 @@
     let done = 0;
     addLog(`[下载] 开始 (${total} 个)...`);
 
-    const urls = currentMedia.media_urls || [];
-    selectedIndices.forEach(idx => {
-      const url = urls[idx];
-      Origami.download(url, '').then(r => {
-        done++;
-        progressFill.style.width = (done/total*100) + '%';
-        addLog(`[OK] ${done}/${total}`);
-        if (done >= total) {
-          btn.disabled = false;
-          btn.textContent = '完成 ✓';
-          progressBar.classList.remove('show');
-          // 显示打开文件夹按钮
-          var acts = document.querySelector('.author-acts');
-          if (!document.getElementById('btn-open-folder')) {
-            var ob = document.createElement('button');
-            ob.id = 'btn-open-folder';
-            ob.className = 'btn btn-ghost';
-            ob.textContent = '📂 打开文件夹';
-            ob.onclick = function(){ Origami.openFolder(''); };
-            acts.insertBefore(ob, btn);
-          }
-        }
-      }).catch(e => {
-        done++;
-        addLog(`[!] 失败: ${e.message}`);
-      });
+    // 传原始抖音链接给后端下载
+    const url = input.value.trim();
+    Origami.download(url, '').then(r => {
+      progressFill.style.width = '100%';
+      btn.disabled = false;
+      btn.textContent = '完成 ✓';
+      progressBar.classList.remove('show');
+      addLog(`[OK] 下载完成`);
+      var acts = document.querySelector('.author-acts');
+      if (!document.getElementById('btn-open-folder')) {
+        var ob = document.createElement('button');
+        ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost';
+        ob.textContent = '📂 打开文件夹';
+        ob.onclick = function(){ Origami.openFolder(''); };
+        acts.insertBefore(ob, btn);
+      }
+    }).catch(e => {
+      btn.disabled = false;
+      btn.textContent = '重试';
+      addLog(`[!] 失败: ${e.message}`);
     });
   }
 
