@@ -364,7 +364,7 @@ async def api_download(request: web.Request):
         item_id = adapter.resolve_url(url)
         media = adapter.fetch_media(item_id, load_cookie())
 
-        save_dir = Path(body.get("save_dir", str(OUTPUT_SINGLE)))
+        save_dir = Path(body.get("save_dir") or str(OUTPUT_SINGLE))
         save_dir.mkdir(parents=True, exist_ok=True)
 
         downloaded = []
