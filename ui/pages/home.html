@@ -6,593 +6,468 @@
 <title>Origami</title>
 <link rel="stylesheet" href="../css/themes.css">
 <style>
-  /* ═══════════ 全局重置 ═══════════ */
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body {
-    width:100%; height:100%;
-    background: #0A0A14;
-    color: var(--text-primary);
+    width:100%; height:100%; overflow:hidden;
     font-family: var(--font);
+    background: var(--bg-deep);
+    color: var(--text-primary);
     font-size:13px; -webkit-font-smoothing:antialiased;
-    user-select:none; overflow:hidden;
+    user-select:none;
   }
 
-  /* ═══════════ Mineradio 玻璃设计令牌 ═══════════ */
-  :root {
-    --home-accent: #818CF8;
-    --home-accent-rgb: 129,140,248;
-    --tone-a: #818CF8;
-    --tone-b: #64FFDA;
-    --tone-c: #F8F4EE;
-    --glass-bg: linear-gradient(142deg, rgba(18,21,26,.66), rgba(8,9,13,.76));
-    --glass-bg-hover: linear-gradient(142deg, rgba(36,33,39,.72), rgba(10,10,14,.84));
-    --glass-border: rgba(255,255,255, 0.085);
-    --glass-shadow: 0 20px 64px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.060);
-    --glass-shadow-hover: 0 28px 84px rgba(0,0,0,.36), 0 0 34px rgba(129,140,248,.16), inset 0 1px 0 rgba(255,255,255,.085);
-    --glass-blur: blur(24px) saturate(1.12);
-  }
+  .app { display:flex; height:100%; }
 
-  /* ═══════════ 布局 ═══════════ */
-  .app { width:100%; height:100%; display:flex; }
+  /* ══════ 侧边栏 ══════ */
   .sidebar {
-    width:62px; display:flex; flex-direction:column; align-items:center;
-    padding:14px 0; gap:10px; flex-shrink:0; z-index:20;
+    width:56px; display:flex; flex-direction:column; align-items:center;
+    padding:16px 0; gap:6px; background: var(--bg-surface);
+    border-right:1px solid var(--divider); flex-shrink:0; z-index:10;
   }
   .sb-logo {
-    width:42px; height:42px; border-radius:12px;
-    background: linear-gradient(135deg, var(--home-accent), #64FFDA);
-    color:#0A0A14; font-weight:900; font-size:17px;
+    width:34px; height:34px; border-radius:8px;
+    background: linear-gradient(135deg, var(--accent), #64FFDA);
+    color:#0A0A14; font-weight:900; font-size:15px;
     display:flex; align-items:center; justify-content:center;
-    cursor:pointer; margin-bottom:8px; border:none;
-    box-shadow: 0 8px 24px rgba(129,140,248,.22);
+    cursor:pointer; margin-bottom:12px;
     transition: transform .2s;
   }
-  .sb-logo:hover { transform:scale(1.06); }
-  .sb-btn {
-    width:44px; height:40px; border-radius: 10px 0 0 10px;
+  .sb-logo:hover { transform:scale(1.08); }
+  .sb-item {
+    width:38px; height:38px; border-radius:8px;
     display:flex; align-items:center; justify-content:center;
-    cursor:pointer; font-size:13px; font-weight:600;
-    border:1px solid var(--border-default); border-right:none;
-    color: var(--text-disabled); background:transparent;
-    margin-right:-1px; transition: all .2s;
-    font-family: var(--font);
+    cursor:pointer; font-size:17px; color:var(--text-disabled);
+    transition: all .18s; position:relative;
+    background:transparent; border:none;
   }
-  .sb-btn:hover { color:var(--text-secondary); }
-  .sb-btn.active {
-    border:2px solid var(--accent); border-radius:10px;
-    color: var(--accent); background: var(--bg-card);
-    box-shadow: 0 0 18px rgba(129,140,248,.12);
-  }
+  .sb-item:hover { color:var(--text-secondary); background:var(--bg-hover); }
+  .sb-item.active { color:var(--accent); background:var(--bg-hover); }
   .sb-spacer { flex:1; }
-  .sb-settings {
-    width:40px; height:40px; border-radius:10px;
-    display:flex; align-items:center; justify-content:center;
-    cursor:pointer; font-size:16px; color:var(--text-disabled);
-    border:none; background:transparent; transition:color .2s;
-    font-family: var(--font);
+  .sb-badge {
+    position:absolute; top:4px; right:4px; width:8px; height:8px;
+    border-radius:50%; background:var(--error);
   }
-  .sb-settings:hover { color:var(--text-secondary); }
 
-  .main { flex:1; display:flex; padding:14px; gap:14px; min-width:0; }
-  .content { flex:1; display:flex; flex-direction:column; min-width:0; }
+  /* ══════ 主区域 ══════ */
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
 
-  /* ═══════════ 顶栏 ═══════════ */
+  /* ══════ 顶栏 ══════ */
   .topbar {
     display:flex; align-items:center; justify-content:space-between;
-    padding:8px 4px; margin-bottom:8px;
-    flex-shrink:0;
+    padding:12px 20px; border-bottom:1px solid var(--divider); flex-shrink:0;
   }
-  .topbar-brand {
-    display:flex; align-items:center; gap:10px;
-  }
-  .topbar-logo {
-    width:28px; height:28px; border-radius:7px;
-    background: linear-gradient(135deg, var(--home-accent), #64FFDA);
-  }
-  .topbar-title { font-weight:700; font-size:18px; color:var(--text-primary); }
+  .topbar-title { font-size:15px; font-weight:700; }
   .topbar-user {
-    display:flex; align-items:center; gap:10px; cursor:pointer;
-    padding:6px 12px; border-radius:999px;
-    border:1px solid rgba(255,255,255,.06);
-    background: rgba(255,255,255,.04);
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    padding:4px 12px; border-radius:999px; border:1px solid var(--border-default);
+    font-size:12px; color:var(--text-secondary);
     transition: all .2s;
   }
-  .topbar-user:hover {
-    background: rgba(255,255,255,.08);
-    border-color: rgba(129,140,248,.24);
-  }
-  .topbar-nick { font-size:13px; color:var(--text-primary); }
-  .topbar-av {
-    width:32px; height:32px; border-radius:16px;
-    background: var(--accent);
-  }
-  .topbar-login-text {
-    font-size:12px; color:var(--text-disabled); letter-spacing:.5px;
-  }
+  .topbar-user:hover { border-color:var(--accent); color:var(--text-primary); }
+  .topbar-av { width:26px; height:26px; border-radius:13px; background:var(--accent); }
+  .topbar-status { width:7px; height:7px; border-radius:50%; }
+  .topbar-status.on { background:var(--success); }
+  .topbar-status.off { background:var(--text-disabled); }
 
-  /* ═══════════ 页面容器 ═══════════ */
-  .page {
-    flex:1; display:flex; flex-direction:column; min-height:0;
-  }
+  /* ══════ 内容区 ══════ */
+  .content { flex:1; display:flex; flex-direction:column; overflow-y:auto; padding:20px 24px; gap:16px; }
 
-  /* ═══════════ 统一下载页 = 一列布局 ═══════════ */
-  .download-page {
-    flex:1; display:flex; gap:12px; min-height:0;
+  /* ══════ 输入框 ══════ */
+  .input-wrap { flex-shrink:0; }
+  .input-box {
+    display:flex; align-items:center; height:48px; border-radius:10px;
+    border:1px solid var(--border-default); background:var(--bg-surface);
+    padding:0 16px; gap:10px; transition:border-color .2s;
   }
-  .download-main { flex:1; display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .input-box:focus-within { border-color:var(--accent); }
+  .input-box input {
+    flex:1; border:none; background:none; color:var(--text-primary);
+    font-size:13px; font-family:inherit; outline:none;
+  }
+  .input-box input::placeholder { color:var(--text-disabled); }
+  .input-clear {
+    background:none; border:none; color:var(--text-disabled);
+    font-size:16px; cursor:pointer; display:none;
+  }
+  .input-clear.show { display:block; }
+  .input-clear:hover { color:var(--text-secondary); }
 
-  /* ═══════════ 链接输入 (Mineradio search-box 风格) ═══════════ */
-  .url-box-wrap { position:relative; }
-  .url-box {
-    display:flex; align-items:center; height:56px; border-radius:18px;
-    padding:0 18px; gap:10px;
-    background: var(--glass-bg);
-    border:1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    transition: all .28s;
+  .platform-badge {
+    display:none; align-items:center; gap:4px; padding:3px 10px;
+    border-radius:999px; font-size:11px; font-weight:600;
+    background:rgba(129,140,248,.12); color:var(--accent);
   }
-  .url-box:focus-within {
-    border-color: rgba(var(--home-accent-rgb),.50);
-    box-shadow: var(--glass-shadow-hover);
-    transform:translateY(-1px);
-  }
-  .url-box svg { flex-shrink:0; color:rgba(255,255,255,.25); }
-  .url-input {
-    flex:1; border:none; background:none; color:#fff;
-    font-size:13.5px; font-family:inherit; outline:none;
-    letter-spacing:.3px;
-  }
-  .url-input::placeholder { color:rgba(255,255,255,.18); }
-  .url-clear {
-    background:transparent; color:var(--text-disabled);
-    border:none; font-size:16px; cursor:pointer;
-    padding:4px 8px; font-family:inherit; display:none;
-  }
-  .url-clear.visible { display:block; }
-  .url-clear:hover { color:var(--text-secondary); }
+  .platform-badge.show { display:flex; }
 
-  /* ═══════════ 路径行 ═══════════ */
-  .path-row {
-    display:flex; gap:8px; align-items:center;
-    font-size:12px; color:var(--text-secondary);
-    padding:0 4px;
-  }
-  .path-row span:last-of-type {
-    flex:1; color:var(--text-disabled);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .path-browse {
-    background:transparent; color:var(--accent);
-    border:1px solid var(--border-default); border-radius:6px;
-    padding:4px 10px; font-size:11px; cursor:pointer;
-    font-family:inherit; transition: all .2s;
-  }
-  .path-browse:hover { border-color:var(--accent); background:rgba(129,140,248,.08); }
+  /* ══════ 解析结果区 ══════ */
+  .result { display:none; flex-direction:column; gap:12px; }
+  .result.show { display:flex; }
 
-  /* ═══════════ 作者信息条 ═══════════ */
-  .author-row {
-    display:none; align-items:center; gap:12px;
-    padding:12px 16px; border-radius:14px;
-    border:1px solid rgba(255,255,255,.06);
-    background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-    backdrop-filter: blur(18px);
+  .author-card {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 18px; border-radius:10px;
+    background:var(--bg-surface); border:1px solid var(--border-default);
   }
-  .author-row.visible { display:flex; }
   .author-av {
-    width:44px; height:44px; border-radius:22px;
+    width:48px; height:48px; border-radius:24px;
     background:var(--accent); flex-shrink:0;
+    overflow:hidden;
   }
+  .author-av img { width:100%; height:100%; object-fit:cover; }
   .author-info { flex:1; min-width:0; }
-  .author-name { font-weight:600; font-size:14px; color:var(--text-primary); }
+  .author-name { font-size:14px; font-weight:700; }
   .author-meta { font-size:11px; color:var(--text-secondary); margin-top:2px; }
-  .author-desc { font-size:11px; color:var(--text-disabled); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
-  .author-acts { display:flex; gap:6px; flex-shrink:0; }
-  .btn-dl {
-    background:var(--accent); color:#fff; border:none; border-radius:8px;
-    padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer;
-    font-family:inherit; transition: all .2s;
-    box-shadow: 0 8px 24px rgba(129,140,248,.18);
-  }
-  .btn-dl:hover { transform:translateY(-1px); box-shadow:0 12px 32px rgba(129,140,248,.28); }
-  .btn-cancel {
-    background:transparent; color:var(--text-secondary);
-    border:1px solid var(--border-default); border-radius:8px;
-    padding:8px 14px; font-size:13px; cursor:pointer;
-    font-family:inherit; transition: all .2s;
-  }
-  .btn-cancel:hover { border-color:var(--error); color:var(--error); }
+  .author-desc { font-size:11px; color:var(--text-disabled); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .author-acts { display:flex; gap:8px; flex-shrink:0; }
 
-  /* ═══════════ 预览区 ═══════════ */
-  .preview {
-    flex:1; border-radius:14px; overflow-y:auto;
-    border:1px solid rgba(255,255,255,.06);
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    padding:14px; min-height:0;
+  .btn {
+    padding:8px 18px; border-radius:8px; font-size:13px; font-weight:600;
+    cursor:pointer; border:none; font-family:inherit; transition:all .2s;
   }
-  .preview-label {
-    font-size:12px; color:var(--text-disabled);
-    margin-bottom:10px; display:flex; align-items:center; gap:8px;
+  .btn-primary { background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(129,140,248,.20); }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(129,140,248,.30); }
+  .btn-ghost { background:transparent; color:var(--text-secondary); border:1px solid var(--border-default); }
+  .btn-ghost:hover { border-color:var(--accent); color:var(--text-primary); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  /* ══════ 预览区 ══════ */
+  .preview-area { display:flex; flex-direction:column; gap:8px; }
+
+  .preview-title {
+    font-size:13px; font-weight:600; color:var(--text-secondary);
+    display:flex; align-items:center; gap:8px;
   }
+  .preview-title .count { font-size:11px; color:var(--text-disabled); }
+
   .preview-grid {
-    display:grid; grid-template-columns:repeat(4,1fr); gap:6px;
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;
   }
   .preview-img {
-    aspect-ratio:1; border-radius:8px;
-    background: rgba(255,255,255,.04);
-    border:2px solid transparent; cursor:pointer;
+    position:relative; aspect-ratio:1; border-radius:8px;
+    background:var(--bg-surface); border:2px solid transparent;
+    cursor:pointer; overflow:hidden; transition:all .15s;
+  }
+  .preview-img:hover { border-color:var(--accent); }
+  .preview-img.deselected { opacity:.45; border-color:transparent; }
+  .preview-img img { width:100%; height:100%; object-fit:cover; }
+  .preview-img .check {
+    position:absolute; top:6px; right:6px; width:20px; height:20px;
+    border-radius:50%; background:var(--accent); color:#fff;
     display:flex; align-items:center; justify-content:center;
-    font-size:12px; color:var(--text-disabled);
-    transition: all .18s;
+    font-size:11px; opacity:1; transition:opacity .15s;
   }
-  .preview-img:hover { border-color:rgba(255,255,255,.15); background:rgba(255,255,255,.06); }
-  .preview-img.sel {
-    border-color:var(--accent);
-    background:rgba(129,140,248,.10);
-    box-shadow:0 0 12px rgba(129,140,248,.12);
-  }
+  .preview-img.deselected .check { opacity:0; }
 
-  /* ═══════════ 右面板 = 日志 + 已下载 ═══════════ */
-  .rpanel { width:210px; display:flex; flex-direction:column; gap:8px; flex-shrink:0; }
-  .rp-section { flex:1; display:flex; flex-direction:column; min-height:0; }
-  .rp-label {
-    font-size:11px; color:var(--text-secondary); margin-bottom:5px;
-    font-weight:600; letter-spacing:.6px; text-transform:uppercase;
-  }
-  .rp-box {
-    flex:1; border-radius:12px; overflow-y:auto;
-    border:1px solid rgba(255,255,255,.05);
-    background: rgba(255,255,255,.02);
-    padding:8px; font-size:12px; color:var(--text-disabled);
-  }
-  .rp-item {
-    display:flex; justify-content:space-between; align-items:center;
-    cursor:pointer; padding:5px 8px; border-radius:6px;
-    font-size:12px; transition:background .15s;
-  }
-  .rp-item:hover { background:rgba(255,255,255,.04); }
-  .rp-item-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-  .rp-del { color:#F87171; font-size:14px; cursor:pointer; margin-left:4px; opacity:.6; }
-  .rp-del:hover { opacity:1; }
-  .log-text {
-    font-family:'JetBrains Mono','Consolas',monospace;
-    font-size:11px; line-height:1.6; color:var(--text-secondary);
-  }
-
-  /* ═══════════ 底部状态 ═══════════ */
-  .foot {
+  .preview-video {
+    width:100%; max-width:320px; aspect-ratio:16/10; border-radius:10px;
+    background:var(--bg-surface); border:1px solid var(--border-default);
     display:flex; align-items:center; justify-content:center;
-    gap:24px; padding:10px 0; flex-shrink:0;
-    font-size:11px; color:var(--text-disabled);
+    overflow:hidden;
   }
-  .foot-login {
-    cursor:pointer; padding:6px 16px; border-radius:999px;
-    border:1px solid rgba(255,255,255,.06);
-    background:rgba(255,255,255,.03);
-    transition: all .2s; font-family:inherit; font-size:11px;
-  }
-  .foot-login:hover {
-    background:rgba(255,255,255,.06); color:var(--text-secondary);
-  }
-  .foot-login.logged-in {
-    color:var(--success); border-color:rgba(74,222,128,.18);
-    background:rgba(74,222,128,.06);
-  }
-  .foot-settings {
-    cursor:pointer; padding:6px 16px; border-radius:999px;
-    border:1px solid rgba(255,255,255,.06);
-    background:rgba(255,255,255,.03);
-    transition: all .2s; font-family:inherit; font-size:11px; color:var(--text-disabled);
-  }
-  .foot-settings:hover { background:rgba(255,255,255,.06); color:var(--text-secondary); }
+  .preview-video img { width:100%; height:100%; object-fit:cover; }
 
-  /* ═══════════ 页面渐入 ═══════════ */
-  @keyframes fadeUp {
-    from { opacity:0; transform:translateY(8px); }
-    to   { opacity:1; transform:translateY(0); }
+  .preview-note {
+    padding:14px 18px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-default); font-size:12px;
+    color:var(--text-secondary); line-height:1.6;
+    max-height:160px; overflow-y:auto;
   }
-  .topbar     { animation:fadeUp .4s ease both; }
-  .url-box-wrap{ animation:fadeUp .4s .08s ease both; }
-  .page       { animation:fadeUp .4s .12s ease both; }
+
+  /* ══════ 日志/进度 ══════ */
+  .log {
+    padding:10px 14px; border-radius:8px; background:var(--bg-surface);
+    font-family:monospace; font-size:11px; color:var(--text-disabled);
+    max-height:120px; overflow-y:auto; display:none;
+  }
+  .log.show { display:block; }
+
+  .progress-bar {
+    height:4px; border-radius:2px; background:var(--bg-hover);
+    overflow:hidden; display:none;
+  }
+  .progress-bar.show { display:block; }
+  .progress-fill { height:100%; background:var(--accent); transition:width .3s; width:0%; }
+
+  /* 空态 */
+  .empty-state {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; color:var(--text-disabled);
+  }
+  .empty-icon { font-size:36px; opacity:.4; }
+  .empty-text { font-size:13px; }
+  .empty-hint { font-size:11px; color:var(--text-disabled); opacity:.6; }
 </style>
 </head>
 <body>
 
 <div class="app">
-  <!-- ═══════════ 侧边栏 (real-size 布局) ═══════════ -->
-  <div class="sidebar">
-    <div class="sb-logo" onclick="goSplash()"><img src="../assets/logo.png" alt="Origami" style="width:100%;height:100%;object-fit:cover;border-radius:12px;"></div>
-    <button class="sb-btn active" id="sb-douyin" onclick="switchPlatform('douyin', this)">抖</button>
-    <button class="sb-btn" id="sb-bilibili" onclick="switchPlatform('bilibili', this)">B</button>
-    <button class="sb-btn" id="sb-weibo" onclick="switchPlatform('weibo', this)">微</button>
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="sb-logo">O</div>
+    <button class="sb-item active" title="首页">⌂</button>
+    <button class="sb-item" title="订阅">★</button>
+    <button class="sb-item" title="主页备份">☁</button>
+    <button class="sb-item" title="直播"><span class="sb-badge"></span></button>
     <div class="sb-spacer"></div>
-    <button class="sb-settings" onclick="openSettings()" title="设置">⚙</button>
-  </div>
+    <button class="sb-item" title="设置" onclick="openSettings()">⚙</button>
+  </aside>
 
-  <!-- ═══════════ 主区域 ═══════════ -->
+  <!-- 主区域 -->
   <div class="main">
-    <div class="content">
+    <!-- 顶栏 -->
+    <div class="topbar">
+      <span class="topbar-title">Origami</span>
+      <div class="topbar-user" id="login-btn" onclick="openLogin()">
+        <span id="login-text">登录</span>
+        <div class="topbar-av"></div>
+        <div class="topbar-status off"></div>
+      </div>
+    </div>
 
-      <!-- 顶栏 -->
-      <div class="topbar">
-        <div class="topbar-brand">
-          <div class="topbar-logo"></div>
-          <span class="topbar-title" id="platform-title">Origami</span>
-        </div>
-        <div class="topbar-user" id="topbar-user" onclick="openLogin()">
-          <span class="topbar-login-text" id="login-label">登录</span>
-          <div class="topbar-av"></div>
+    <!-- 内容 -->
+    <div class="content" id="content">
+      <!-- 输入框 -->
+      <div class="input-wrap">
+        <div class="input-box">
+          <span>🔗</span>
+          <input type="text" id="url-input"
+                 placeholder="粘贴链接，自动识别平台和类型..."
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <button class="input-clear" id="input-clear" onclick="clearInput()">✕</button>
+          <span class="platform-badge" id="platform-badge"></span>
         </div>
       </div>
 
-      <!-- ═══════ 统一下载页 ═══════ -->
-      <div class="page" id="download-page">
-        <div class="download-page">
-          <div class="download-main">
-            <!-- URL 输入 (Mineradio 搜索栏风格) -->
-            <div class="url-box-wrap">
-              <div class="url-box">
-                <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                </svg>
-                <input class="url-input" id="url-input" type="text"
-                       placeholder="粘贴链接或口令，自动识别..."
-                       autocomplete="off" spellcheck="false">
-                <button class="url-clear" id="url-clear" onclick="clearUrl()">✕</button>
-              </div>
-            </div>
-
-            <!-- 保存路径 -->
-            <div class="path-row">
-              <span>保存到</span><span id="save-path">output/</span>
-              <button class="path-browse" onclick="browseFolder()">浏览</button>
-            </div>
-
-            <!-- 作者信息条 -->
-            <div class="author-row" id="author-row">
-              <div class="author-av" id="author-av"></div>
-              <div class="author-info">
-                <div class="author-name" id="author-name">-</div>
-                <div class="author-meta" id="author-meta">-</div>
-                <div class="author-desc" id="author-desc">-</div>
-              </div>
-              <div class="author-acts">
-                <button class="btn-dl" onclick="startDownload()">下载</button>
-                <button class="btn-cancel" onclick="cancelDownload()">取消</button>
-              </div>
-            </div>
-
-            <!-- 预览区 -->
-            <div class="preview" id="preview">
-              <div class="preview-label">
-                <span id="preview-label-text">粘贴链接后自动预览</span>
-              </div>
-              <div class="preview-grid" id="preview-grid"></div>
-            </div>
-          </div>
-
-          <!-- 右面板 -->
-          <div class="rpanel">
-            <div class="rp-section">
-              <div class="rp-label">日志</div>
-              <div class="rp-box log-text" id="log-box">
-                [Origami] 就绪，等待链接...
-              </div>
-            </div>
-            <div class="rp-section">
-              <div class="rp-label">已下载</div>
-              <div class="rp-box" id="recent-box">
-                <div style="text-align:center;padding:12px;color:var(--text-disabled);">
-                  暂无记录
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- 空态提示 -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">↓</div>
+        <div class="empty-text">粘贴抖音链接开始</div>
+        <div class="empty-hint">支持视频、图集、文章、主页、直播间</div>
       </div>
 
+      <!-- 解析结果 -->
+      <div class="result" id="result">
+        <!-- 作者卡片 -->
+        <div class="author-card" id="author-card">
+          <div class="author-av" id="author-av"></div>
+          <div class="author-info">
+            <div class="author-name" id="author-name">-</div>
+            <div class="author-meta" id="author-meta">-</div>
+            <div class="author-desc" id="author-desc">-</div>
+          </div>
+          <div class="author-acts">
+            <button class="btn btn-ghost" id="btn-cancel" onclick="clearInput()">取消</button>
+            <button class="btn btn-primary" id="btn-download" onclick="startDownload()">下载选中</button>
+          </div>
+        </div>
+
+        <!-- 预览区 -->
+        <div class="preview-area" id="preview-area"></div>
+      </div>
+
+      <!-- 进度 -->
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <!-- 日志 -->
+      <div class="log" id="log"></div>
     </div>
   </div>
 </div>
 
-<!-- 底部栏 -->
-<div class="foot" style="display:none;" id="foot-bar">
-  <button class="foot-login" id="foot-login-btn" onclick="openLogin()">登录</button>
-  <button class="foot-settings" onclick="openSettings()">设置</button>
-</div>
-
 <script src="../js/api.js"></script>
 <script>
-  // ═══════════ 状态 ═══════════
-  let currentPlatform = 'douyin';
-  let urlInput = document.getElementById('url-input');
-  let urlClear = document.getElementById('url-clear');
-  let previewGrid = document.getElementById('preview-grid');
-  let authorRow = document.getElementById('author-row');
-  let logBox = document.getElementById('log-box');
+  const input = document.getElementById('url-input');
+  const clearBtn = document.getElementById('input-clear');
+  const badge = document.getElementById('platform-badge');
+  const result = document.getElementById('result');
+  const empty = document.getElementById('empty-state');
+  const previewArea = document.getElementById('preview-area');
+  const log = document.getElementById('log');
+  const progressBar = document.getElementById('progress-bar');
+  const progressFill = document.getElementById('progress-fill');
+  let currentMedia = null;
+  let selectedIndices = new Set();
 
-  // ═══════════ 平台切换 ═══════════
-  function switchPlatform(platform, btn) {
-    currentPlatform = platform;
-    document.querySelectorAll('.sb-btn').forEach(b => {
-      b.classList.remove('active'); b.style.opacity = '.45';
-    });
-    btn.classList.add('active'); btn.style.opacity = '1';
-    const names = { douyin:'抖音', bilibili:'B站', weibo:'微博' };
-    document.getElementById('platform-title').textContent = names[platform] || platform;
-    if (platform !== 'douyin') {
-      addLog('[提示] ' + names[platform] + ' 适配器尚未上线');
-    }
-  }
-
-  function goSplash() { window.location.href = 'splash.html'; }
-
-  // ═══════════ URL 输入 ═══════════
-  urlInput.addEventListener('input', function() {
-    urlClear.classList.toggle('visible', this.value.length > 0);
+  // ── 输入监听 ──
+  input.addEventListener('input', () => {
+    clearBtn.classList.toggle('show', input.value.length > 0);
   });
-  urlInput.addEventListener('keydown', function(e) {
+  input.addEventListener('paste', () => setTimeout(resolveUrl, 200));
+  input.addEventListener('keydown', e => {
     if (e.key === 'Enter') resolveUrl();
   });
-  urlInput.addEventListener('paste', function() {
-    setTimeout(resolveUrl, 200);
-  });
 
-  function clearUrl() {
-    urlInput.value = '';
-    urlClear.classList.remove('visible');
-    authorRow.classList.remove('visible');
-    previewGrid.innerHTML = '';
-    document.getElementById('preview-label-text').textContent = '粘贴链接后自动预览';
+  function clearInput() {
+    input.value = '';
+    clearBtn.classList.remove('show');
+    badge.classList.remove('show');
+    result.classList.remove('show');
+    empty.style.display = 'flex';
+    previewArea.innerHTML = '';
+    log.classList.remove('show');
+    progressBar.classList.remove('show');
+    currentMedia = null;
+    selectedIndices = new Set();
+    document.getElementById('author-card').style.display = 'none';
   }
 
-  // ═══════════ 解析链接 ═══════════
+  // ── 解析链接 ──
   async function resolveUrl() {
-    const url = urlInput.value.trim();
+    const url = input.value.trim();
     if (!url) return;
-
-    addLog('[解析] ' + url.substring(0, 50) + '...');
+    addLog('[解析] ' + truncate(url, 60));
     try {
-      const result = await Origami.resolveUrl(url);
-      if (result && result.item_id) {
-        addLog('[OK] 视频ID: ' + result.item_id);
-        fetchMedia(result.item_id);
+      const r = await Origami.resolveUrl(url);
+      badge.textContent = r.platform || '抖音';
+      badge.classList.add('show');
+      if (r.item_id) {
+        await fetchMedia(r.item_id);
+      } else {
+        addLog('[!] 无法识别链接类型');
       }
     } catch (e) {
-      addLog('[错误] 解析失败: ' + (e.message || '未知'));
-      // 模拟数据展示UI
-      showMockPreview();
+      addLog('[!] 解析失败: ' + e.message);
     }
   }
 
   async function fetchMedia(itemId) {
     addLog('[获取] 作品数据...');
     try {
-      const media = await Origami.fetchMedia(itemId);
-      showAuthorInfo(media);
-      showPreview(media);
-      addLog('[完成] ' + (media.title || itemId));
+      const m = await Origami.fetchMedia(itemId);
+      currentMedia = m;
+      showPreview(m);
+      empty.style.display = 'none';
+      result.classList.add('show');
+      addLog('[OK] ' + (m.title || itemId));
     } catch (e) {
-      addLog('[错误] ' + (e.message || '获取失败'));
-      showMockPreview();
+      addLog('[!] 获取失败: ' + e.message);
     }
   }
 
-  function showAuthorInfo(media) {
-    authorRow.classList.add('visible');
-    document.getElementById('author-name').textContent = media.author || '-';
-    document.getElementById('author-meta').textContent =
-      (media.extra && media.extra.signature || '') +
-      ' · 作品' + (media.extra && media.extra.post_count || '?') +
-      ' · 粉丝' + (media.extra && media.extra.follower_count || '?');
-    document.getElementById('author-desc').textContent = media.title || '';
-  }
+  // ── 显示预览 ──
+  function showPreview(m) {
+    const card = document.getElementById('author-card');
+    card.style.display = 'flex';
+    document.getElementById('author-name').textContent = m.author || '-';
+    document.getElementById('author-meta').textContent = (m.extra || {}).signature || '';
+    document.getElementById('author-desc').textContent = truncate(m.title, 50);
 
-  function showPreview(media) {
-    const count = media.media_urls ? media.media_urls.length : 0;
-    const type = media.item_type === 'video' ? '视频' : media.item_type === 'image' ? '单图' : '图集(' + count + '图)';
-    document.getElementById('preview-label-text').textContent =
-      '预览 · ' + type + ' · 点击/滑动勾选';
+    previewArea.innerHTML = '';
+    selectedIndices = new Set();
 
-    previewGrid.innerHTML = '';
-    if (count > 0) {
-      for (let i = 0; i < count; i++) {
-        const div = document.createElement('div');
-        div.className = 'preview-img';
-        div.textContent = (i + 1);
-        div.onclick = function() { this.classList.toggle('sel'); };
-        previewGrid.appendChild(div);
-      }
+    if (m.item_type === 'video') {
+      previewArea.innerHTML = `
+        <div class="preview-title">📹 视频</div>
+        <div class="preview-video">
+          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '🎬'}
+        </div>`;
+      selectedIndices.add(0);
+    } else if (m.item_type === 'note') {
+      previewArea.innerHTML = `
+        <div class="preview-title">📝 文章</div>
+        <div class="preview-note">${escapeHtml(m.text_content || m.title)}</div>`;
+      selectedIndices.add(0);
+    } else {
+      // 图集
+      const urls = m.media_urls || [];
+      selectedIndices = new Set(urls.map((_,i) => i));
+      previewArea.innerHTML = `
+        <div class="preview-title">
+          🖼 图集 <span class="count">${urls.length} 张 · 点击取消选择</span>
+        </div>
+        <div class="preview-grid" id="preview-grid">
+          ${urls.map((u, i) => `
+            <div class="preview-img" data-idx="${i}" onclick="toggleImg(${i})">
+              <img src="${u}" loading="lazy" onerror="this.parentElement.querySelector('.fallback').style.display='block';this.style.display='none'">
+              <span class="fallback" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:18px;color:var(--text-disabled)">${i+1}</span>
+              <span class="check">✓</span>
+            </div>
+          `).join('')}
+        </div>`;
     }
   }
 
-  function showMockPreview() {
-    authorRow.classList.add('visible');
-    document.getElementById('author-name').textContent = '示例作者';
-    document.getElementById('author-meta').textContent = '签名 · 作品106 · 粉丝459K';
-    document.getElementById('author-desc').textContent = '示例作品描述文字...';
-    document.getElementById('preview-label-text').textContent = '预览 · 图集(6图) · 点击勾选';
-
-    previewGrid.innerHTML = '';
-    for (let i = 1; i <= 6; i++) {
-      const div = document.createElement('div');
-      div.className = 'preview-img' + (i === 1 ? ' sel' : '');
-      div.textContent = i;
-      div.onclick = function() { this.classList.toggle('sel'); };
-      previewGrid.appendChild(div);
+  window.toggleImg = function(idx) {
+    const el = document.querySelector(`.preview-img[data-idx="${idx}"]`);
+    if (selectedIndices.has(idx)) {
+      selectedIndices.delete(idx);
+      el.classList.add('deselected');
+    } else {
+      selectedIndices.add(idx);
+      el.classList.remove('deselected');
     }
+    updateBtn();
+  };
+
+  function updateBtn() {
+    const btn = document.getElementById('btn-download');
+    const total = currentMedia?.media_urls?.length || 1;
+    btn.textContent = selectedIndices.size === total ? '下载全部' : `下载 (${selectedIndices.size}/${total})`;
   }
 
-  // ═══════════ 下载 ═══════════
+  // ── 下载 ──
   function startDownload() {
-    const url = urlInput.value.trim();
-    if (!url) return;
-    addLog('[下载] 开始...');
-    Origami.download(url, '').then(r => {
-      addLog('[完成] ' + (r.file || '下载完成'));
-      addRecent(r);
-    }).catch(e => {
-      addLog('[失败] ' + (e.message || '下载失败'));
+    if (!currentMedia) return;
+    const btn = document.getElementById('btn-download');
+    btn.disabled = true;
+    btn.textContent = '下载中...';
+    progressBar.classList.add('show');
+    progressFill.style.width = '0%';
+
+    // 模拟下载（实际应调用 Origami.download）
+    let total = selectedIndices.size || 1;
+    let done = 0;
+    addLog(`[下载] 开始 (${total} 个)...`);
+
+    const urls = currentMedia.media_urls || [];
+    selectedIndices.forEach(idx => {
+      const url = urls[idx];
+      Origami.download(url, '').then(r => {
+        done++;
+        progressFill.style.width = (done/total*100) + '%';
+        addLog(`[OK] ${done}/${total}`);
+        if (done >= total) {
+          btn.disabled = false;
+          btn.textContent = '完成 ✓';
+          progressBar.classList.remove('show');
+        }
+      }).catch(e => {
+        done++;
+        addLog(`[!] 失败: ${e.message}`);
+      });
     });
   }
 
-  function cancelDownload() {
-    addLog('[取消] 已取消');
-    authorRow.classList.remove('visible');
-    previewGrid.innerHTML = '';
-    document.getElementById('preview-label-text').textContent = '粘贴链接后自动预览';
-  }
-
-  // ═══════════ 日志 ═══════════
+  // ── 日志 ──
   function addLog(msg) {
-    const lines = logBox.innerHTML.split('<br>');
-    lines.push(msg);
-    if (lines.length > 50) lines.shift();
-    logBox.innerHTML = lines.join('<br>');
-    logBox.scrollTop = logBox.scrollHeight;
+    log.classList.add('show');
+    const line = document.createElement('div');
+    line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+    if (log.children.length > 50) log.firstChild.remove();
   }
 
-  // ═══════════ 已下载列表 ═══════════
-  function addRecent(result) {
-    const box = document.getElementById('recent-box');
-    if (box.querySelector('[style]')) box.innerHTML = '';
-    const div = document.createElement('div');
-    div.className = 'rp-item';
-    div.innerHTML = '<span class="rp-item-name">' + (result.file || 'download') + '</span><span class="rp-del">×</span>';
-    box.insertBefore(div, box.firstChild);
-  }
+  function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function truncate(s,n) { return s && s.length > n ? s.slice(0,n)+'...' : s; }
 
-  // ═══════════ 导航 ═══════════
+  // ── 导航 ──
   function openLogin() { window.location.href = 'login.html'; }
   function openSettings() { window.location.href = 'settings.html'; }
-  function browseFolder() {
-    Origami.browseFolder().then(r => {
-      if (r && r.path) document.getElementById('save-path').textContent = r.path;
-    }).catch(() => {});
-  }
 
-  // ═══════════ 初始化 ═══════════
-  window.addEventListener('DOMContentLoaded', async function() {
+  // ── 启动 ──
+  window.addEventListener('DOMContentLoaded', async () => {
     try {
-      const v = await Origami.version();
-      if (v && v.version) {
-        addLog('[Origami] v' + v.version + ' 就绪');
-      }
       const cs = await Origami.cookieStatus();
       if (cs && cs.ok) {
-        var el = document.getElementById('login-label');
-        el.textContent = '已登录';
-        el.style.color = 'var(--success)';
-        document.getElementById('foot-login-btn').classList.add('logged-in');
-        document.getElementById('foot-login-btn').textContent = '已登录';
+        document.getElementById('login-text').textContent = '已登录';
+        document.querySelector('.topbar-status').classList.add('on');
+        document.querySelector('.topbar-status').classList.remove('off');
       }
-    } catch (e) {
-      addLog('[Origami] 后端未连接，演示模式');
-    }
+    } catch(e) {}
   });
 </script>
-
 </body>
 </html>
