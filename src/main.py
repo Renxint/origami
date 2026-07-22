@@ -136,7 +136,7 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
-    from src.utils import clean_name
+    from src.utils import clean_name, guess_img_ext
     from src.environ import OUTPUT_SINGLE
 
     img_filter = None
@@ -185,7 +185,7 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
         aweme = media.extra.get("aweme", {})
         images = aweme.get("images") or []
         for idx, (i, murl) in enumerate(selected):
-            ext = ".mp4" if media.item_type == "video" else ".jpg"
+            ext = ".mp4" if media.item_type == "video" else guess_img_ext(murl)
             label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
             img_data = images[i] if i < len(images) else {}
             is_live = img_data.get("live_photo_type",0) == 1 or bool(img_data.get("video"))
@@ -218,7 +218,7 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = "", include_long: b
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
-    from src.utils import clean_name, pick_best_video_url
+    from src.utils import clean_name, pick_best_video_url, guess_img_ext
     from src.environ import OUTPUT_OTHER, USER_AGENT
     import hashlib, requests as _r, json as _json
 
@@ -307,7 +307,8 @@ def _cli_batch(url: str, max_count: int = 0, save_dir: str = "", include_long: b
                 if img_url:
                     is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
                     live_tag = "_实况" if is_live else ""
-                    tasks.append((img_url, author_dir / f"{pos}{j+1}{live_tag}.jpg", aweme_id))
+                    ext = guess_img_ext(img_url)
+                    tasks.append((img_url, author_dir / f"{pos}{j+1}{live_tag}{ext}", aweme_id))
                     if is_live:
                         lv = img.get("video") or {}
                         live_url = next((u for url_lst in (
@@ -370,7 +371,7 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
-    from src.utils import clean_name, pick_best_video_url
+    from src.utils import clean_name, pick_best_video_url, guess_img_ext
     from src.environ import OUTPUT_BASE
     import hashlib, json as _json
 
@@ -472,7 +473,8 @@ def _cli_list_download(url, max_count, save_dir, mode, tag, include_long=False):
                 if img_url:
                     is_live = img.get("live_photo_type",0) == 1 or bool(img.get("video"))
                     live_tag = "_实况" if is_live else ""
-                    tasks.append((img_url, author_dir / f"{prefix}_{j+1:02d}{live_tag}.jpg", aweme_id))
+                    ext = guess_img_ext(img_url)
+                    tasks.append((img_url, author_dir / f"{prefix}_{j+1:02d}{live_tag}{ext}", aweme_id))
                     if is_live:
                         live_count += 1
                         lv = img.get("video") or {}
@@ -513,7 +515,7 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
     from pathlib import Path
     from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
-    from src.utils import clean_name, pick_best_video_url
+    from src.utils import clean_name, pick_best_video_url, guess_img_ext
     from src.environ import OUTPUT_BASE
     import hashlib, json as _json
 
@@ -595,7 +597,8 @@ def _cli_mix(url, max_count=0, save_dir="", include_long=False):
                     if iu:
                         is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
                         lt = "_实况" if is_live else ""
-                        tasks.append((iu, author_dir / f"{prefix}_{j+1:02d}{lt}.jpg"))
+                        ext = guess_img_ext(iu)
+                        tasks.append((iu, author_dir / f"{prefix}_{j+1:02d}{lt}{ext}"))
                         if is_live:
                             lv = img.get("video") or {}
                             lu = next((u for url_lst in (lv.get("play_addr", {}).get("url_list", []), lv.get("play_addr_h264", {}).get("url_list", [])) for u in (url_lst or [])), None)

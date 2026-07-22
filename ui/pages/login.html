@@ -215,7 +215,7 @@
       <!-- 二维码区域 -->
       <div class="qr-shell" id="qr-shell">
         <div class="qr-placeholder">
-          <div>📱</div>
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="14"/><line x1="14" y1="17.5" x2="14" y2="21"/><line x1="17.5" y1="14" x2="21" y2="14"/><line x1="17.5" y1="17.5" x2="21" y2="21"/></svg>
           <div class="qr-placeholder-label">扫码登录</div>
         </div>
         <div class="qr-done" id="qr-done">✓</div>
@@ -248,6 +248,7 @@
 
 <script src="../js/api.js"></script>
 <script>
+  document.body.style.zoom = '131%';
   let loginPlatform = 'douyin';
 
   function switchLoginPlatform(p) {
@@ -266,6 +267,8 @@
     }
   }
 
+  let _pollTimer = null;
+
   async function startLogin() {
     const status = document.getElementById('login-status');
     const shell = document.getElementById('qr-shell');
@@ -274,30 +277,54 @@
     status.textContent = '正在打开登录窗口...';
     status.className = 'login-status';
     shell.classList.add('scanning');
-    btn.textContent = '登录中...';
+    btn.textContent = '等待扫码...';
     btn.disabled = true;
+
+    // Clear any existing poll
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 
     try {
       const r = await Origami.login();
-      if (r && r.ok) {
-        status.textContent = '登录成功！';
-        status.className = 'login-status success';
-        shell.classList.remove('scanning');
-        document.getElementById('qr-done').classList.add('show');
-        btn.textContent = '已登录';
-        btn.classList.add('done');
-
-        setTimeout(() => {
-          window.location.href = 'home.html';
-        }, 1200);
-      } else {
-        status.textContent = r && r.message ? r.message : '登录未完成，请重试';
+      if (!r || !r.ok) {
+        status.textContent = (r && r.message) ? r.message : '无法打开登录窗口';
         status.className = 'login-status error';
         btn.textContent = '重新登录';
         btn.disabled = false;
+        shell.classList.remove('scanning');
+        return;
       }
+
+      // Poll cookie status every 2 seconds
+      status.textContent = '请在弹出的窗口中扫码登录...';
+      let elapsed = 0;
+      _pollTimer = setInterval(async () => {
+        elapsed += 2;
+        if (elapsed > 120) {
+          clearInterval(_pollTimer); _pollTimer = null;
+          status.textContent = '登录超时，请重试';
+          status.className = 'login-status error';
+          shell.classList.remove('scanning');
+          btn.textContent = '重新登录';
+          btn.disabled = false;
+          return;
+        }
+        try {
+          const cs = await Origami.cookieStatus();
+          if (cs && cs.ok) {
+            clearInterval(_pollTimer); _pollTimer = null;
+            status.textContent = '登录成功！';
+            status.className = 'login-status success';
+            shell.classList.remove('scanning');
+            document.getElementById('qr-done').classList.add('show');
+            btn.textContent = '已登录';
+            btn.classList.add('done');
+            setTimeout(() => { window.location.href = 'home.html'; }, 1000);
+          }
+        } catch (e) {}
+      }, 2000);
+
     } catch (e) {
-      status.textContent = '登录失败: ' + (e.message || '网络错误');
+      status.textContent = '网络错误: ' + (e.message || '');
       status.className = 'login-status error';
       shell.classList.remove('scanning');
       btn.textContent = '重新登录';
@@ -330,13 +357,24 @@
 
   // 页面加载时检查登录态
   window.addEventListener('DOMContentLoaded', async function() {
+    // 先重置所有 UI 到初始状态
+    document.getElementById('qr-done').classList.remove('show');
+    document.getElementById('qr-shell').classList.remove('scanning');
+    var btn = document.getElementById('btn-login');
+    btn.textContent = '打开登录';
+    btn.disabled = false;
+    btn.classList.remove('done');
+    var st = document.getElementById('login-status');
+    st.textContent = '点击下方按钮打开登录窗口';
+    st.className = 'login-status';
+
     try {
       const cs = await Origami.cookieStatus();
       if (cs && cs.ok) {
-        document.getElementById('login-status').textContent = '检测到已有登录状态';
-        document.getElementById('login-status').className = 'login-status success';
+        st.textContent = '检测到已有登录状态';
+        st.className = 'login-status success';
         document.getElementById('qr-done').classList.add('show');
-        document.getElementById('btn-login').textContent = '已登录';
+        btn.textContent = '已登录';
       }
     } catch (e) {}
   });

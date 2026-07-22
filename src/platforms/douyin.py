@@ -157,8 +157,8 @@ class DouyinAdapter(PlatformAdapter):
             text_content = header + body
             for img in images:
                 urls = img.get("url_list", [])
-                img_url = next((u for u in urls if "webp" in u.lower()), None) \
-                       or next((u for u in urls if "jpeg" in u.lower()), None) \
+                img_url = next((u for u in urls if "jpeg" in u.lower()), None) \
+                       or next((u for u in urls if "webp" in u.lower()), None) \
                        or next((u for u in urls if "jpg" in u.lower()), None) \
                        or (urls[0] if urls else "")
                 if img_url: media_urls.append(img_url)
@@ -172,8 +172,8 @@ class DouyinAdapter(PlatformAdapter):
                 item_type = "gallery"
                 for img in images:
                     urls = img.get("url_list", [])
-                    img_url = next((u for u in urls if "webp" in u.lower()), None) \
-                       or next((u for u in urls if "jpeg" in u.lower()), None) \
+                    img_url = next((u for u in urls if "jpeg" in u.lower()), None) \
+                       or next((u for u in urls if "webp" in u.lower()), None) \
                        or next((u for u in urls if "jpg" in u.lower()), None) \
                        or (urls[0] if urls else "")
                     if img_url:
@@ -184,8 +184,8 @@ class DouyinAdapter(PlatformAdapter):
             item_type = "gallery"
             for img in images:
                 urls = img.get("url_list", [])
-                img_url = next((u for u in urls if "webp" in u.lower()), None) \
-                       or next((u for u in urls if "jpeg" in u.lower()), None) \
+                img_url = next((u for u in urls if "jpeg" in u.lower()), None) \
+                       or next((u for u in urls if "webp" in u.lower()), None) \
                        or next((u for u in urls if "jpg" in u.lower()), None) \
                        or (urls[0] if urls else "")
                 if img_url:
@@ -259,12 +259,42 @@ class DouyinAdapter(PlatformAdapter):
         aweme_list = data.get("aweme_list") or []
         items = []
         for aweme in aweme_list:
+            media_type = aweme.get("media_type", 0)
+            video = aweme.get("video") or {}
+            images = aweme.get("images") or []
+            has_video = video and (video.get("bit_rate") or video.get("play_addr_h264"))
+            has_imgs = bool(images)
+            is_live = any(img.get("live_photo_type", 0) == 1 for img in images)
+
+            if media_type in (68, 43) or (video and not has_video and not has_imgs):
+                itype = "note"
+            elif is_live:
+                itype = "live"
+            elif has_imgs and not has_video:
+                itype = "gallery"
+            elif has_video:
+                itype = "video"
+            elif has_imgs:
+                itype = "gallery"
+            else:
+                itype = "unknown"
+
+            cover_url = ""
+            if video:
+                for key in ("dynamic_cover", "origin_cover", "cover"):
+                    urls = (video.get(key, {}) or {}).get("url_list") or []
+                    if urls: cover_url = urls[0]; break
+            if not cover_url and images:
+                urls = images[0].get("url_list") or []
+                cover_url = next((u for u in urls if "webp" in u.lower()), urls[0] if urls else "")
+
             items.append(MediaItem(
                 platform="douyin",
                 item_id=aweme.get("aweme_id", ""),
-                item_type="video" if aweme.get("video") else ("image" if aweme.get("images") else "unknown"),
+                item_type=itype,
                 title=aweme.get("desc", ""),
                 author=aweme.get("author", {}).get("nickname", ""),
+                cover_url=cover_url,
                 extra={"aweme": aweme},
             ))
 
@@ -288,12 +318,42 @@ class DouyinAdapter(PlatformAdapter):
         aweme_list = data.get("aweme_list") or []
         items = []
         for aweme in aweme_list:
+            media_type = aweme.get("media_type", 0)
+            video = aweme.get("video") or {}
+            images = aweme.get("images") or []
+            has_video = video and (video.get("bit_rate") or video.get("play_addr_h264"))
+            has_imgs = bool(images)
+            is_live = any(img.get("live_photo_type", 0) == 1 for img in images)
+
+            if media_type in (68, 43) or (video and not has_video and not has_imgs):
+                itype = "note"
+            elif is_live:
+                itype = "live"
+            elif has_imgs and not has_video:
+                itype = "gallery"
+            elif has_video:
+                itype = "video"
+            elif has_imgs:
+                itype = "gallery"
+            else:
+                itype = "unknown"
+
+            cover_url = ""
+            if video:
+                for key in ("dynamic_cover", "origin_cover", "cover"):
+                    urls = (video.get(key, {}) or {}).get("url_list") or []
+                    if urls: cover_url = urls[0]; break
+            if not cover_url and images:
+                urls = images[0].get("url_list") or []
+                cover_url = next((u for u in urls if "webp" in u.lower()), urls[0] if urls else "")
+
             items.append(MediaItem(
                 platform="douyin",
                 item_id=aweme.get("aweme_id", ""),
-                item_type="video" if aweme.get("video") else ("image" if aweme.get("images") else "unknown"),
+                item_type=itype,
                 title=aweme.get("desc", ""),
                 author=aweme.get("author", {}).get("nickname", ""),
+                cover_url=cover_url,
                 extra={"aweme": aweme},
             ))
 

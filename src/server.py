@@ -130,53 +130,63 @@ async def api_cookie_status(request: web.Request):
     from src.cookie import get_cookie_status
     return json_response(get_cookie_status())
 
-# ── POST /api/login/webview ──
+# -- POST /api/login/webview --
 async def api_login_webview(request: web.Request):
-    """启动系统 WebView 扫码登录（主线程）→ 保存 Cookie"""
+    """Launch WebView login in a separate process (no console window)."""
+    import subprocess, tempfile, os, sys as _sys
+
+    from src.cookie import save_cookie, COOKIE_FILE
+
+    if COOKIE_FILE.exists():
+        COOKIE_FILE.unlink()
+
+    script = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "src", "login_webview.py")
+
+    fd, tmp_path = tempfile.mkstemp(suffix=".txt", prefix="origami_")
+    os.close(fd)
+
     try:
-        import webview
-    except ImportError:
-        return json_response({"ok": False, "message": "请先安装: pip install pywebview"})
+        if _sys.platform == "win32":
+            # Use pythonw.exe to avoid CMD window
+            pyw = _sys.executable.replace("python.exe", "pythonw.exe")
+            subprocess.Popen(
+                [pyw, script, tmp_path],
+                creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            subprocess.Popen(
+                [_sys.executable, script, tmp_path],
+                start_new_session=True)
+    except Exception as e:
+        try: os.remove(tmp_path)
+        except: pass
+        return json_response({"ok": False, "message": str(e)})
 
-    from src.cookie import save_cookie
-    import time as _t, threading
+    # Background collector
+    def _collect():
+        import time
+        for _ in range(120):
+            time.sleep(1)
+            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                cookie = open(tmp_path, encoding="utf-8").read().strip()
+                if cookie and not cookie.startswith("ERROR:"):
+                    save_cookie(cookie)
+                break
+        try: os.remove(tmp_path)
+        except: pass
 
-    result = {"cookie": "", "done": False}
+    import threading
+    threading.Thread(target=_collect, daemon=True).start()
 
-    def _on_loaded():
-        def _check():
-            for _ in range(60):
-                _t.sleep(2)
-                try:
-                    cookies = window.get_cookies()
-                    if cookies:
-                        parts = [f"{c['name']}={c['value']}" for c in cookies
-                                 if c.get("name") and c.get("value")]
-                        cs = "; ".join(parts)
-                        if "sessionid=" in cs and "ttwid=" in cs:
-                            result["cookie"] = cs
-                            result["done"] = True
-                            window.destroy()
-                            return
-                except Exception:
-                    pass
-            result["done"] = True
-            try:
-                window.destroy()
-            except Exception:
-                pass
-        threading.Thread(target=_check, daemon=True).start()
+    return json_response({"ok": True, "message": "Login window opened"})
 
-    window = webview.create_window(
-        "Origami — 登录抖音", "https://www.douyin.com/",
-        width=420, height=620, on_top=True)
-    window.events.loaded += _on_loaded
-    webview.start()
-
-    if result["cookie"]:
-        save_cookie(result["cookie"])
-        return json_response({"ok": True, "cookie_len": len(result["cookie"])})
-    return json_response({"ok": False, "message": "登录超时或已取消"})
+# ── POST /api/logout ──
+async def api_logout(request: web.Request):
+    """Clear login cookie"""
+    from src.environ import COOKIE_FILE
+    if COOKIE_FILE.exists():
+        COOKIE_FILE.unlink()
+    return json_response({"ok": True})
 
 # ── POST /api/resolve-url ──
 async def api_resolve_url(request: web.Request):
@@ -188,6 +198,26 @@ async def api_resolve_url(request: web.Request):
     try:
         from src.platforms.douyin import DouyinAdapter
         adapter = DouyinAdapter()
+        # 短链需要先解析真实 URL（提取纯链接，处理"长按复制..."等文字前缀）
+        real_url = url
+        if "v.douyin.com" in url:
+            import re as _re, requests as _r
+            m = _re.search(r'https?://v\.douyin\.com/[A-Za-z0-9_\-/]+', url)
+            short = m.group(0) if m else url
+            s = _r.Session()
+            s.headers.update({"User-Agent": "Mozilla/5.0"})
+            resp = s.get(short, allow_redirects=True, timeout=15, stream=True)
+            resp.close()
+            real_url = resp.url
+        # 检测主页链接
+        sec = adapter.resolve_user_url(real_url) if "/user/" in real_url else ""
+        if sec:
+            return json_response({
+                "ok": True,
+                "platform": "douyin",
+                "type": "homepage",
+                "sec_uid": sec,
+            })
         item_id = adapter.resolve_url(url)
         return json_response({
             "ok": True,
@@ -215,6 +245,21 @@ async def api_fetch_media(request: web.Request):
         avatar = author_info.get("avatar_thumb", {}).get("url_list", [""])[0] \
               or author_info.get("avatar_medium", {}).get("url_list", [""])[0] \
               or ""
+        # 实况图标记 + 视频 URL：与 media_urls 一一对应
+        raw_images = aweme.get("images") or []
+        image_live = []
+        live_videos = []
+        for img in raw_images:
+            is_live = img.get("live_photo_type", 0) == 1 or bool(img.get("video"))
+            image_live.append(is_live)
+            live_url = ""
+            if is_live:
+                lv = img.get("video") or {}
+                live_url = next((u for url_lst in (
+                    lv.get("play_addr_h264", {}).get("url_list", []),
+                    lv.get("play_addr", {}).get("url_list", []),
+                ) for u in (url_lst or [])), "")
+            live_videos.append(live_url)
         return json_response({
             "ok": True,
             "item_id": media.item_id,
@@ -226,6 +271,8 @@ async def api_fetch_media(request: web.Request):
             "cover_url": media.cover_url,
             "media_urls": media.media_urls,
             "text_content": media.text_content,
+            "image_live": image_live,
+            "live_videos": live_videos,
         })
     except Exception as e:
         return error_response(str(e), 500)
@@ -247,12 +294,19 @@ async def api_fetch_posts(request: web.Request):
             author_id, load_cookie(), max_cursor=cursor, count=count)
         items = []
         for m in result.get("items", []):
+            # 图集/实况作品返回图片 URL 列表供前端展开预览
+            extra_images = []
+            extra = m.extra.get("aweme", {}) if m.extra else {}
+            for img in (extra.get("images") or []):
+                urls = img.get("url_list") or []
+                if urls: extra_images.append(urls[0])
             items.append({
                 "item_id": m.item_id,
                 "item_type": m.item_type,
                 "title": m.title,
                 "author": m.author,
                 "cover_url": m.cover_url,
+                "images": extra_images,
             })
         return json_response({
             "ok": True,
@@ -358,10 +412,10 @@ async def api_download(request: web.Request):
         from src.downloader import download_file
         from src.cookie import load_cookie
         from src.environ import OUTPUT_SINGLE
-        from src.utils import clean_name
+        from src.utils import clean_name, guess_img_ext
 
         adapter = DouyinAdapter()
-        item_id = adapter.resolve_url(url)
+        item_id = body.get("item_id", "") or adapter.resolve_url(url)
         media = adapter.fetch_media(item_id, load_cookie())
 
         save_dir = Path(body.get("save_dir") or str(OUTPUT_SINGLE))
@@ -387,8 +441,8 @@ async def api_download(request: web.Request):
         for i, murl in enumerate(media.media_urls):
             if img_filter and i not in img_filter:
                 continue
-            ext = ".mp4" if media.item_type == "video" else ".jpg"
             is_video = media.item_type == "video"
+            ext = ".mp4" if is_video else guess_img_ext(murl)
             if is_video:
                 fname = f"{safe_title}{ext}"
             else:
@@ -401,6 +455,27 @@ async def api_download(request: web.Request):
             downloaded.append({"file": str(fpath), "ok": ok})
             push_event({"event": "progress", "current": i+1, "total": total,
                          "file": str(fpath), "ok": ok})
+
+            # 实况图：下载静态图后，额外下载视频
+            if not is_video:
+                aweme_imgs = (media.extra.get("aweme", {}) or {}).get("images", []) or []
+                if i < len(aweme_imgs):
+                    img_data = aweme_imgs[i]
+                    is_live = img_data.get("live_photo_type", 0) == 1 or bool(img_data.get("video"))
+                    if is_live:
+                        lv = img_data.get("video") or {}
+                        live_url = next((u for url_lst in (
+                            lv.get("play_addr", {}).get("url_list", []),
+                            lv.get("play_addr_h264", {}).get("url_list", []),
+                        ) for u in (url_lst or [])), None)
+                        if live_url:
+                            live_label = f"{i+1:02d}" if total > 9 else str(i+1)
+                            live_fname = f"{safe_title}-{live_label}_实况.mp4"
+                            live_fpath = save_dir / live_fname
+                            push_event({"event": "log", "level": "info",
+                                         "msg": f"[实况视频] {live_fname}"})
+                            lok = download_file(live_url, live_fpath)
+                            downloaded.append({"file": str(live_fpath), "ok": lok, "live": True})
 
         push_event({"event": "download_done", "title": media.title,
                      "files": downloaded, "save_dir": str(save_dir)})
@@ -445,6 +520,30 @@ async def api_open_folder(request: web.Request):
             subprocess.run(["xdg-open", str(target)])
         return json_response({"ok": True, "path": str(target)})
     return error_response("path not found", 404)
+
+# ── GET /api/proxy-media ──
+async def api_proxy_media(request: web.Request):
+    """代理获取媒体文件，添加 Douyin Referer 绕过防盗链"""
+    url = request.query.get("url", "")
+    if not url:
+        return web.Response(status=400, text="missing url")
+    import requests as _r
+    try:
+        resp = _r.get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://www.douyin.com/",
+        }, stream=True, timeout=30)
+        if resp.status_code != 200:
+            return web.Response(status=resp.status_code, text="upstream error")
+        # 流式返回
+        content_type = resp.headers.get("Content-Type", "video/mp4")
+        return web.Response(
+            body=resp.content,
+            content_type=content_type,
+            headers={"Accept-Ranges": "bytes"},
+        )
+    except Exception as e:
+        return web.Response(status=502, text=str(e))
 
 # ── GET /api/own-profile ──
 async def api_own_profile(request: web.Request):
@@ -503,13 +602,25 @@ def list_platform_ids() -> list[str]:
 def create_app() -> web.Application:
     app = web.Application()
 
-    # CORS: 允许本地任意端口的前端调试
+    # CORS + no-cache: allow local frontend debugging on any port
     @web.middleware
     async def cors_middleware(request, handler):
+        # Handle CORS preflight
+        if request.method == "OPTIONS":
+            resp = web.Response(status=204)
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            resp.headers["Access-Control-Max-Age"] = "86400"
+            return resp
         resp = await handler(request)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        # Prevent browser caching so updates take effect immediately
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
         return resp
 
     app.middlewares.append(cors_middleware)
@@ -521,6 +632,7 @@ def create_app() -> web.Application:
     app.router.add_get("/api/settings/{key}", api_get_setting)
     app.router.add_get("/api/cookie",      api_cookie_status)
     app.router.add_post("/api/login/webview", api_login_webview)
+    app.router.add_post("/api/logout",        api_logout)
     app.router.add_post("/api/resolve-url",   api_resolve_url)
     app.router.add_post("/api/fetch-media",   api_fetch_media)
     app.router.add_post("/api/fetch-posts",   api_fetch_posts)
@@ -530,6 +642,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/download",      api_download)
     app.router.add_post("/api/browse-folder", api_browse_folder)
     app.router.add_post("/api/open-folder",   api_open_folder)
+    app.router.add_get("/api/proxy-media",   api_proxy_media)
     app.router.add_get("/api/own-profile",  api_own_profile)
     app.router.add_get("/ws/events",         ws_events)
 

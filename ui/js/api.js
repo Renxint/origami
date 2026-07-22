@@ -73,7 +73,10 @@ const Origami = {
     cookieStatus: () => api('/api/cookie'),
 
     // 登录（触发 WebView 扫码）
-    login: () => api('/api/login/webview'),
+    login: () => api('/api/login/webview', {}),
+
+    // 退出登录
+    logout: () => api('/api/logout'),
 
     // 设置
     getSettings: () => api('/api/settings'),
@@ -86,14 +89,18 @@ const Origami = {
     fetchMedia: (itemId) => api('/api/fetch-media', { item_id: itemId }),
 
     // 下载（进度通过 WS 推送）
-    download: (url, saveDir, opts) => api('/api/download', { url, save_dir: saveDir, images: (opts||{}).images || '' }),
+    download: (url, saveDir, opts) => api('/api/download', {
+        url, save_dir: saveDir || '',
+        images: (opts||{}).images || '',
+        item_id: (opts||{}).item_id || '',
+    }),
 
     // 作者
-    fetchAuthor: (url) => api('/api/fetch-author', { url }),
+    fetchAuthor: (url, secUid) => api('/api/fetch-author', { url: url || '', author_id: secUid || '' }),
 
     // 作品列表
-    fetchPosts: (authorId, cursor, count) =>
-        api('/api/fetch-posts', { author_id: authorId, cursor, count }),
+    fetchPosts: (secUid, cursor, count) =>
+        api('/api/fetch-posts', { author_id: secUid, cursor: cursor || 0, count: count || 24 }),
 
     // 喜欢列表
     fetchLikes: (authorId, cursor, count) =>

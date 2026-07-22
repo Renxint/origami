@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>Origami</title>
 <link rel="icon" href="../assets/logo.png" type="image/png">
 <link rel="stylesheet" href="../css/themes.css">
-<script src="https://unpkg.com/lucide@latest"></script>
 <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body {
@@ -40,7 +40,7 @@
     transition: all .18s; position:relative;
     background:transparent; border:none;
   }
-  .sb-item i, .sb-item svg { width:18px; height:18px; }
+  .sb-item svg { width:18px; height:18px; stroke:currentColor; stroke-width:2; fill:none; }
   .sb-item:hover { color:var(--text-secondary); background:var(--bg-hover); }
   .sb-item.active { color:var(--accent); background:var(--bg-hover); }
   .sb-spacer { flex:1; }
@@ -69,6 +69,14 @@
   .topbar-status { width:7px; height:7px; border-radius:50%; }
   .topbar-status.on { background:var(--success); }
   .topbar-status.off { background:var(--text-disabled); }
+  .topbar-logout {
+    width:24px; height:24px; border-radius:6px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; background:transparent; border:none;
+    color:var(--text-disabled); flex-shrink:0;
+    transition: all .2s; margin-left:2px;
+  }
+  .topbar-logout:hover { color:var(--error); background:var(--bg-hover); }
 
   /* ══════ 内容区 ══════ */
   .content { flex:1; display:flex; flex-direction:column; overflow-y:auto; padding:20px 24px; gap:16px; max-width:900px; margin:0 auto; width:100%; }
@@ -139,9 +147,79 @@
     display:flex; align-items:center; gap:8px;
   }
   .preview-title .count { font-size:11px; color:var(--text-disabled); }
+  .preview-gallery-expand { animation: slideDown .25s ease; }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ══════ 主页作品行式列表 ══════ */
+  .post-list { display:flex; flex-direction:column; gap:6px; }
+  .post-row {
+    display:flex; align-items:center; gap:12px; padding:10px 14px;
+    border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-default);
+    transition:all .15s; cursor:pointer; flex-wrap:wrap;
+  }
+  .post-row:hover { border-color:var(--accent); }
+  .post-row.deselected { opacity:.45; }
+  .post-row .post-chk {
+    width:22px; height:22px; border-radius:50%;
+    border:2px solid var(--text-disabled); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:#fff; transition:all .15s;
+  }
+  .post-row .post-chk.on { background:var(--accent); border-color:var(--accent); }
+  .post-thumb {
+    width:72px; height:72px; border-radius:8px; overflow:hidden;
+    flex-shrink:0; background:var(--bg-hover); position:relative;
+  }
+  .post-thumb img { width:100%; height:100%; object-fit:cover; }
+  .post-thumb .post-type-tag {
+    position:absolute; bottom:3px; right:3px; font-size:8px;
+    padding:1px 5px; border-radius:3px; color:#fff; font-weight:600;
+  }
+  .post-info { flex:1; min-width:140px; }
+  .post-info .post-title {
+    font-size:13px; font-weight:600; line-height:1.4;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .post-info .post-meta { font-size:10px; color:var(--text-disabled); margin-top:3px; }
+  .post-expand-btn {
+    font-size:10px; padding:3px 10px; border-radius:99px; border:1px solid var(--border-default);
+    background:transparent; color:var(--text-secondary); cursor:pointer;
+    font-family:inherit; flex-shrink:0; transition:all .15s;
+  }
+  .post-expand-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* 图集展开区 */
+  .gallery-strip {
+    width:100%; overflow-x:auto; display:flex; gap:6px;
+    padding:8px 0 4px; margin-top:2px;
+  }
+  .gallery-strip::-webkit-scrollbar { height:6px; }
+  .gallery-strip::-webkit-scrollbar-thumb { background:var(--bg-hover); border-radius:3px; }
+  .gallery-strip::-webkit-scrollbar-track { background:transparent; }
+  .gallery-img {
+    width:100px; height:100px; border-radius:6px; overflow:hidden;
+    flex-shrink:0; position:relative; cursor:pointer;
+    border:2px solid transparent; transition:all .15s;
+    background:var(--bg-hover);
+  }
+  .gallery-img:hover { border-color:var(--accent); }
+  .gallery-img.deselected { opacity:.4; border-color:transparent; }
+  .gallery-img img { width:100%; height:100%; object-fit:cover; }
+  .gallery-img .gallery-chk {
+    position:absolute; top:4px; right:4px; width:18px; height:18px;
+    border-radius:50%; background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:9px; opacity:1;
+  }
+  .gallery-img.deselected .gallery-chk { opacity:0; }
 
   .preview-grid {
-    display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;
+    display:grid; grid-template-columns:repeat(6, 1fr); gap:6px;
+  }
+  .preview-area {
+    flex-shrink:1; overflow-y:auto; max-height:380px;
   }
   .preview-img {
     position:relative; aspect-ratio:1; border-radius:8px;
@@ -158,6 +236,12 @@
     font-size:11px; opacity:1; transition:opacity .15s;
   }
   .preview-img.deselected .check { opacity:0; }
+  .live-badge {
+    position:absolute; top:6px; left:6px; width:20px; height:20px;
+    border-radius:50%; background:rgba(0,0,0,.55);
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(4px);
+  }
 
   .preview-video {
     width:100%; max-width:320px; aspect-ratio:16/10; border-radius:10px;
@@ -178,7 +262,8 @@
   .log {
     padding:10px 14px; border-radius:8px; background:var(--bg-surface);
     font-family:monospace; font-size:11px; color:var(--text-disabled);
-    max-height:120px; overflow-y:auto; display:none;
+    max-height:100px; overflow-y:auto; display:none;
+    flex-shrink:0; margin-top:auto;
   }
   .log.show { display:block; }
 
@@ -234,12 +319,12 @@
   <!-- 侧边栏 -->
   <aside class="sidebar">
     <div class="sb-logo"><img src="../assets/logo.png" alt="O" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div>
-    <button class="sb-item active" title="首页"><i data-lucide="home"></i></button>
-    <button class="sb-item" title="订阅"><i data-lucide="rss"></i></button>
-    <button class="sb-item" title="主页备份"><i data-lucide="cloud-download"></i></button>
-    <button class="sb-item" title="直播"><i data-lucide="radio"></i><span class="sb-badge"></span></button>
+    <button class="sb-item active" title="首页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></button>
+    <button class="sb-item" title="订阅"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+    <button class="sb-item" title="主页备份"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="sb-item" title="直播"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg><span class="sb-badge"></span></button>
     <div class="sb-spacer"></div>
-    <button class="sb-item" title="设置" onclick="openSettings()"><i data-lucide="settings"></i></button>
+    <button class="sb-item" title="设置" onclick="openSettings()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </aside>
 
   <!-- 主区域 -->
@@ -247,10 +332,13 @@
     <!-- 顶栏 -->
     <div class="topbar">
       <span class="topbar-title">Origami</span>
-      <div class="topbar-user" id="login-btn" onclick="openLogin()">
-        <span id="login-text">登录</span>
-        <div class="topbar-av"></div>
-        <div class="topbar-status off"></div>
+      <div class="topbar-user" id="login-card">
+        <div class="topbar-av" id="topbar-av"></div>
+        <span id="login-text" onclick="openLogin()" style="cursor:pointer">登录</span>
+        <div class="topbar-status off" id="topbar-status"></div>
+        <button class="topbar-logout" id="logout-btn" title="退出登录" onclick="doLogout()" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
       </div>
     </div>
 
@@ -259,18 +347,18 @@
       <!-- 输入框 -->
       <div class="input-wrap">
         <div class="input-box">
-          <i data-lucide="link"></i>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-disabled);flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           <input type="text" id="url-input"
                  placeholder="粘贴链接，自动识别平台和类型..."
                  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-          <button class="input-clear" id="input-clear" onclick="clearInput()"><i data-lucide="x"></i></button>
+          <button class="input-clear" id="input-clear" onclick="clearInput()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           <span class="platform-badge" id="platform-badge"></span>
         </div>
       </div>
 
       <!-- 空态提示 -->
       <div class="empty-state" id="empty-state">
-        <div class="empty-icon"><i data-lucide="arrow-down" style="width:36px;height:36px;opacity:.4;"></i></div>
+        <div class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.4"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
         <div class="empty-text">粘贴抖音链接开始</div>
         <div class="empty-hint">支持视频、图集、文章、主页、直播间</div>
       </div>
@@ -338,6 +426,9 @@
     log.classList.remove('show');
     progressBar.classList.remove('show');
     currentMedia = null;
+    currentPosts = [];
+    postSelected = new Set();
+    galleryImgSelected = {};
     selectedIndices = new Set();
     document.getElementById('author-card').style.display = 'none';
   }
@@ -353,7 +444,9 @@
       const r = await Origami.resolveUrl(url);
       badge.textContent = r.platform || '抖音';
       badge.classList.add('show');
-      if (r.item_id) {
+      if (r.type === 'homepage') {
+        await fetchHomepage(r.sec_uid);
+      } else if (r.item_id) {
         await fetchMedia(r.item_id);
       } else {
         addLog('[!] 无法识别链接类型');
@@ -373,11 +466,15 @@
     document.getElementById('author-card').style.display = 'none';
   }
 
+  let currentPosts = [];  // for homepage posts
+  let postSelected = new Set();
+
   async function fetchMedia(itemId) {
     addLog('[获取] 作品数据...');
     try {
       const m = await Origami.fetchMedia(itemId);
       currentMedia = m;
+      currentPosts = [];
       showPreview(m);
       empty.style.display = 'none';
       result.classList.add('show');
@@ -385,6 +482,235 @@
     } catch (e) {
       addLog('[!] 获取失败: ' + e.message);
     }
+  }
+
+  async function fetchHomepage(secUid) {
+    addLog('[获取] 作者信息和作品列表...');
+    try {
+      var author = await Origami.fetchAuthor(null, secUid);
+      var posts = await Origami.fetchPosts(secUid, 0, 24);
+      currentPosts = posts.items || [];
+      currentMedia = null;
+      postSelected = new Set();
+      showHomepage(author, currentPosts);
+      empty.style.display = 'none';
+      result.classList.add('show');
+      addLog('[OK] ' + author.nickname + ' - ' + currentPosts.length + ' 个作品');
+    } catch (e) {
+      addLog('[!] 获取失败: ' + e.message);
+    }
+  }
+
+  var galleryImgSelected = {};  // {postIdx: Set of image indices}
+
+  function showHomepage(author, posts) {
+    var card = document.getElementById('author-card');
+    card.style.display = 'flex';
+    document.getElementById('author-name').textContent = author.nickname || '-';
+    document.getElementById('author-meta').textContent = (author.follower_count||'') + ' 粉丝  ' + (author.aweme_count||'') + ' 作品';
+    document.getElementById('author-desc').textContent = truncate(author.bio || author.signature || '', 60);
+    var av = document.getElementById('author-av');
+    av.innerHTML = author.avatar_url ? '<img src=\"'+author.avatar_url+'\" onerror=\"this.style.display=none\">' : '';
+
+    var typeLabels = {video:'视频',gallery:'图集',live:'实况',note:'文章',image:'图片',unknown:'?'};
+    var typeColors = {video:'rgba(0,0,0,.7)',gallery:'#818CF8',live:'#F472B6',note:'#64FFDA',image:'#64C8FF',unknown:'#888'};
+
+    var h = '<div style=\"display:flex;align-items:center;gap:8px;margin-bottom:4px\">';
+    h += '<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" style=\"vertical-align:-3px\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg>';
+    h += '<span style=\"font-size:13px;font-weight:600\">' + posts.length + ' 个作品</span>';
+    h += '<span style=\"flex:1\"></span>';
+    h += '<button class=\"btn btn-ghost\" style=\"padding:2px 10px;font-size:11px;\" onclick=\"toggleAllPosts()\">全不选</button>';
+    h += '<button class=\"btn btn-primary\" style=\"padding:2px 14px;font-size:11px;margin-left:6px;\" id=\"btn-dl-selected\" onclick=\"startBatchDownload()\">下载选中</button>';
+    h += '</div><div class=\"post-list\" id=\"post-list\">';
+
+    for (var i = 0; i < posts.length; i++) {
+      var p = posts[i];
+      var tp = p.item_type || 'unknown';
+      var cov = p.cover_url || '';
+      var isGallery = (tp === 'gallery' || tp === 'live' || tp === 'note') && (p.images || []).length > 0;
+
+      h += '<div class=\"post-row\" data-pidx=\"' + i + '\" onclick=\"togglePost(' + i + ')\" id=\"post-row-' + i + '\">';
+      // Check circle
+      h += '<div class=\"post-chk on\" id=\"post-chk-' + i + '\">V</div>';
+      // Thumbnail
+      h += '<div class=\"post-thumb\">';
+      if (cov) h += '<img src=\"' + cov + '\" loading=\"lazy\" onerror=\"this.style.display=none\">';
+      h += '<span class=\"post-type-tag\" style=\"background:' + typeColors[tp] + '\">' + typeLabels[tp] + '</span>';
+      h += '</div>';
+      // Info
+      h += '<div class=\"post-info\"><div class=\"post-title\">' + escapeHtml(p.title || '(无标题)') + '</div>';
+      h += '<div class=\"post-meta\">' + (isGallery ? (p.images||[]).length + ' 张图片' : '') + '</div></div>';
+      // Expand button for galleries
+      if (isGallery) {
+        h += '<button class=\"post-expand-btn\" onclick=\"expandGallery(' + i + ',event)\">展开</button>';
+      }
+      h += '</div>';
+
+      // Gallery strip (hidden by default)
+      if (isGallery) {
+        var imgs = p.images || [];
+        h += '<div class=\"gallery-strip\" id=\"gallery-strip-' + i + '\" style=\"display:none\">';
+        for (var j = 0; j < imgs.length; j++) {
+          h += '<div class=\"gallery-img\" data-gidx=\"' + j + '\" data-pidx=\"' + i + '\" onclick=\"toggleGalleryImg(' + i + ',' + j + ',event)\">';
+          h += '<img src=\"' + imgs[j] + '\" loading=\"lazy\" onerror=\"this.parentElement.style.display=none\">';
+          h += '<div class=\"gallery-chk\">V</div>';
+          h += '</div>';
+        }
+        h += '</div>';
+      }
+    }
+    h += '</div>';
+
+    previewArea.innerHTML = h;
+    postSelected = new Set(posts.map(function(_, i) { return i; }));
+    galleryImgSelected = {};
+    // Initialize gallery image selections (all selected)
+    for (var k = 0; k < posts.length; k++) {
+      if ((posts[k].images || []).length > 0) {
+        galleryImgSelected[k] = new Set(posts[k].images.map(function(_, j) { return j; }));
+      }
+    }
+    updatePostBtn();
+  }
+
+  window.toggleAllPosts = function() {
+    var all = postSelected.size === currentPosts.length;
+    if (all) { postSelected.clear(); }
+    else { currentPosts.forEach(function(_, i) { postSelected.add(i); }); }
+    for (var i = 0; i < currentPosts.length; i++) {
+      var row = document.getElementById('post-row-' + i);
+      var chk = document.getElementById('post-chk-' + i);
+      if (row) row.classList.toggle('deselected', !postSelected.has(i));
+      if (chk) { chk.classList.toggle('on', postSelected.has(i)); if (postSelected.has(i)) chk.textContent = 'V'; else chk.textContent = ''; }
+    }
+    updatePostBtn();
+  };
+
+  window.togglePost = function(idx) {
+    var row = document.getElementById('post-row-' + idx);
+    var chk = document.getElementById('post-chk-' + idx);
+    if (postSelected.has(idx)) {
+      postSelected.delete(idx);
+      if (row) row.classList.add('deselected');
+      if (chk) { chk.classList.remove('on'); chk.textContent = ''; }
+      // Deselect all gallery images
+      var strip = document.getElementById('gallery-strip-' + idx);
+      if (strip) {
+        var gimgs = strip.querySelectorAll('.gallery-img');
+        gimgs.forEach(function(el){ el.classList.add('deselected'); });
+      }
+      if (galleryImgSelected[idx]) galleryImgSelected[idx].clear();
+    } else {
+      postSelected.add(idx);
+      if (row) row.classList.remove('deselected');
+      if (chk) { chk.classList.add('on'); chk.textContent = 'V'; }
+      // Select all gallery images
+      var strip2 = document.getElementById('gallery-strip-' + idx);
+      if (strip2) {
+        var gimgs2 = strip2.querySelectorAll('.gallery-img');
+        gimgs2.forEach(function(el){ el.classList.remove('deselected'); });
+      }
+      var post = currentPosts[idx];
+      if (post && (post.images || []).length > 0) {
+        galleryImgSelected[idx] = new Set(post.images.map(function(_, j) { return j; }));
+      }
+    }
+    updatePostBtn();
+  };
+
+  window.toggleGalleryImg = function(postIdx, imgIdx, evt) {
+    (evt || window.event).stopPropagation();
+    if (!postSelected.has(postIdx)) return; // master off -> can't toggle individual
+    var el = document.querySelector('.gallery-img[data-pidx=\"' + postIdx + '\"][data-gidx=\"' + imgIdx + '\"]');
+    if (!galleryImgSelected[postIdx]) galleryImgSelected[postIdx] = new Set();
+    var sel = galleryImgSelected[postIdx];
+    if (sel.has(imgIdx)) { sel.delete(imgIdx); if (el) el.classList.add('deselected'); }
+    else { sel.add(imgIdx); if (el) el.classList.remove('deselected'); }
+    // If all images deselected, auto-deselect the post
+    if (sel.size === 0) {
+      postSelected.delete(postIdx);
+      var row = document.getElementById('post-row-' + postIdx);
+      var chk = document.getElementById('post-chk-' + postIdx);
+      if (row) row.classList.add('deselected');
+      if (chk) { chk.classList.remove('on'); chk.textContent = ''; }
+    } else if (!postSelected.has(postIdx)) {
+      postSelected.add(postIdx);
+      var row2 = document.getElementById('post-row-' + postIdx);
+      var chk2 = document.getElementById('post-chk-' + postIdx);
+      if (row2) row2.classList.remove('deselected');
+      if (chk2) { chk2.classList.add('on'); chk2.textContent = 'V'; }
+    }
+    updatePostBtn();
+  };
+
+  window.expandGallery = function(idx, evt) {
+    (evt || window.event).stopPropagation();
+    var strip = document.getElementById('gallery-strip-' + idx);
+    if (!strip) return;
+    var btn = document.querySelector('#post-row-' + idx + ' .post-expand-btn');
+    if (strip.style.display === 'none' || !strip.style.display) {
+      strip.style.display = 'flex';
+      if (btn) btn.textContent = '收起';
+    } else {
+      strip.style.display = 'none';
+      if (btn) btn.textContent = '展开';
+    }
+  };
+
+  function updatePostBtn() {
+    var btn = document.getElementById('btn-dl-selected');
+    if (!btn) return;
+    // Count total selected items (posts + individual gallery images)
+    var count = postSelected.size;
+    for (var key in galleryImgSelected) {
+      var pi = parseInt(key);
+      if (postSelected.has(pi) && galleryImgSelected[key]) {
+        count += galleryImgSelected[key].size - 1; // post already counted, add extra images
+      }
+    }
+    btn.textContent = count === 0 ? '下载选中' : '下载选中 (' + count + ')';
+    // Update toggle all button
+    var tb = document.querySelector('button[onclick=\"toggleAllPosts()\"]');
+    if (tb) tb.textContent = postSelected.size === currentPosts.length ? '全不选' : '全选';
+  }
+
+  async function startBatchDownload() {
+    if (postSelected.size === 0) return;
+    // Build download list: post IDs + optional image index filter
+    var tasks = [];
+    var selectedArr = Array.from(postSelected);
+    for (var s = 0; s < selectedArr.length; s++) {
+      var pi = selectedArr[s];
+      var post = currentPosts[pi];
+      var imgs = post.images || [];
+      var selImgs = galleryImgSelected[pi];
+      if (imgs.length > 0 && selImgs && selImgs.size < imgs.length) {
+        // Some images deselected -> download specific images
+        var imgIdxs = Array.from(selImgs).sort(function(a,b){return a-b;});
+        tasks.push({item_id: post.item_id, images: imgIdxs.map(function(j){return j+1;}).join(',')});
+      } else {
+        tasks.push({item_id: post.item_id, images: ''});
+      }
+    }
+
+    addLog('[下载] 批量下载 ' + tasks.length + ' 个作品...');
+    var btn = document.getElementById('btn-dl-selected');
+    if (btn) { btn.disabled = true; btn.textContent = '下载中...'; }
+    progressBar.classList.add('show');
+    var done = 0, total = tasks.length;
+    for (var i = 0; i < tasks.length; i++) {
+      try {
+        addLog('[' + (i+1) + '/' + total + '] ' + tasks[i].item_id);
+        await Origami.download(input.value.trim(), '', { item_id: tasks[i].item_id, images: tasks[i].images });
+        done++;
+        addLog('[' + done + '/' + total + '] OK');
+      } catch(e) {
+        addLog('[!] 失败: ' + e.message);
+      }
+    }
+    progressBar.classList.remove('show');
+    if (btn) { btn.disabled = false; btn.textContent = '下载选中 (' + postSelected.size + ')'; }
+    addLog('[完成] ' + done + '/' + total + ' 成功');
   }
 
   // ── 显示预览 ──
@@ -403,38 +729,88 @@
 
     if (m.item_type === 'video') {
       previewArea.innerHTML = `
-        <div class="preview-title">[视频]</div>
+        <div class="preview-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> 视频</div>
         <div class="preview-video">
-          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '<i data-lucide=\"video\"></i>'}
+          ${m.cover_url ? `<img src="${m.cover_url}" alt="cover">` : '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-disabled)"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>'}
         </div>`;
       selectedIndices.add(0);
     } else if (m.item_type === 'note') {
       previewArea.innerHTML = `
-        <div class="preview-title">[文章]</div>
+        <div class="preview-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> 文章</div>
         <div class="preview-note">${escapeHtml(m.text_content || m.title)}</div>`;
       selectedIndices.add(0);
     } else {
       // 图集
       const urls = m.media_urls || [];
+      const liveFlags = m.image_live || [];
       selectedIndices = new Set(urls.map((_,i) => i));
+      const liveCount = liveFlags.filter(Boolean).length;
+      const liveNote = liveCount > 0 ? ` <span style="font-size:11px;color:var(--accent)">(含${liveCount}实况)</span>` : '';
       previewArea.innerHTML = `
         <div class="preview-title">
-          [图集] <span class="count">${urls.length} 张</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> 图集 <span class="count">${urls.length} 张${liveNote}</span>
           <span style="flex:1"></span>
           <button class="btn btn-ghost" style="padding:2px 10px;font-size:11px;" id="btn-toggle-all" onclick="toggleAll()">全不选</button>
         </div>
         <div class="preview-grid" id="preview-grid">
           ${urls.map((u, i) => `
             <div class="preview-img" data-idx="${i}" onclick="toggleImg(${i})">
-              <img src="${u}" loading="lazy" onerror="this.parentElement.querySelector('.fallback').style.display='block';this.style.display='none'">
-              <span class="fallback" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:18px;color:var(--text-disabled)">${i+1}</span>
+              <img src="${u}" loading="lazy" onerror="this.parentElement.querySelector('.fallback').style.display='flex';this.style.display='none'">
+              <span class="fallback" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:18px;color:var(--text-disabled)">${i+1}</span>
+              ${liveFlags[i] ? '<span class="live-badge" title="实况（点击预览视频）" onclick="event.stopPropagation();previewLive('+i+')" style="cursor:pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color:#fff"><polygon points="8 5 19 12 8 19 8 5"/></svg></span>' : ''}
               <span class="check">V</span>
             </div>
           `).join('')}
         </div>`;
     }
-    setTimeout(lucide.createIcons, 50);
   }
+
+  window.previewLive = function(idx) {
+    var vids = currentMedia?.live_videos || [];
+    var videoUrl = vids[idx];
+    if (!videoUrl) return;
+    var el = document.querySelector('.preview-img[data-idx=\"' + idx + '\"]');
+    if (!el) return;
+    // Toggle off: if already playing, remove and restore
+    var existingVid = el.querySelector('video');
+    if (existingVid) {
+      existingVid.pause();
+      existingVid.remove();
+      var _img = el.querySelector('img');
+      if (_img) _img.style.display = '';
+      return;
+    }
+    // Hide static elements
+    var img = el.querySelector('img');
+    var fb = el.querySelector('.fallback');
+    var check = el.querySelector('.check');
+    if (img) img.style.display = 'none';
+    if (fb) fb.style.display = 'none';
+    if (check) check.style.display = 'none';
+    // Create video
+    var video = document.createElement('video');
+    video.src = '/api/proxy-media?url=' + encodeURIComponent(videoUrl);
+    video.controls = true;
+    video.autoplay = false;
+    video.loop = true;
+    video.muted = true;
+    video.preload = 'auto';
+    video.playsInline = true;
+    video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:5;background:#000;border-radius:8px';
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    // Handle errors gracefully (log, don't remove immediately)
+    var errCount = 0;
+    video.onerror = function(e) {
+      errCount++;
+      if (errCount >= 3) {
+        video.remove();
+        if (img) img.style.display = '';
+        if (check) check.style.display = '';
+      }
+    };
+    el.appendChild(video);
+  };
 
   window.toggleAll = function() {
     const urls = currentMedia?.media_urls || [];
@@ -509,8 +885,7 @@
       if (!document.getElementById('btn-open-folder')) {
         var ob = document.createElement('button');
         ob.id = 'btn-open-folder'; ob.className = 'btn btn-ghost btn-slide-in';
-        ob.innerHTML = '<i data-lucide=\"folder-open\" style=\"width:14px;height:14px;\"></i> 打开文件夹';
-        lucide.createIcons();
+        ob.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> 打开文件夹';
         ob.onclick = function(){ Origami.openFolder(saveDir); };
         acts.insertBefore(ob, btn);
       }
@@ -538,27 +913,85 @@
   function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
   function truncate(s,n) { return s && s.length > n ? s.slice(0,n)+'...' : s; }
 
+  // ── 状态持久化 ──
+  function saveState() {
+    if (!currentMedia) return;
+    try {
+      sessionStorage.setItem('origami_url', input.value);
+      sessionStorage.setItem('origami_media', JSON.stringify(currentMedia));
+      sessionStorage.setItem('origami_selected', JSON.stringify(Array.from(selectedIndices)));
+      sessionStorage.setItem('origami_log', log.innerHTML);
+      sessionStorage.setItem('origami_badge', badge.textContent);
+      sessionStorage.setItem('origami_badge_show', badge.classList.contains('show'));
+    } catch(e) {}
+  }
+  function restoreState() {
+    try {
+      var saved = sessionStorage.getItem('origami_media');
+      if (!saved) return false;
+      currentMedia = JSON.parse(saved);
+      input.value = sessionStorage.getItem('origami_url') || '';
+      clearBtn.classList.add('show');
+      var sel = sessionStorage.getItem('origami_selected');
+      if (sel) selectedIndices = new Set(JSON.parse(sel));
+      showPreview(currentMedia);
+      empty.style.display = 'none';
+      result.classList.add('show');
+      badge.textContent = sessionStorage.getItem('origami_badge') || '';
+      if (sessionStorage.getItem('origami_badge_show') === 'true') badge.classList.add('show');
+      var logSaved = sessionStorage.getItem('origami_log');
+      if (logSaved) { log.innerHTML = logSaved; log.classList.add('show'); }
+      return true;
+    } catch(e) { return false; }
+  }
+
+  window.addEventListener('beforeunload', saveState);
+
   // ── 导航 ──
-  function openLogin() { window.location.href = 'login.html'; }
-  function openSettings() { window.location.href = 'settings.html'; }
+  function openLogin() { saveState(); window.location.href = 'login.html?_=' + Date.now(); }
+  function openSettings() { saveState(); window.location.href = 'settings.html'; }
+
+  async function doLogout() {
+    try { await Origami.logout(); } catch(e) {}
+    // 重置 UI
+    document.getElementById('login-text').textContent = '登录';
+    document.getElementById('login-text').style.cursor = 'pointer';
+    document.getElementById('login-text').onclick = openLogin;
+    document.getElementById('login-text').style.cursor = 'pointer';
+    document.getElementById('topbar-av').innerHTML = '';
+    var st = document.getElementById('topbar-status');
+    st.classList.remove('on'); st.classList.add('off');
+    document.getElementById('logout-btn').style.display = 'none';
+    addLog('[退出] 已清除登录');
+  }
 
   // ── 启动 ──
+  document.body.style.zoom = '131%';
   window.addEventListener('DOMContentLoaded', async () => {
-    lucide.createIcons();
+    // 仅从 login/settings 页面返回时恢复状态，刷新或直接打开则清空
+    var fromOurPage = document.referrer && (
+      document.referrer.indexOf('login.html') !== -1 ||
+      document.referrer.indexOf('settings.html') !== -1);
+    if (fromOurPage) { restoreState(); }
+
     try {
       const cs = await Origami.cookieStatus();
       if (cs && cs.ok) {
-        document.getElementById('login-text').textContent = '已登录';
-        document.querySelector('.topbar-status').classList.add('on');
-        document.querySelector('.topbar-status').classList.remove('off');
+        var st = document.getElementById('topbar-status');
+        st.classList.add('on'); st.classList.remove('off');
+        document.getElementById('logout-btn').style.display = 'flex';
+        var lt = document.getElementById('login-text');
+        lt.onclick = openLogin;  // 登录后也可点开
         // 加载头像
         try {
           const pf = await Origami.ownProfile();
           if (pf && pf.ok && pf.avatar) {
-            document.querySelector('.topbar-av').innerHTML = '<img src=\"'+pf.avatar+'\" style=\"width:100%;height:100%;border-radius:50%;object-fit:cover\">';
-            document.getElementById('login-text').textContent = pf.nickname;
+            document.getElementById('topbar-av').innerHTML = '<img src=\"'+pf.avatar+'\" style=\"width:100%;height:100%;border-radius:50%;object-fit:cover\">';
+            lt.textContent = pf.nickname;
+          } else {
+            lt.textContent = '已登录';
           }
-        } catch(e) {}
+        } catch(e) { lt.textContent = '已登录'; }
       }
     } catch(e) {}
   });

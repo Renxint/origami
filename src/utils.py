@@ -36,6 +36,19 @@ def pick_best_video_url(vdata: dict) -> str:
     return ""
 
 
+def guess_img_ext(url: str, default: str = ".jpg") -> str:
+    """从图片 URL 推断文件扩展名。优先级: jpeg > webp > jpg"""
+    u = url.lower()
+    for fmt in ("jpeg", "webp", "jpg"):
+        if fmt in u:
+            return f".{fmt}"
+    # 兜底：从 URL 路径提取
+    m = re.search(r'\.(\w{3,4})(?:\?|$)', url)
+    if m:
+        return f".{m.group(1)}"
+    return default
+
+
 def pick_best_url(url_list: list, prefer: str = "jpeg") -> str:
     """从多个 URL 中优先选择指定格式"""
     if not url_list:
