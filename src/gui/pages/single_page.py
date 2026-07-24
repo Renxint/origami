@@ -1692,7 +1692,7 @@ class SinglePage(QWidget):
         da.clicked.connect(lambda: [c[0].setChecked(False) for c in cbs])
 
         def _dl_checked():
-            sel = [(url, idx) for cb, url, _, _ in cbs if cb.isChecked()]
+            sel = [(url, 0) for cb, url, _, _ in cbs if cb.isChecked()]
             if not sel:
                 QMessageBox.information(dlg, "提示", "请至少勾选一个"); return
             save_dir = self.path_input.text().strip() or str(OUTPUT_SINGLE)
