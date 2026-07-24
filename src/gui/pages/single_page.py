@@ -1212,12 +1212,9 @@ class SinglePage(QWidget):
         layout.addWidget(self._cmt_scroll, 1)
 
         def _fetch():
-            from src.webview_api import _call_api
-            params = (f"aweme_id={aweme_id}&cursor=0&count=30"
-                      f"&device_platform=webapp&aid=6383&channel=channel_pc_web"
-                      f"&pc_client_type=1&version_code=290100&version_name=29.1.0"
-                      f"&cookie_enabled=true")
-            data = _call_api(f"https://www.douyin.com/aweme/v1/web/comment/list/?{params}", timeout=30)
+            from src.platforms.douyin import DouyinAdapter
+            adapter = DouyinAdapter()
+            data = adapter.fetch_comments(aweme_id, cursor=0, count=30)
             self._comments_ready.emit(data)
 
         threading.Thread(target=_fetch, daemon=True).start()
