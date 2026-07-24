@@ -430,6 +430,7 @@
     postSelected = new Set();
     galleryImgSelected = {};
     selectedIndices = new Set();
+    _secUid = ''; _nextCursor = 0; _hasMore = false; _loadingMore = false;
     document.getElementById('author-card').style.display = 'none';
   }
 
@@ -459,6 +460,7 @@
   function resetResult() {
     document.getElementById('btn-download').disabled = false;
     document.getElementById('btn-download').textContent = '下载选中';
+    document.getElementById('btn-download').onclick = startDownload;
     progressBar.classList.remove('show');
     var ob = document.getElementById('btn-open-folder');
     if (ob) ob.remove();
@@ -484,21 +486,100 @@
     }
   }
 
+  var _secUid = '', _nextCursor = 0, _hasMore = false, _loadingMore = false, _authorData = null;
+
   async function fetchHomepage(secUid) {
     addLog('[获取] 作者信息和作品列表...');
     try {
+      _secUid = secUid;
       var author = await Origami.fetchAuthor(null, secUid);
+      _authorData = author;
       var posts = await Origami.fetchPosts(secUid, 0, 24);
       currentPosts = posts.items || [];
+      _nextCursor = posts.next_cursor || 0;
+      _hasMore = posts.has_more || false;
       currentMedia = null;
       postSelected = new Set();
       showHomepage(author, currentPosts);
       empty.style.display = 'none';
       result.classList.add('show');
       addLog('[OK] ' + author.nickname + ' - ' + currentPosts.length + ' 个作品');
+      // 后台预加载所有剩余页
+      preloadAllPages();
     } catch (e) {
       addLog('[!] 获取失败: ' + e.message);
     }
+  }
+
+  async function preloadAllPages() {
+    if (!_hasMore) return;
+    var indicator = document.getElementById('load-more-indicator');
+    if (indicator) { indicator.style.display = 'block'; indicator.textContent = '正在加载...'; }
+    while (_hasMore) {
+      try {
+        var posts = await Origami.fetchPosts(_secUid, _nextCursor, 24);
+        var items = posts.items || [];
+        _nextCursor = posts.next_cursor || 0;
+        _hasMore = posts.has_more || false;
+        var oldLen = currentPosts.length;
+        currentPosts = currentPosts.concat(items);
+        appendPosts(items, oldLen);
+        if (indicator) indicator.textContent = '已加载 ' + currentPosts.length + ' 个作品' + (_hasMore ? '...' : '');
+      } catch (e) {
+        if (indicator) indicator.textContent = '加载中断: ' + e.message;
+        break;
+      }
+    }
+    if (indicator) {
+      indicator.textContent = '共 ' + currentPosts.length + ' 个作品';
+      setTimeout(function(){ indicator.style.display = 'none'; }, 3000);
+    }
+    addLog('[预加载] 完成, 共 ' + currentPosts.length + ' 个作品');
+  }
+
+  function appendPosts(posts, startIdx) {
+    var list = document.getElementById('post-list');
+    if (!list) return;
+    var typeLabels = {video:'视频',gallery:'图集',live:'实况',note:'文章',image:'图片',unknown:'?'};
+    var typeColors = {video:'rgba(0,0,0,.7)',gallery:'#818CF8',live:'#F472B6',note:'#64FFDA',image:'#64C8FF',unknown:'#888'};
+    var h = '';
+    for (var i = 0; i < posts.length; i++) {
+      var idx = startIdx + i;
+      var p = posts[i];
+      var tp = p.item_type || 'unknown';
+      var cov = p.cover_url || '';
+      var isGallery = (tp === 'gallery' || tp === 'live' || tp === 'note') && (p.images || []).length > 0;
+      h += '<div class=\"post-row\" data-pidx=\"' + idx + '\" onclick=\"togglePost(' + idx + ')\" id=\"post-row-' + idx + '\">';
+      h += '<div class=\"post-chk on\" id=\"post-chk-' + idx + '\">V</div>';
+      h += '<div class=\"post-thumb\">';
+      if (cov) h += '<img src=\"' + cov + '\" loading=\"lazy\" onerror=\"this.style.display=none\">';
+      h += '<span class=\"post-type-tag\" style=\"background:' + typeColors[tp] + '\">' + typeLabels[tp] + '</span>';
+      h += '</div>';
+      h += '<div class=\"post-info\"><div class=\"post-title\">' + escapeHtml(p.title || '(无标题)') + '</div>';
+      h += '<div class=\"post-meta\">' + (isGallery ? (p.images||[]).length + ' 张图片' : '') + '</div></div>';
+      if (isGallery) h += '<button class=\"post-expand-btn\" onclick=\"expandGallery(' + idx + ',event)\">展开</button>';
+      h += '</div>';
+      if (isGallery) {
+        var imgs = p.images || [];
+        h += '<div class=\"gallery-strip\" id=\"gallery-strip-' + idx + '\" style=\"display:none\">';
+        for (var j = 0; j < imgs.length; j++) {
+          h += '<div class=\"gallery-img\" data-gidx=\"' + j + '\" data-pidx=\"' + idx + '\" onclick=\"toggleGalleryImg(' + idx + ',' + j + ',event)\">';
+          h += '<img src=\"' + imgs[j] + '\" loading=\"lazy\" onerror=\"this.parentElement.style.display=none\">';
+          h += '<div class=\"gallery-chk\">V</div>';
+          h += '</div>';
+        }
+        h += '</div>';
+      }
+      // Auto-select
+      postSelected.add(idx);
+      if ((p.images || []).length > 0) {
+        galleryImgSelected[idx] = new Set(p.images.map(function(_, j) { return j; }));
+      }
+    }
+    list.insertAdjacentHTML('beforeend', h);
+    // Update count in title
+    var countEl = document.querySelector('.post-list + div') || document.querySelector('#post-list').previousElementSibling;
+    updatePostBtn();
   }
 
   var galleryImgSelected = {};  // {postIdx: Set of image indices}
@@ -520,7 +601,6 @@
     h += '<span style=\"font-size:13px;font-weight:600\">' + posts.length + ' 个作品</span>';
     h += '<span style=\"flex:1\"></span>';
     h += '<button class=\"btn btn-ghost\" style=\"padding:2px 10px;font-size:11px;\" onclick=\"toggleAllPosts()\">全不选</button>';
-    h += '<button class=\"btn btn-primary\" style=\"padding:2px 14px;font-size:11px;margin-left:6px;\" id=\"btn-dl-selected\" onclick=\"startBatchDownload()\">下载选中</button>';
     h += '</div><div class=\"post-list\" id=\"post-list\">';
 
     for (var i = 0; i < posts.length; i++) {
@@ -560,8 +640,12 @@
       }
     }
     h += '</div>';
+    h += '<div id=\"load-more-indicator\" style=\"text-align:center;padding:12px;color:var(--text-disabled);font-size:11px;display:none\">加载中...</div>';
 
     previewArea.innerHTML = h;
+    // 主页模式：作者卡片下载按钮改为批量下载
+    var dlBtn = document.getElementById('btn-download');
+    if (dlBtn) { dlBtn.textContent = '下载选中'; dlBtn.onclick = startBatchDownload; }
     postSelected = new Set(posts.map(function(_, i) { return i; }));
     galleryImgSelected = {};
     // Initialize gallery image selections (all selected)
@@ -571,6 +655,11 @@
       }
     }
     updatePostBtn();
+    var ind = document.getElementById('load-more-indicator');
+    if (ind) {
+      ind.style.display = _hasMore ? 'block' : 'none';
+      ind.textContent = '下拉加载更多...';
+    }
   }
 
   window.toggleAllPosts = function() {
@@ -658,18 +747,16 @@
   };
 
   function updatePostBtn() {
-    var btn = document.getElementById('btn-dl-selected');
+    var btn = document.getElementById('btn-download');
     if (!btn) return;
-    // Count total selected items (posts + individual gallery images)
     var count = postSelected.size;
     for (var key in galleryImgSelected) {
       var pi = parseInt(key);
       if (postSelected.has(pi) && galleryImgSelected[key]) {
-        count += galleryImgSelected[key].size - 1; // post already counted, add extra images
+        count += galleryImgSelected[key].size - 1;
       }
     }
     btn.textContent = count === 0 ? '下载选中' : '下载选中 (' + count + ')';
-    // Update toggle all button
     var tb = document.querySelector('button[onclick=\"toggleAllPosts()\"]');
     if (tb) tb.textContent = postSelected.size === currentPosts.length ? '全不选' : '全选';
   }
@@ -694,7 +781,7 @@
     }
 
     addLog('[下载] 批量下载 ' + tasks.length + ' 个作品...');
-    var btn = document.getElementById('btn-dl-selected');
+    var btn = document.getElementById('btn-download');
     if (btn) { btn.disabled = true; btn.textContent = '下载中...'; }
     progressBar.classList.add('show');
     var done = 0, total = tasks.length;

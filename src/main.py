@@ -48,7 +48,8 @@ def _pick_img(urls, fmt=None):
 
 def cmd_server(args: list[str]):
     from src.server import run_server
-    port = 0
+    from src.environ import API_PORT
+    port = API_PORT
     for i, a in enumerate(args):
         if a == "--port" and i + 1 < len(args):
             port = int(args[i + 1])
@@ -68,12 +69,13 @@ def cmd_cli(args: list[str]):
 
     # 解析参数
     mode = args[0] if args[0] in KNOWN_MODES else ""; url = ""; count = 0; save_dir = ""
-    include_long = False; duration = 0; threads = 20
+    include_long = False; duration = 0; threads = 20; page_filter = ""
     i = 1 if mode else 0
     while i < len(args):
         if args[i] == "--count" and i+1 < len(args): count = int(args[i+1]); i += 2
         elif args[i] == "--dir" and i+1 < len(args): save_dir = args[i+1]; i += 2
         elif args[i] == "--output" and i+1 < len(args): save_dir = args[i+1]; i += 2
+        elif args[i] == "--pages" and i+1 < len(args): page_filter = args[i+1]; i += 2
         elif args[i] == "--duration" and i+1 < len(args): duration = int(args[i+1]); i += 2
         elif args[i] == "--image-format" and i+1 < len(args):
             fmt = args[i+1].lower().lstrip('.')
@@ -117,7 +119,7 @@ def cmd_cli(args: list[str]):
             mode = "single"  # 兜底当单作品
         print(f"[*] 自动识别: {mode}")
 
-    if mode == "single": _cli_single(url, save_dir, args)
+    if mode == "single": _cli_single(url, save_dir, args, page_filter)
     elif mode == "batch": _cli_batch(url, count, save_dir, include_long)
     elif mode == "like": _cli_like(url, count, save_dir, include_long)
     elif mode == "collection": _cli_collection(url, count, save_dir, include_long)
@@ -129,7 +131,50 @@ def cmd_cli(args: list[str]):
 
 # ══════════ CLI — 单作品 ══════════
 
-def _cli_single(url: str, save_dir: str = "", args: list = None):
+
+def _download_bili_pages(bvid: str, pages: list, post_dir, dl_headers: dict, page_filter: str = ""):
+    """下载 B站多集视频的所有分集"""
+    import requests as _r, re
+    from src.platforms.bilibili import BILIBILI_UA
+    from src.downloader import download_file
+
+    h = {"User-Agent": BILIBILI_UA, "Referer": "https://www.bilibili.com/"}
+    # 解析 --pages 参数 (如 "1,3,5" 或 "1-10")
+    page_set = None
+    if page_filter:
+        page_set = set()
+        for part in page_filter.split(","):
+            part = part.strip()
+            if "-" in part:
+                a, b = part.split("-", 1)
+                page_set.update(range(int(a), int(b)+1))
+            else:
+                page_set.add(int(part))
+
+    done = 0
+    for p in pages:
+        idx = p["page"]
+        if page_set and idx not in page_set: continue
+        cid = p["cid"]; part = p.get("part", f"P{idx}")
+        safe = re.sub(r'[\\/:*?"<>|]', "_", f"P{idx:03d} {part}")
+        fpath = post_dir / f"{safe}.mp4"
+        if fpath.exists():
+            done += 1; continue
+
+        # 获取视频流
+        r2 = _r.get(
+            f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&qn=80&fnval=1&fourk=1",
+            headers=h, timeout=15)
+        play = r2.json().get("data", {}) or {}
+        durl = play.get("durl") or []
+        if durl:
+            ok = download_file(durl[0]["url"], fpath, headers=dl_headers)
+            if ok: done += 1
+        print(f"[{done}/{len(pages)}] P{idx:03d} {part[:40]}")
+    print(f"[DONE] {done}/{len(pages)} 集  -> {_s(str(post_dir))}")
+
+
+def _cli_single(url: str, save_dir: str = "", args: list = None, page_filter: str = ""):
     from pathlib import Path
     from src.downloader import download_file
     from src.utils import clean_name, guess_img_ext
@@ -160,12 +205,6 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
 
     print("[*] 获取作品数据...")
     media = adapter.fetch_media(item_id)
-    tag = {"video":"[视频]","image":"[图片]","gallery":f"[图集 x{len(media.media_urls)}]","note":"[文章]"}.get(media.item_type,"[?]")
-    print(f"[OK] {_s(media.title, 40)}  by {_s(media.author)}")
-    print(f"     {tag}")
-    if img_filter:
-        print(f"     筛选: {len(img_filter)}/{len(media.media_urls)} 张")
-
     safe_author = clean_name(media.author, 20)
     safe_title = clean_name(media.title or item_id, 40)
     post_dir = out / f"{safe_author}（{safe_title}）"
@@ -177,37 +216,79 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
         dl_headers = {"Referer": "https://www.bilibili.com/",
                       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
+    # B站多集检测
+    if plat == "bilibili":
+        import requests as _r
+        from src.platforms.bilibili import BILIBILI_UA
+        try:
+            r_view = _r.get(f"https://api.bilibili.com/x/web-interface/view?bvid={item_id}",
+                           headers={"User-Agent": BILIBILI_UA, "Referer": "https://www.bilibili.com/"},
+                           timeout=10)
+            pages = r_view.json().get("data", {}).get("pages", [])
+        except Exception:
+            pages = []
+        if len(pages) > 1:
+            print(f"[OK] {_s(media.title, 40)} by {_s(media.author)}")
+            print(f"     [多集] 共 {len(pages)} 集")
+            _download_bili_pages(item_id, pages, post_dir, dl_headers, page_filter)
+            return
+
+    tag = {"video":"[视频]","image":"[图片]","gallery":f"[图集 x{len(media.media_urls)}]","note":"[文章]"}.get(media.item_type,"[?]")
+    print(f"[OK] {_s(media.title, 40)}  by {_s(media.author)}")
+    print(f"     {tag}")
+    if img_filter:
+        print(f"     筛选: {len(img_filter)}/{len(media.media_urls)} 张")
+
     if media.item_type == "note":
         (post_dir / "article.txt").write_text(media.text_content or media.title, encoding="utf-8")
         print(f"[OK] 文章已保存: {_s(str(post_dir / 'article.txt'))}")
         print(f"     字数: {len(media.text_content)}")
     elif plat == "bilibili":
-        # B站：单文件 (durl) 或 DASH (视频+音频分离)
-        urls = media.media_urls
-        if len(urls) == 1:
+        # B站 CDN URL 有时效，下载前检查/刷新
+        from src.platforms.bilibili import BILIBILI_UA
+        play_data = media.extra.get("play", {}) or {}
+        cid = media.extra.get("cid", 0)
+        durl = play_data.get("durl") or []
+        dash = play_data.get("dash", {}) or {}
+
+        if not durl and not dash.get("video"):
+            # URL 过期，重新请求 playurl
+            import requests as _r
+            r_play = _r.get(
+                f"https://api.bilibili.com/x/player/playurl?bvid={item_id}&cid={cid}&qn=80&fnval=1&fourk=1",
+                headers={"User-Agent": BILIBILI_UA, "Referer": "https://www.bilibili.com/"},
+                timeout=15)
+            play_data = r_play.json().get("data", {}) or {}
+            durl = play_data.get("durl") or []
+            dash = play_data.get("dash", {}) or {}
+
+        if durl:
+            url = durl[0].get("url", "")
             fpath = post_dir / f"{safe_title}.mp4"
-            print(f"[*] 下载: {safe_title}.mp4")
-            ok = download_file(urls[0], fpath, headers=dl_headers)
+            print(f"[*] Download: {safe_title}.mp4")
+            ok = download_file(url, fpath, headers=dl_headers)
             print(f"[{'OK' if ok else 'FAIL'}] {_s(str(fpath))}")
-        else:
-            # DASH 分离流
+        elif dash.get("video"):
+            v_urls = [v.get("base_url") or v.get("baseUrl", "") for v in dash["video"]]
+            a_urls = [a.get("base_url") or a.get("baseUrl", "") for a in dash.get("audio", [])]
             v_path = post_dir / f"{safe_title}_video.m4s"
             a_path = post_dir / f"{safe_title}_audio.m4s"
             out_path = post_dir / f"{safe_title}.mp4"
             ok_v = ok_a = False
-            print(f"[*] 视频流: {_s(str(v_path))}")
-            ok_v = download_file(urls[0], v_path, headers=dl_headers)
-            print(f"    {'OK' if ok_v else 'FAIL'}")
-            if len(urls) > 1:
-                print(f"[*] 音频流: {_s(str(a_path))}")
-                ok_a = download_file(urls[1], a_path, headers=dl_headers)
+            print(f"[*] Video: {_s(str(v_path))}")
+            if v_urls:
+                ok_v = download_file(v_urls[0], v_path, headers=dl_headers)
+                print(f"    {'OK' if ok_v else 'FAIL'}")
+            if a_urls:
+                print(f"[*] Audio: {_s(str(a_path))}")
+                ok_a = download_file(a_urls[0], a_path, headers=dl_headers)
                 print(f"    {'OK' if ok_a else 'FAIL'}")
             if ok_v:
-                print(f"[*] 合并音视频...")
+                print(f"[*] Merging...")
                 try:
                     from moviepy import VideoFileClip, AudioFileClip
                     video = VideoFileClip(str(v_path))
-                    if len(urls) > 1 and ok_a:
+                    if ok_a:
                         audio = AudioFileClip(str(a_path))
                         video = video.with_audio(audio)
                     video.write_videofile(str(out_path), logger=None)
@@ -218,13 +299,16 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
                     try: a_path.unlink()
                     except: pass
                 except ImportError:
-                    print(f"[提示] 需要安装 moviepy 来合并音视频: pip install moviepy")
-                    print(f"       视频/音频文件已保存在: {_s(str(post_dir))}")
+                    print(f"[Tip] pip install moviepy to merge")
+                    print(f"      Files saved to: {_s(str(post_dir))}")
+
     else:
         selected = list(enumerate(media.media_urls))
         if img_filter: selected = [(i,u) for i,u in selected if i in img_filter]
         aweme = media.extra.get("aweme", {})
         images = aweme.get("images") or []
+        # 构建下载任务列表
+        tasks = []
         for idx, (i, murl) in enumerate(selected):
             ext = ".mp4" if media.item_type == "video" else guess_img_ext(murl)
             label = f"{i+1:02d}" if len(selected) > 9 else str(i+1)
@@ -233,21 +317,26 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
             live_tag = "_实况" if is_live else ""
             fname = f"{label}{live_tag}{ext}"
             fpath = post_dir / fname
-            print(f"[*] 下载 {idx+1}/{len(selected)}: {fname}...")
-            ok = download_file(murl, fpath)
-            print(f"[{'OK' if ok else 'FAIL'}] {_s(str(fpath))}")
+            tasks.append((murl, fpath))
             if is_live:
                 lv = img_data.get("video") or {}
                 live_url = next((u for url_lst in (
                     lv.get("play_addr",{}).get("url_list",[]),
                     lv.get("play_addr_h264",{}).get("url_list",[]),
-                    lv.get("download_addr",{}).get("url_list",[]),
                 ) for u in (url_lst or [])), None)
                 if live_url:
                     lpath = post_dir / f"{label}{live_tag}.mp4"
-                    print(f"[*] 实况视频: {label}{live_tag}.mp4...")
-                    lok = download_file(live_url, lpath)
-                    print(f"[{'OK' if lok else 'FAIL'}] {_s(str(lpath))}")
+                    tasks.append((live_url, lpath))
+        # 多线程并发下载
+        print(f"[*] Downloading {len(tasks)} files ({_THREADS} threads)...")
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        ok = fail = 0
+        with ThreadPoolExecutor(max_workers=_THREADS) as pool:
+            futures = {pool.submit(download_file, url, path): (url, path) for url, path in tasks}
+            for f in as_completed(futures):
+                if f.result(): ok += 1
+                else: fail += 1
+        print(f"[DONE] {ok} OK, {fail} FAIL")
         (post_dir / "desc.txt").write_text(media.title or item_id, encoding="utf-8")
 
     print(f"[DONE] 保存到: {_s(str(post_dir))}")
