@@ -281,6 +281,10 @@ class MainWindow(QMainWindow):
             clip = QApplication.clipboard().text()
             if not clip:
                 return
+            # 内容没变就不重复处理（序列号可能因其他应用复制而递增）
+            if clip == self._last_clipboard:
+                return
+            self._last_clipboard = clip
 
             # 过滤：含多行日志标记（[检测] [解析] 等）说明是从日志区复制的，跳过
             if clip.count('\n') >= 1 and clip.lstrip().startswith('['):
