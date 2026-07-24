@@ -96,9 +96,6 @@ def cmd_cli(args: list[str]):
     platform = _detect_platform(url)
     if not platform:
         return print(f"[ERROR] 未识别的平台链接: {_s(url, 60)}")
-    if platform != "douyin":
-        return print(f"[提示] {platform} 平台适配器尚未实现，仅支持抖音")
-
     # 自动识别链接类型
     if not mode:
         # 短链 → 302 展开
@@ -134,7 +131,6 @@ def cmd_cli(args: list[str]):
 
 def _cli_single(url: str, save_dir: str = "", args: list = None):
     from pathlib import Path
-    from src.platforms.douyin import DouyinAdapter
     from src.downloader import download_file
     from src.utils import clean_name, guess_img_ext
     from src.environ import OUTPUT_SINGLE
@@ -148,19 +144,17 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
     out = Path(save_dir) if save_dir else OUTPUT_SINGLE
     out.mkdir(parents=True, exist_ok=True)
 
-    print(f"[*] 解析链接: {_s(url, 60)}...")
-    adapter = DouyinAdapter()
-    # 尝试常规解析，失败则从 URL 参数提取
-    item_id = ""
-    try: item_id = adapter.resolve_url(url)
-    except Exception:
-        # 从 modal_id / video_id 参数提取
-        for key in ("modal_id", "video_id", "aweme_id", "item_id"):
-            m = re.search(rf'[?&]{key}=(\d+)', url)
-            if m: item_id = m.group(1); break
-    if not item_id:
-        return print(f"[ERROR] 无法解析链接: {_s(url, 60)}")
-    print(f"[OK] 视频ID: {item_id}")
+    plat = _detect_platform(url)
+    if plat == "bilibili":
+        from src.platforms.bilibili import BilibiliAdapter
+        adapter = BilibiliAdapter()
+    else:
+        from src.platforms.douyin import DouyinAdapter
+        adapter = DouyinAdapter()
+
+    print(f"[*] 解析链接 ({adapter.platform_name}): {_s(url, 60)}...")
+    item_id = adapter.resolve_url(url)
+    print(f"[OK] ID: {item_id}")
 
     print("[*] 获取作品数据...")
     media = adapter.fetch_media(item_id)
@@ -175,10 +169,55 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
     post_dir = out / f"{safe_author}（{safe_title}）"
     post_dir.mkdir(parents=True, exist_ok=True)
 
+    # B站下载需要 Referer
+    dl_headers = {}
+    if plat == "bilibili":
+        dl_headers = {"Referer": "https://www.bilibili.com/",
+                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
     if media.item_type == "note":
         (post_dir / "article.txt").write_text(media.text_content or media.title, encoding="utf-8")
         print(f"[OK] 文章已保存: {_s(str(post_dir / 'article.txt'))}")
         print(f"     字数: {len(media.text_content)}")
+    elif plat == "bilibili":
+        # B站：单文件 (durl) 或 DASH (视频+音频分离)
+        urls = media.media_urls
+        if len(urls) == 1:
+            fpath = post_dir / f"{safe_title}.mp4"
+            print(f"[*] 下载: {safe_title}.mp4")
+            ok = download_file(urls[0], fpath, headers=dl_headers)
+            print(f"[{'OK' if ok else 'FAIL'}] {_s(str(fpath))}")
+        else:
+            # DASH 分离流
+            v_path = post_dir / f"{safe_title}_video.m4s"
+            a_path = post_dir / f"{safe_title}_audio.m4s"
+            out_path = post_dir / f"{safe_title}.mp4"
+            ok_v = ok_a = False
+            print(f"[*] 视频流: {_s(str(v_path))}")
+            ok_v = download_file(urls[0], v_path, headers=dl_headers)
+            print(f"    {'OK' if ok_v else 'FAIL'}")
+            if len(urls) > 1:
+                print(f"[*] 音频流: {_s(str(a_path))}")
+                ok_a = download_file(urls[1], a_path, headers=dl_headers)
+                print(f"    {'OK' if ok_a else 'FAIL'}")
+            if ok_v:
+                print(f"[*] 合并音视频...")
+                try:
+                    from moviepy import VideoFileClip, AudioFileClip
+                    video = VideoFileClip(str(v_path))
+                    if len(urls) > 1 and ok_a:
+                        audio = AudioFileClip(str(a_path))
+                        video = video.with_audio(audio)
+                    video.write_videofile(str(out_path), logger=None)
+                    video.close()
+                    print(f"[OK] {_s(str(out_path))}")
+                    try: v_path.unlink()
+                    except: pass
+                    try: a_path.unlink()
+                    except: pass
+                except ImportError:
+                    print(f"[提示] 需要安装 moviepy 来合并音视频: pip install moviepy")
+                    print(f"       视频/音频文件已保存在: {_s(str(post_dir))}")
     else:
         selected = list(enumerate(media.media_urls))
         if img_filter: selected = [(i,u) for i,u in selected if i in img_filter]
