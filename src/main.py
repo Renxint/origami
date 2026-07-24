@@ -133,7 +133,7 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
     from pathlib import Path
     from src.downloader import download_file
     from src.utils import clean_name, guess_img_ext
-    from src.environ import OUTPUT_SINGLE
+    from src.environ import OUTPUT_SINGLE, OUTPUT_BASE
 
     img_filter = None
     if args:
@@ -141,10 +141,12 @@ def _cli_single(url: str, save_dir: str = "", args: list = None):
             if a == "--images" and j+1 < len(args):
                 img_filter = _parse_image_range(args[j+1]); break
 
-    out = Path(save_dir) if save_dir else OUTPUT_SINGLE
+    plat = _detect_platform(url)
+
+    out = Path(save_dir) if save_dir else (
+        OUTPUT_BASE / "B站" / "单视频" if plat == "bilibili" else OUTPUT_SINGLE)
     out.mkdir(parents=True, exist_ok=True)
 
-    plat = _detect_platform(url)
     if plat == "bilibili":
         from src.platforms.bilibili import BilibiliAdapter
         adapter = BilibiliAdapter()
