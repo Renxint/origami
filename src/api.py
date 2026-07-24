@@ -369,40 +369,18 @@ class DouyinAPI:
 
     def get_comments(self, aweme_id: str, cursor: int = 0,
                      count: int = 20) -> Dict:
-        """获取作品评论列表（翻页）"""
+        """获取作品评论列表（iesdouyin v2 端点，不需要签名。
+
+        注意：此端点不返回评论中的图片/表情包。
+        如需图片数据，需要为 www.douyin.com 端点生成 a_bogus 签名。
+        """
         params = {
             "aweme_id": aweme_id,
             "cursor": str(cursor),
             "count": str(count),
-            "device_platform": "webapp",
-            "aid": "6383",
-            "version_code": "290100",
-            "version_name": "29.1.0",
-            "cookie_enabled": "true",
-            "screen_width": "2560",
-            "screen_height": "1440",
-            "browser_language": "zh-CN",
-            "browser_platform": "Win32",
-            "browser_name": "Smart+Lenovo+Browser",
-            "browser_version": "9.0.8.5161",
-            "browser_online": "true",
-            "engine_name": "Blink",
-            "engine_version": "141.0.0.0",
-            "os_name": "Windows",
-            "os_version": "10",
-            "cpu_core_num": "32",
-            "device_memory": "8",
-            "platform": "PC",
-            "downlink": "10",
-            "effective_type": "4g",
-            "round_trip_time": "50",
-            "webid": WEBID,
-            "uifid": UIFID,
-            "verifyFp": VERIFY_FP,
-            "fp": FP,
         }
         query = "&".join(f"{k}={v}" for k, v in params.items())
-        url = f"https://www.douyin.com/aweme/v1/web/comment/list/?{query}"
+        url = f"https://www.iesdouyin.com/web/api/v2/comment/list/?{query}"
         try:
             resp = self.session.get(url, timeout=TIMEOUT)
             return resp.json()
