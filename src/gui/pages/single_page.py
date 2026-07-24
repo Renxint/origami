@@ -712,7 +712,10 @@ class SinglePage(QWidget):
 
     def _auto_parse(self):
         if self.thread and self.thread.isRunning():
-            return  # 正在下载中，不重复触发
+            return
+        # 评论弹窗打开时不触发重新解析
+        if hasattr(self, '_cmt_dlg') and self._cmt_dlg and self._cmt_dlg.isVisible():
+            return
         self._cached_img_list = None
         self._cached_aweme = None
         self._start()
@@ -1111,6 +1114,9 @@ class SinglePage(QWidget):
         # 防重入：有线程在跑就先取消
         if self.thread and self.thread.isRunning():
             self._cancel_download()
+        # 评论弹窗打开时不触发（避免评论加载后重复解析作品）
+        if hasattr(self, '_cmt_dlg') and self._cmt_dlg and self._cmt_dlg.isVisible():
+            return
         text = self.url_input.text().strip()
         if not text: return
         cookie = ensure_cookie(self)
