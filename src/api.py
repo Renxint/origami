@@ -369,18 +369,33 @@ class DouyinAPI:
 
     def get_comments(self, aweme_id: str, cursor: int = 0,
                      count: int = 20) -> Dict:
-        """获取作品评论列表（iesdouyin v2 端点，不需要签名。
-
-        注意：此端点不返回评论中的图片/表情包。
-        如需图片数据，需要为 www.douyin.com 端点生成 a_bogus 签名。
-        """
-        params = {
+        """获取作品评论列表（含图片/表情包，用 f2 ABogus 签名）"""
+        params_dict = {
             "aweme_id": aweme_id,
             "cursor": str(cursor),
             "count": str(count),
+            "device_platform": "webapp",
+            "aid": "6383",
+            "version_code": "170400",
+            "version_name": "17.4.0",
         }
-        query = "&".join(f"{k}={v}" for k, v in params.items())
-        url = f"https://www.iesdouyin.com/web/api/v2/comment/list/?{query}"
+        query = "&".join(f"{k}={v}" for k, v in params_dict.items())
+        # f2 ABogus 签名
+        try:
+            from f2.utils.abogus import ABogus
+            ua = self.session.headers.get("User-Agent", "")
+            ab = ABogus(user_agent=ua)
+            a_bogus = ab.generate_abogus(query)
+            # generate_abogus returns tuple; extract the full query string
+            if isinstance(a_bogus, tuple):
+                signed = a_bogus[0]
+                # signed is 'query&a_bogus=VALUE'
+                query = signed
+            else:
+                query = f"{query}&a_bogus={a_bogus}"
+        except ImportError:
+            pass
+        url = f"https://www.douyin.com/aweme/v1/web/comment/list/?{query}"
         try:
             resp = self.session.get(url, timeout=TIMEOUT)
             return resp.json()
