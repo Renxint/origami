@@ -72,6 +72,7 @@ class SingleDownloadThread(QThread):
     author_signal = pyqtSignal(dict)
     gallery_signal = pyqtSignal(list, object)
     cache_aweme = pyqtSignal(dict)
+    cache_comments = pyqtSignal(dict)  # 预热评论数据
     cookie_expired = pyqtSignal()
 
     def __init__(self, raw_text: str, save_dir: str, music: bool = False, preview_mode: bool = False):
@@ -143,6 +144,16 @@ class SingleDownloadThread(QThread):
 
             if self.preview_mode:
                 self.cache_aweme.emit(aweme)
+
+            # 预热评论数据（避免点击评论时重新加载作品）
+            if not self.preview_mode:
+                try:
+                    from src.platforms.douyin import DouyinAdapter
+                    adapter = DouyinAdapter()
+                    comments_data = adapter.fetch_comments(aweme_id, cursor=0, count=30)
+                    self.cache_comments.emit(comments_data)
+                except Exception:
+                    pass
 
             # 图集/note：已选过则跳过弹窗，否则弹出选择框
             images = aweme.get("images") or []
@@ -1149,6 +1160,7 @@ class SinglePage(QWidget):
         self.thread.author_signal.connect(self._show_author)
         self.thread.gallery_signal.connect(self._on_gallery)
         self.thread.cache_aweme.connect(lambda aw: setattr(self, '_cached_aweme', aw))
+        self.thread.cache_comments.connect(self._on_comments_cached)
         self.thread.cookie_expired.connect(self._on_cookie_expired)
         self._set_downloading(True)
         self.dl_btn.setEnabled(False)
@@ -1176,8 +1188,15 @@ class SinglePage(QWidget):
         elif action == a2:
             QApplication.clipboard().setText(p)
 
+    def _on_comments_cached(self, data):
+        """评论预热回调"""
+        self._cached_comments = data
+        # 提前渲染到内存（如果评论弹窗已打开则直接更新）
+        if hasattr(self, '_cmt_dlg') and self._cmt_dlg and self._cmt_dlg.isVisible():
+            self._apply_comments(data)
+
     def _show_comments(self):
-        """评论区弹窗"""
+        """评论区弹窗（优先使用预加载的缓存）"""
         aweme_id = getattr(self, '_current_aweme_id', '')
         if not aweme_id:
             return
@@ -1217,13 +1236,19 @@ class SinglePage(QWidget):
         self._cmt_scroll.setWidget(self._cmt_widget)
         layout.addWidget(self._cmt_scroll, 1)
 
-        def _fetch():
-            from src.platforms.douyin import DouyinAdapter
-            adapter = DouyinAdapter()
-            data = adapter.fetch_comments(aweme_id, cursor=0, count=30)
-            self._comments_ready.emit(data)
+        cached = getattr(self, '_cached_comments', None)
+        if cached:
+            # 有缓存，直接渲染
+            self._comments_ready.emit(cached)
+        else:
+            # 无缓存，后台拉取
+            def _fetch():
+                from src.platforms.douyin import DouyinAdapter
+                adapter = DouyinAdapter()
+                data = adapter.fetch_comments(aweme_id, cursor=0, count=30)
+                self._comments_ready.emit(data)
+            threading.Thread(target=_fetch, daemon=True).start()
 
-        threading.Thread(target=_fetch, daemon=True).start()
         dlg.exec()
 
     def _apply_comments(self, data: dict):
