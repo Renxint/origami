@@ -1230,14 +1230,14 @@ class SinglePage(QWidget):
         # 图片弹窗打开时不更新评论弹窗，避免置顶
         if getattr(self, '_media_dlg_open', False):
             return
-        self._cmt_loading.setText(f"共 {len(data.get('comments',[]))} 条评论")
+        self._cmt_loading.setText(f"共 {len(data.get('comments') or [])} 条评论")
         self._cmt_dl_btn.setEnabled(True)
         self._cmt_loading.hide()
 
         if isinstance(data, list):
             comments = data
         elif isinstance(data, dict):
-            comments = data.get("comments", [])
+            comments = data.get("comments") or []
         else:
             comments = []
         self._all_comments = comments
