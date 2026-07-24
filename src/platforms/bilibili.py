@@ -167,36 +167,47 @@ class BilibiliAdapter(PlatformAdapter):
         author_id = str(d.get("owner", {}).get("mid", ""))
         cover_url = d.get("pic", "")
 
-        # 视频流 (优先 durl 单文件，其次 dash 音视频分离)
-        stream_params = {
-            "bvid": item_id, "cid": str(cid), "qn": "80",
-            "fnval": "1", "fourk": "1",
-        }
-        r2 = _r.get("https://api.bilibili.com/x/player/playurl",
-                    params=stream_params, headers=headers, timeout=15)
-        play = r2.json().get("data", {}) or {}
+        # 视频流 — 画质优先：从高到低遍历，同 qn 优先 durl（单文件省事）
+        # 检查实际返回画质不低于请求画质，防止 B站降级
+        QN_ORDER = [127, 126, 125, 120, 116, 112, 80, 64, 32]
         media_urls = []
+        play = None
+        for qn in QN_ORDER:
+            qn_s = str(qn)
+            # 先试 durl（单文件），再试 DASH（音视频分离）
+            for fnval in ("1", "4048"):
+                stream_params = {
+                    "bvid": item_id, "cid": str(cid), "qn": qn_s,
+                    "fnval": fnval, "fourk": "1",
+                }
+                r2 = _r.get("https://api.bilibili.com/x/player/playurl",
+                            params=stream_params, headers=headers, timeout=15)
+                p = r2.json().get("data", {}) or {}
+                actual_qn = p.get("quality", 0)
+                if actual_qn < qn:
+                    continue  # 画质被降级，跳过
+                dash = p.get("dash", {}) or {}
+                durl = p.get("durl") or []
 
-        durl = play.get("durl") or []
-        if durl:
-            # 有单文件流 → 选最高画质
-            for du in durl:
-                url = du.get("url", "")
-                if url:
-                    media_urls.append(url)
-        else:
-            # DASH → 选最高画质视频 + 最高码率音频
-            dash = play.get("dash", {}) or {}
-            videos = sorted(dash.get("video") or [], key=lambda v: v.get("bandwidth", 0), reverse=True)
-            audios = sorted(dash.get("audio") or [], key=lambda a: a.get("bandwidth", 0), reverse=True)
-            for v in videos[:1]:
-                url = v.get("base_url") or v.get("baseUrl", "")
-                if url:
-                    media_urls.append(url)
-            for a in audios[:1]:
-                url = a.get("base_url") or a.get("baseUrl", "")
-                if url:
-                    media_urls.append(url)
+                if durl:
+                    play = p
+                    for du in durl:
+                        url = du.get("url", "")
+                        if url: media_urls.append(url)
+                    break
+                elif dash.get("video"):
+                    play = p
+                    videos = sorted(dash["video"], key=lambda v: v.get("bandwidth", 0), reverse=True)
+                    audios = sorted(dash.get("audio") or [], key=lambda a: a.get("bandwidth", 0), reverse=True)
+                    for v in videos[:1]:
+                        url = v.get("base_url") or v.get("baseUrl", "")
+                        if url: media_urls.append(url)
+                    for a in audios[:1]:
+                        url = a.get("base_url") or a.get("baseUrl", "")
+                        if url: media_urls.append(url)
+                    break
+            if media_urls:
+                break
 
         if not media_urls:
             raise RuntimeError("未提取到视频流地址")
